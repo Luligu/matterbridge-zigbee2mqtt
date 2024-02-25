@@ -1,7 +1,7 @@
 {
   "name": "matterbridge-zigbee2mqtt",
   "version": "1.0.0",
-  "description": "Matterbridge dynamic platform plugin example",
+  "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "MIT",
   "type": "module",
@@ -55,6 +55,8 @@
   },
   "dependencies": {
     "@project-chip/matter-node.js": "^0.7.5",
+    "moment": "^2.30.1",
+    "mqtt": "^5.3.5",
     "node-ansi-logger": "^1.9.1",
     "node-persist-manager": "^1.0.3"
   }

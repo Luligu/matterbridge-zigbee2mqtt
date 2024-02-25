@@ -1,4 +1,5 @@
 {
+    "ignorePatterns": ["node_modules/", "dist/"],
     "plugins": [
         "@typescript-eslint",
         "@stylistic"
