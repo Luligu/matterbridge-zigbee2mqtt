@@ -65,14 +65,15 @@ import {
 import { ClusterId, VendorId } from '@project-chip/matter-node.js/datatype';
 import { NamedHandler, extendPublicHandlerMethods } from '@project-chip/matter-node.js/util';
 import { NotImplementedError } from '@project-chip/matter.js/common';
-import { createDefaultColorControlClusterServer } from './ColorControlServer.js';
-import { hostname, platform } from 'os';
-import { AirQuality, AirQualityCluster } from './AirQualityCluster.js';
+
+import { AirQuality, AirQualityCluster, createDefaultColorControlClusterServer } from '../../matterbridge/dist/index.js';
 import {
   createDefaultPowerSourceRechargableBatteryClusterServer,
   createDefaultPowerSourceReplaceableBatteryClusterServer,
   createDefaultPowerSourceWiredClusterServer,
 } from './defaultClusterServer.js';
+
+import { hostname } from 'os';
 
 export class MatterPlatformEntity extends EventEmitter {
   protected log: AnsiLogger;

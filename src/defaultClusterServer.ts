@@ -30,7 +30,8 @@ import {
 import { ClusterServer } from '@project-chip/matter-node.js/cluster';
 import { AttributeInitialValues, ClusterServerHandlers } from '@project-chip/matter-node.js/cluster';
 import { EndpointNumber, VendorId } from '@project-chip/matter.js/datatype';
-import { AirQuality, AirQualityCluster } from './AirQualityCluster.js';
+import { AirQuality, AirQualityCluster } from '../../matterbridge/dist/index.js';
+import { TlvObject } from '@project-chip/matter-node.js/tlv';
 
 export const createDefaultIdentifyClusterServer = () =>
   ClusterServer(
