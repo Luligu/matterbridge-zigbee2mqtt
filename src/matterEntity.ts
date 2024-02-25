@@ -964,11 +964,6 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
       );
       this.addClusterServer(airQualityCluster);
     }
-    /*
-    if (includeServerList.includes(EveHistory.Cluster.id) && this.history) {
-      this.addClusterServer(this.history.createDefaultEveHistoryClusterServer());
-    }
-    */
   }
 
   /**
@@ -1018,7 +1013,6 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
 }
 
 // Custom device types
-
 const onOffSwitch = DeviceTypeDefinition({
   name: 'MA-onoffswitch',
   code: 0x0103,
@@ -1027,6 +1021,7 @@ const onOffSwitch = DeviceTypeDefinition({
   requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id],
   optionalServerClusters: [LevelControl.Cluster.id],
 });
+
 const dimmableSwitch = DeviceTypeDefinition({
   name: 'MA-dimmableswitch',
   code: 0x0104,
@@ -1035,6 +1030,7 @@ const dimmableSwitch = DeviceTypeDefinition({
   requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id],
   optionalServerClusters: [],
 });
+
 const colorTemperatureSwitch = DeviceTypeDefinition({
   name: 'MA-colortemperatureswitch',
   code: 0x0105,
@@ -1043,6 +1039,7 @@ const colorTemperatureSwitch = DeviceTypeDefinition({
   requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id, ColorControl.Cluster.id],
   optionalServerClusters: [],
 });
+
 const airQualitySensor = DeviceTypeDefinition({
   name: 'MA-airqualitysensor',
   code: 0x002c,
