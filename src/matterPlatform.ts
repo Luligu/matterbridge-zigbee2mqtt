@@ -8,8 +8,7 @@ import EventEmitter from 'events';
 import { Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform } from '../../matterbridge/dist/index.js';
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
-
-  // platform  
+  // platform
   private bridgedDevices: BridgedBaseDevice[] = [];
   private bridgedEntities: MatterPlatformEntity[] = [];
   private whiteList: string[] = [];
@@ -18,7 +17,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // zigbee2Mqtt
   public z2m: Zigbee2MQTT;
   public z2mStarted = false;
-  public z2mDevicesRegistered = false; 
+  public z2mDevicesRegistered = false;
   public z2mGroupsRegistered = false;
   private z2mBridgeInfo: BridgeInfo | undefined;
   private z2mBridgeDevices: BridgeDevice[] | undefined;
@@ -61,8 +60,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       //Logger.defaultLogLevel = Level.INFO;
       this.z2mBridgeDevices = devices;
       this.log.debug(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
-      if (this.z2mDevicesRegistered)
-        return;
+      if (this.z2mDevicesRegistered) return;
       Object.entries(devices).forEach(([key, device], index) => {
         this.registerZigbeeDevice(device);
       });
@@ -74,8 +72,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       //Logger.defaultLogLevel = Level.INFO;
       this.z2mBridgeGroups = groups;
       this.log.debug(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
-      if (this.z2mGroupsRegistered)
-        return;
+      if (this.z2mGroupsRegistered) return;
       Object.entries(groups).forEach(([key, group], index) => {
         this.registerZigbeeGroup(group);
       });
@@ -90,11 +87,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   public validateWhiteBlackList(entityName: string) {
-    if (this.whiteList.length > 0 && !this.whiteList.find(name => name === entityName)) {
+    if (this.whiteList.length > 0 && !this.whiteList.find((name) => name === entityName)) {
       this.log.warn(`Skipping ${dn}${entityName}${wr} because not in whitelist`);
       return false;
     }
-    if (this.blackList.length > 0 && this.blackList.find(name => name === entityName)) {
+    if (this.blackList.length > 0 && this.blackList.find((name) => name === entityName)) {
       this.log.warn(`Skipping ${dn}${entityName}${wr} because in blacklist`);
       return false;
     }
@@ -112,9 +109,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.bridgedDevices.push(matterDevice.bridgedDevice);
       this.bridgedEntities.push(matterDevice);
       this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
-    }
-    else
-      this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
+    } else this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
   }
 
   public registerZigbeeGroup(group: BridgeGroup) {
@@ -128,9 +123,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.bridgedDevices.push(matterGroup.bridgedDevice);
       this.bridgedEntities.push(matterGroup);
       this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
-    }
-    else
-      this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
+    } else this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
   }
 
   public unregisterAll() {

@@ -4,7 +4,29 @@
 import { NotImplementedError } from '@project-chip/matter.js/common';
 import { WrapCommandHandler } from '@project-chip/matter-node.js/device';
 import { NamedHandler } from '@project-chip/matter-node.js/util';
-import { BasicInformationCluster, BooleanStateCluster, BridgedDeviceBasicInformationCluster, ColorControl, ColorControlCluster, Identify, IdentifyCluster, IlluminanceMeasurementCluster, LevelControlDefaultClusterHandler, OccupancySensing, OccupancySensingCluster, PowerSource, PowerSourceCluster, PowerSourceConfigurationCluster, PressureMeasurementCluster, RelativeHumidityMeasurementCluster, TemperatureMeasurementCluster, ThreadNetworkDiagnostics, ThreadNetworkDiagnosticsCluster, WindowCovering, WindowCoveringCluster } from '@project-chip/matter-node.js/cluster';
+import {
+  BasicInformationCluster,
+  BooleanStateCluster,
+  BridgedDeviceBasicInformationCluster,
+  ColorControl,
+  ColorControlCluster,
+  Identify,
+  IdentifyCluster,
+  IlluminanceMeasurementCluster,
+  LevelControlDefaultClusterHandler,
+  OccupancySensing,
+  OccupancySensingCluster,
+  PowerSource,
+  PowerSourceCluster,
+  PowerSourceConfigurationCluster,
+  PressureMeasurementCluster,
+  RelativeHumidityMeasurementCluster,
+  TemperatureMeasurementCluster,
+  ThreadNetworkDiagnostics,
+  ThreadNetworkDiagnosticsCluster,
+  WindowCovering,
+  WindowCoveringCluster,
+} from '@project-chip/matter-node.js/cluster';
 import { ClusterServer } from '@project-chip/matter-node.js/cluster';
 import { AttributeInitialValues, ClusterServerHandlers } from '@project-chip/matter-node.js/cluster';
 import { EndpointNumber, VendorId } from '@project-chip/matter.js/datatype';
@@ -18,10 +40,10 @@ export const createDefaultIdentifyClusterServer = () =>
       identifyType: Identify.IdentifyType.None,
     },
     {
-      identify: async data => {
+      identify: async (data) => {
         console.log('Identify');
       },
-    }
+    },
   );
 
 export const createDefaultBridgedDeviceBasicInformationClusterServer = (deviceName: string, uniqueId: string, vendorId: number, vendorName: string, productName: string) =>
@@ -65,7 +87,7 @@ export const createDefaultBasicInformationClusterServer = (deviceName: string, u
       softwareVersionString: 'v.1.0',
       serialNumber: uniqueId,
       uniqueId: uniqueId,
-      capabilityMinima: { 'caseSessionsPerFabric': 3, 'subscriptionsPerFabric': 3 },
+      capabilityMinima: { caseSessionsPerFabric: 3, subscriptionsPerFabric: 3 },
     },
     {},
     {
@@ -73,7 +95,7 @@ export const createDefaultBasicInformationClusterServer = (deviceName: string, u
       shutDown: true,
       leave: true,
       reachableChanged: true,
-    }
+    },
   );
 
 export const createDefaultThreadNetworkDiagnosticsClusterServer = () =>
@@ -100,9 +122,9 @@ export const createDefaultThreadNetworkDiagnosticsClusterServer = () =>
       activeNetworkFaults: [],
     },
     {
-      resetCounts: async data => {
+      resetCounts: async (data) => {
         console.log('resetCounts');
-      }
+      },
     },
     {},
   );
@@ -129,32 +151,44 @@ export const createDefaultWindowCoveringClusterServer = (commandHandler?: NamedH
     WindowCoveringCluster.with(WindowCovering.Feature.Lift, WindowCovering.Feature.PositionAwareLift),
     {
       type: WindowCovering.WindowCoveringType.Shutter,
-      configStatus: { operational: true, onlineReserved: false, liftMovementReversed: false, liftPositionAware: true, tiltPositionAware: false, liftEncoderControlled: false, tiltEncoderControlled: false },
+      configStatus: {
+        operational: true,
+        onlineReserved: false,
+        liftMovementReversed: false,
+        liftPositionAware: true,
+        tiltPositionAware: false,
+        liftEncoderControlled: false,
+        tiltEncoderControlled: false,
+      },
       operationalStatus: { global: WindowCovering.MovementStatus.Stopped, lift: WindowCovering.MovementStatus.Stopped, tilt: WindowCovering.MovementStatus.Stopped },
       endProductType: WindowCovering.EndProductType.SlidingShutter,
       mode: { motorDirectionReversed: false, calibrationMode: false, maintenanceMode: false, ledFeedback: false },
       targetPositionLiftPercent100ths: positionPercent100ths ?? 0, // 0 Fully open 10000 fully closed
       currentPositionLiftPercent100ths: positionPercent100ths ?? 0, // 0 Fully open 10000 fully closed
     },
-    commandHandler ?
-      WrapCommandHandler(WindowCoveringDefaultClusterHandler(), commandHandler) :
-      {
-        upOrOpen: async data => {
-          console.log('upOrOpen');
+    commandHandler
+      ? WrapCommandHandler(WindowCoveringDefaultClusterHandler(), commandHandler)
+      : {
+          upOrOpen: async (data) => {
+            console.log('upOrOpen');
+          },
+          downOrClose: async (data) => {
+            console.log('downOrClose');
+          },
+          stopMotion: async (data) => {
+            console.log('stopMotion');
+          },
+          goToLiftPercentage: async (data) => {
+            console.log(
+              `goToLiftPercentage: ${data.request.liftPercent100thsValue} current: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()} target: ${data.attributes.targetPositionLiftPercent100ths?.getLocal()}`,
+            );
+            data.attributes.currentPositionLiftPercent100ths?.setLocal(data.request.liftPercent100thsValue);
+            data.attributes.targetPositionLiftPercent100ths?.setLocal(data.request.liftPercent100thsValue);
+            console.log(
+              `goToLiftPercentage: ${data.request.liftPercent100thsValue} current: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()} target: ${data.attributes.targetPositionLiftPercent100ths?.getLocal()}`,
+            );
+          },
         },
-        downOrClose: async data => {
-          console.log('downOrClose');
-        },
-        stopMotion: async data => {
-          console.log('stopMotion');
-        },
-        goToLiftPercentage: async data => {
-          console.log(`goToLiftPercentage: ${data.request.liftPercent100thsValue} current: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()} target: ${data.attributes.targetPositionLiftPercent100ths?.getLocal()}`);
-          data.attributes.currentPositionLiftPercent100ths?.setLocal(data.request.liftPercent100thsValue);
-          data.attributes.targetPositionLiftPercent100ths?.setLocal(data.request.liftPercent100thsValue);
-          console.log(`goToLiftPercentage: ${data.request.liftPercent100thsValue} current: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()} target: ${data.attributes.targetPositionLiftPercent100ths?.getLocal()}`);
-        }
-      },
     {},
   );
 
@@ -165,7 +199,7 @@ export const createDefaultOccupancySensingClusterServer = () =>
       occupancy: { occupied: false },
       occupancySensorType: OccupancySensing.OccupancySensorType.Pir,
       occupancySensorTypeBitmap: { pir: true, ultrasonic: false, physicalContact: false },
-      pirOccupiedToUnoccupiedDelay: 30
+      pirOccupiedToUnoccupiedDelay: 30,
     },
     {},
   );
@@ -177,7 +211,7 @@ export const createDefaultIlluminanceMeasurementClusterServer = () =>
       measuredValue: 0,
       minMeasuredValue: null,
       maxMeasuredValue: null,
-      tolerance: 0
+      tolerance: 0,
     },
     {},
     {},
@@ -190,7 +224,7 @@ export const createDefaultTemperatureMeasurementClusterServer = () =>
       measuredValue: 0,
       minMeasuredValue: null,
       maxMeasuredValue: null,
-      tolerance: 0
+      tolerance: 0,
     },
     {},
     {},
@@ -203,7 +237,7 @@ export const createDefaultRelativeHumidityMeasurementClusterServer = () =>
       measuredValue: 0,
       minMeasuredValue: null,
       maxMeasuredValue: null,
-      tolerance: 0
+      tolerance: 0,
     },
     {},
     {},
@@ -216,7 +250,7 @@ export const createDefaultPressureMeasurementClusterServer = () =>
       measuredValue: 0,
       minMeasuredValue: null,
       maxMeasuredValue: null,
-      tolerance: 0
+      tolerance: 0,
     },
     {},
     {},
@@ -226,7 +260,7 @@ export const createDefaultBooleanStateClusterServer = (contact?: boolean) =>
   ClusterServer(
     BooleanStateCluster,
     {
-      stateValue: contact ?? true // true=contact false=no_contact
+      stateValue: contact ?? true, // true=contact false=no_contact
     },
     {},
     {
@@ -234,7 +268,11 @@ export const createDefaultBooleanStateClusterServer = (contact?: boolean) =>
     },
   );
 
-export const createDefaultPowerSourceReplaceableBatteryClusterServer = (batPercentRemaining: number = 100, batChargeLevel: PowerSource.BatChargeLevel = PowerSource.BatChargeLevel.Ok, batVoltage: number = 1500) =>
+export const createDefaultPowerSourceReplaceableBatteryClusterServer = (
+  batPercentRemaining: number = 100,
+  batChargeLevel: PowerSource.BatChargeLevel = PowerSource.BatChargeLevel.Ok,
+  batVoltage: number = 1500,
+) =>
   ClusterServer(
     PowerSourceCluster.with(PowerSource.Feature.Battery, PowerSource.Feature.Replaceable),
     {
@@ -254,7 +292,11 @@ export const createDefaultPowerSourceReplaceableBatteryClusterServer = (batPerce
     {},
   );
 
-export const createDefaultPowerSourceRechargableBatteryClusterServer = (batPercentRemaining: number = 100, batChargeLevel: PowerSource.BatChargeLevel = PowerSource.BatChargeLevel.Ok, batVoltage: number = 1500) =>
+export const createDefaultPowerSourceRechargableBatteryClusterServer = (
+  batPercentRemaining: number = 100,
+  batChargeLevel: PowerSource.BatChargeLevel = PowerSource.BatChargeLevel.Ok,
+  batVoltage: number = 1500,
+) =>
   ClusterServer(
     PowerSourceCluster.with(PowerSource.Feature.Battery, PowerSource.Feature.Rechargeable),
     {
@@ -282,7 +324,7 @@ export const createDefaultPowerSourceWiredClusterServer = (wiredCurrentType: Pow
       wiredCurrentType: PowerSource.WiredCurrentType.Ac,
       description: 'AC Power',
       status: PowerSource.PowerSourceStatus.Active,
-      order: 0
+      order: 0,
     },
     {},
     {},
@@ -307,4 +349,3 @@ export const createDefaultAirQualityClusterServer = () =>
     {},
     {},
   );
-

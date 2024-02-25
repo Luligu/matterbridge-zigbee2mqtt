@@ -74,7 +74,6 @@ export function hslColorToRgbColor(hue: number, saturation: number, luminance: n
     b = hue2rgb(p, q, hue / 360 - 1 / 3);
   }
 
-
   return {
     r: Math.ceil(r * 255),
     g: Math.ceil(g * 255),
@@ -89,9 +88,9 @@ export function rgbColorToXYColor(rgb: RGB): XY {
   let b = rgb.b / 255;
 
   // Apply gamma correction
-  r = (r > 0.04045) ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
-  g = (g > 0.04045) ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
-  b = (b > 0.04045) ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+  r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+  g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+  b = b > 0.04045 ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
 
   // Scale the values to the D65 illuminant
   r = r * 100;
@@ -101,7 +100,7 @@ export function rgbColorToXYColor(rgb: RGB): XY {
   // Convert RGB to XYZ
   const X = r * 0.664511 + g * 0.154324 + b * 0.162028;
   const Y = r * 0.283881 + g * 0.668433 + b * 0.047685;
-  const Z = r * 0.000088 + g * 0.072310 + b * 0.986039;
+  const Z = r * 0.000088 + g * 0.07231 + b * 0.986039;
 
   // Normalization
   let x = X / (X + Y + Z);
@@ -123,7 +122,7 @@ export function xyColorToRgbColor(x: number, y: number, brightness = 254): RGB {
   //Convert to RGB using Wide RGB D65 conversion
   let red = X * 1.656492 - Number(Y) * 0.354851 - Z * 0.255038;
   let green = -X * 0.707196 + Number(Y) * 1.655397 + Z * 0.036152;
-  let blue = X * 0.051713 - Number(Y) * 0.121364 + Z * 1.011530;
+  let blue = X * 0.051713 - Number(Y) * 0.121364 + Z * 1.01153;
 
   //If red, green or blue is larger than 1.0 set it back to the maximum of 1.0
   if (red > blue && red > green && red > 1.0) {
@@ -141,9 +140,9 @@ export function xyColorToRgbColor(x: number, y: number, brightness = 254): RGB {
   }
 
   //Reverse gamma correction
-  red = red <= 0.0031308 ? 12.92 * red : (1.0 + 0.055) * Math.pow(red, (1.0 / 2.4)) - 0.055;
-  green = green <= 0.0031308 ? 12.92 * green : (1.0 + 0.055) * Math.pow(green, (1.0 / 2.4)) - 0.055;
-  blue = blue <= 0.0031308 ? 12.92 * blue : (1.0 + 0.055) * Math.pow(blue, (1.0 / 2.4)) - 0.055;
+  red = red <= 0.0031308 ? 12.92 * red : (1.0 + 0.055) * Math.pow(red, 1.0 / 2.4) - 0.055;
+  green = green <= 0.0031308 ? 12.92 * green : (1.0 + 0.055) * Math.pow(green, 1.0 / 2.4) - 0.055;
+  blue = blue <= 0.0031308 ? 12.92 * blue : (1.0 + 0.055) * Math.pow(blue, 1.0 / 2.4) - 0.055;
 
   //Convert normalized decimal to decimal
   red = Math.round(red * 255);
@@ -171,7 +170,8 @@ export function rgbColorToHslColor(rgb: RGB): HSL {
 
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
-  let h = 0, s = 0;
+  let h = 0,
+    s = 0;
   const l = (max + min) / 2;
 
   if (max === min) {
@@ -180,9 +180,15 @@ export function rgbColorToHslColor(rgb: RGB): HSL {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
     switch (max) {
-    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-    case g: h = (b - r) / d + 2; break;
-    case b: h = (r - g) / d + 4; break;
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      case b:
+        h = (r - g) / d + 4;
+        break;
     }
     h /= 6;
   }
@@ -222,19 +228,24 @@ export function testColors(): void {
     { name: 'Pure Green      50% 120', hsl: { h: 120, s: 50, l: 50 }, rgb: { r: 64, g: 192, b: 64 }, xy: { x: 0.2127, y: 0.6349 } },
     { name: 'Light Sea Green 50% 150', hsl: { h: 150, s: 50, l: 50 }, rgb: { r: 64, g: 192, b: 128 }, xy: { x: 0.1932, y: 0.4845 } },
     { name: 'Pure Cyan       50% 180', hsl: { h: 180, s: 50, l: 50 }, rgb: { r: 64, g: 192, b: 192 }, xy: { x: 0.1745, y: 0.3407 } },
-    { name: 'Deep Sky Blue   50% 210', hsl: { h: 210, s: 50, l: 50 }, rgb: { r: 64, g: 128, b: 192 }, xy: { x: 0.1752, y: 0.2110 } },
-    { name: 'Pure Blue       50% 240', hsl: { h: 240, s: 50, l: 50 }, rgb: { r: 64, g: 64, b: 192 }, xy: { x: 0.1758, y: 0.1020 } },
-    { name: 'Blue Violet     50% 270', hsl: { h: 270, s: 50, l: 50 }, rgb: { r: 128, g: 64, b: 192 }, xy: { x: 0.2688, y: 0.1370 } },
+    { name: 'Deep Sky Blue   50% 210', hsl: { h: 210, s: 50, l: 50 }, rgb: { r: 64, g: 128, b: 192 }, xy: { x: 0.1752, y: 0.211 } },
+    { name: 'Pure Blue       50% 240', hsl: { h: 240, s: 50, l: 50 }, rgb: { r: 64, g: 64, b: 192 }, xy: { x: 0.1758, y: 0.102 } },
+    { name: 'Blue Violet     50% 270', hsl: { h: 270, s: 50, l: 50 }, rgb: { r: 128, g: 64, b: 192 }, xy: { x: 0.2688, y: 0.137 } },
     { name: 'Pure Magenta    50% 300', hsl: { h: 300, s: 50, l: 50 }, rgb: { r: 192, g: 64, b: 192 }, xy: { x: 0.3772, y: 0.1777 } },
-    { name: 'Deep Pink       50% 330', hsl: { h: 330, s: 50, l: 50 }, rgb: { r: 192, g: 64, b: 128 }, xy: { x: 0.4890, y: 0.2416 } },
+    { name: 'Deep Pink       50% 330', hsl: { h: 330, s: 50, l: 50 }, rgb: { r: 192, g: 64, b: 128 }, xy: { x: 0.489, y: 0.2416 } },
   ];
 
-  colors.forEach(color => {
+  colors.forEach((color) => {
     // eslint-disable-next-line no-console
-    console.log(`\x1b[48;2;${color.rgb.r};${color.rgb.g};${color.rgb.b}mColor: ${color.name}\x1b[0m, hsl: { h: ${color.hsl.h}, s: ${color.hsl.s}, l: ${color.hsl.l} }, rgb: { r: ${color.rgb.r}, g: ${color.rgb.g}, b: ${color.rgb.b} }, xy: { x: ${color.xy.x}, y: ${color.xy.y} }`);
+    console.log(
+      `\x1b[48;2;${color.rgb.r};${color.rgb.g};${color.rgb.b}mColor: ${color.name}\x1b[0m, hsl: { h: ${color.hsl.h}, s: ${color.hsl.s}, l: ${color.hsl.l} }, rgb: { r: ${color.rgb.r}, g: ${color.rgb.g}, b: ${color.rgb.b} }, xy: { x: ${color.xy.x}, y: ${color.xy.y} }`,
+    );
 
     const rgb = hslColorToRgbColor(color.hsl.h, color.hsl.s, color.hsl.l);
-    assert(rgb.r === color.rgb.r && rgb.g === color.rgb.g && rgb.b === color.rgb.b, `\x1b[48;2;${rgb.r};${rgb.g};${rgb.b}mColor: ${color.name}\x1b[0m hslColorToRgbColor { r: ${rgb.r}, g: ${rgb.g}, b: ${rgb.b} } conversion error`);
+    assert(
+      rgb.r === color.rgb.r && rgb.g === color.rgb.g && rgb.b === color.rgb.b,
+      `\x1b[48;2;${rgb.r};${rgb.g};${rgb.b}mColor: ${color.name}\x1b[0m hslColorToRgbColor { r: ${rgb.r}, g: ${rgb.g}, b: ${rgb.b} } conversion error`,
+    );
 
     const hsl = rgbColorToHslColor({ r: color.rgb.r, g: color.rgb.g, b: color.rgb.b });
     assert(hsl.h === color.hsl.h && hsl.s === color.hsl.s && hsl.l === color.hsl.l, `Color: ${color.name} rgbColorToHslColor conversion error`);
@@ -243,8 +254,10 @@ export function testColors(): void {
     assert(xy.x === color.xy.x && xy.y === color.xy.y, `Color: ${color.name} rgbColorToXYColor conversion error got x ${xy.x} y ${xy.y}`);
 
     const rgb2 = xyColorToRgbColor(color.xy.x, color.xy.y);
-    assert(rgb2.r === color.rgb.r && rgb2.g === color.rgb.g && rgb2.b === color.rgb.b, `\x1b[48;2;${rgb2.r};${rgb2.g};${rgb2.b}mColor: ${color.name}\x1b[0m xyColorToRgbColor(${color.xy.x}, ${color.xy.y}) conversion error -> r: ${rgb2.r} g: ${rgb2.g} b: ${rgb2.g}`);
-
+    assert(
+      rgb2.r === color.rgb.r && rgb2.g === color.rgb.g && rgb2.b === color.rgb.b,
+      `\x1b[48;2;${rgb2.r};${rgb2.g};${rgb2.b}mColor: ${color.name}\x1b[0m xyColorToRgbColor(${color.xy.x}, ${color.xy.y}) conversion error -> r: ${rgb2.r} g: ${rgb2.g} b: ${rgb2.g}`,
+    );
   });
 }
 
@@ -267,7 +280,7 @@ export function cie_to_rgb(x: number, y: number, brightness: number = 254): RGB 
   //Convert to RGB using Wide RGB D65 conversion
   let red = X * 1.656492 - Number(Y) * 0.354851 - Z * 0.255038;
   let green = -X * 0.707196 + Number(Y) * 1.655397 + Z * 0.036152;
-  let blue = X * 0.051713 - Number(Y) * 0.121364 + Z * 1.011530;
+  let blue = X * 0.051713 - Number(Y) * 0.121364 + Z * 1.01153;
 
   //If red, green or blue is larger than 1.0 set it back to the maximum of 1.0
   if (red > blue && red > green && red > 1.0) {
@@ -285,9 +298,9 @@ export function cie_to_rgb(x: number, y: number, brightness: number = 254): RGB 
   }
 
   //Reverse gamma correction
-  red = red <= 0.0031308 ? 12.92 * red : (1.0 + 0.055) * Math.pow(red, (1.0 / 2.4)) - 0.055;
-  green = green <= 0.0031308 ? 12.92 * green : (1.0 + 0.055) * Math.pow(green, (1.0 / 2.4)) - 0.055;
-  blue = blue <= 0.0031308 ? 12.92 * blue : (1.0 + 0.055) * Math.pow(blue, (1.0 / 2.4)) - 0.055;
+  red = red <= 0.0031308 ? 12.92 * red : (1.0 + 0.055) * Math.pow(red, 1.0 / 2.4) - 0.055;
+  green = green <= 0.0031308 ? 12.92 * green : (1.0 + 0.055) * Math.pow(green, 1.0 / 2.4) - 0.055;
+  blue = blue <= 0.0031308 ? 12.92 * blue : (1.0 + 0.055) * Math.pow(blue, 1.0 / 2.4) - 0.055;
 
   //Convert normalized decimal to decimal
   red = Math.round(red * 255);
@@ -308,7 +321,6 @@ export function cie_to_rgb(x: number, y: number, brightness: number = 254): RGB 
   return { r: red, g: green, b: blue };
 }
 
-
 /**
  * Converts RGB color space to CIE color space
  * @param {Number} red
@@ -319,14 +331,14 @@ export function cie_to_rgb(x: number, y: number, brightness: number = 254): RGB 
  */
 export function rgb_to_cie(red: number, green: number, blue: number): XY {
   //Apply a gamma correction to the RGB values, which makes the color more vivid and more the like the color displayed on the screen of your device
-  red = (red > 0.04045) ? Math.pow((red + 0.055) / (1.0 + 0.055), 2.4) : (red / 12.92);
-  green = (green > 0.04045) ? Math.pow((green + 0.055) / (1.0 + 0.055), 2.4) : (green / 12.92);
-  blue = (blue > 0.04045) ? Math.pow((blue + 0.055) / (1.0 + 0.055), 2.4) : (blue / 12.92);
+  red = red > 0.04045 ? Math.pow((red + 0.055) / (1.0 + 0.055), 2.4) : red / 12.92;
+  green = green > 0.04045 ? Math.pow((green + 0.055) / (1.0 + 0.055), 2.4) : green / 12.92;
+  blue = blue > 0.04045 ? Math.pow((blue + 0.055) / (1.0 + 0.055), 2.4) : blue / 12.92;
 
   //RGB values to XYZ using the Wide RGB D65 conversion formula
   const X = red * 0.664511 + green * 0.154324 + blue * 0.162028;
   const Y = red * 0.283881 + green * 0.668433 + blue * 0.047685;
-  const Z = red * 0.000088 + green * 0.072310 + blue * 0.986039;
+  const Z = red * 0.000088 + green * 0.07231 + blue * 0.986039;
 
   //Calculate the xy values from the XYZ values
   let x = (X / (X + Y + Z)).toFixed(4);

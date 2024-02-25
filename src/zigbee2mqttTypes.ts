@@ -10,7 +10,9 @@
  *
  */
 
-export interface KeyValue { [s: string]: unknown }
+export interface KeyValue {
+  [s: string]: unknown;
+}
 
 interface DeviceOptions {
   ID?: string;
@@ -189,8 +191,11 @@ export interface BridgeInfo {
 interface DeviceEndpoint {
   bindings: { cluster: string; target: { type: string; endpoint?: number; ieee_address?: string; id?: number } }[];
   configured_reportings: {
-    cluster: string; attribute: string | number; minimum_report_interval: number;
-    maximum_report_interval: number; reportable_change: number;
+    cluster: string;
+    attribute: string | number;
+    minimum_report_interval: number;
+    maximum_report_interval: number;
+    reportable_change: number;
   }[];
   clusters: { input: string[]; output: string[] };
   scenes: { id: number; name: string }[];

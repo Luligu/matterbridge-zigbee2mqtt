@@ -17,8 +17,17 @@ import path from 'path';
 import * as util from 'util';
 import * as crypto from 'crypto';
 import {
-  connect, MqttClient, IClientOptions, connectAsync, MqttClientEventCallbacks, OnErrorCallback, ErrorWithReasonCode,
-  IConnackPacket, IDisconnectPacket, IPublishPacket, Packet,
+  connect,
+  MqttClient,
+  IClientOptions,
+  connectAsync,
+  MqttClientEventCallbacks,
+  OnErrorCallback,
+  ErrorWithReasonCode,
+  IConnackPacket,
+  IDisconnectPacket,
+  IPublishPacket,
+  Packet,
 } from 'mqtt';
 import { EventEmitter } from 'events';
 import { Logger, AnsiLogger, TimestampFormat, rs, db, dn, gn, wr, er, zb, hk, pl, nf, id, idn, ign, REVERSE, REVERSEOFF } from 'node-ansi-logger';
@@ -307,12 +316,12 @@ export class Zigbee2MQTT extends EventEmitter {
     this.log.debug('Starting...');
 
     connectAsync(this.getUrl(), this.options)
-      .then(client => {
+      .then((client) => {
         this.log.debug('Connection established');
         this.mqttClient = client;
 
         this.mqttClient.on('connect', (packet: IConnackPacket) => {
-          this.log.debug(`Event connect to ${this.getUrl()}${rs}`/*, connack*/);
+          this.log.debug(`Event connect to ${this.getUrl()}${rs}` /*, connack*/);
           this.mqttIsConnected = true;
           this.mqttIsReconnecting = false;
           this.mqttIsEnding = false;
@@ -374,7 +383,7 @@ export class Zigbee2MQTT extends EventEmitter {
         this.mqttIsEnding = false;
         this.emit('mqtt_connect');
       })
-      .catch(error => {
+      .catch((error) => {
         this.log.error(`Error connecting to ${this.getUrl()}: ${error.message}`);
       });
   }
@@ -385,7 +394,8 @@ export class Zigbee2MQTT extends EventEmitter {
     } else {
       this.mqttIsEnding = true;
       this.log.debug('Ending connection...');
-      this.mqttClient.endAsync(false)
+      this.mqttClient
+        .endAsync(false)
         .then(() => {
           this.mqttIsConnected = false;
           this.mqttIsReconnecting = false;
@@ -393,7 +403,7 @@ export class Zigbee2MQTT extends EventEmitter {
           this.mqttClient = undefined;
           this.log.debug('Connection closed');
         })
-        .catch(error => {
+        .catch((error) => {
           this.log.error(`Error closing connection: ${error.message}`);
         });
     }
@@ -403,12 +413,13 @@ export class Zigbee2MQTT extends EventEmitter {
     if (this.mqttClient && this.mqttIsConnected) {
       this.log.debug(`Subscribing topic: ${topic}`);
       // Use subscribeAsync for promise-based handling
-      this.mqttClient.subscribeAsync(topic, { qos: 2 })
+      this.mqttClient
+        .subscribeAsync(topic, { qos: 2 })
         .then(() => {
           this.log.debug(`Subscribe success on topic: ${topic}`);
           this.emit('mqtt_subscribed');
         })
-        .catch(error => {
+        .catch((error) => {
           this.log.error(`Subscribe error: ${error} on topic: ${topic}`);
         });
     } else {
@@ -417,7 +428,6 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   public async publish(topic: string, message: string, queue: boolean = false) {
-
     const startInterval = () => {
       if (this.mqttPublishQueueTimeout) {
         return;
@@ -425,18 +435,24 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`**Start publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} interval`);
       this.mqttPublishQueueTimeout = setInterval(async () => {
         if (this.mqttClient && this.mqttPublishQueue.length > 0) {
-          this.log.debug(`**Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} topic: ${this.mqttPublishQueue[0].topic} message: ${this.mqttPublishQueue[0].message}${rs}`);
+          this.log.debug(
+            `**Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} topic: ${this.mqttPublishQueue[0].topic} message: ${this.mqttPublishQueue[0].message}${rs}`,
+          );
           //this.publish(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message);
 
           try {
             this.mqttPublishInflights++;
             await this.mqttClient.publishAsync(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message, { qos: 2 });
-            this.log.debug(`***Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`);
+            this.log.debug(
+              `***Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
+            );
             this.emit('mqtt_published');
             this.mqttPublishInflights--;
           } catch (error) {
             this.mqttPublishInflights--;
-            this.log.error(`****Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`);
+            this.log.error(
+              `****Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
+            );
           }
 
           this.mqttPublishQueue.splice(0, 1);
@@ -455,7 +471,6 @@ export class Zigbee2MQTT extends EventEmitter {
     };
 
     if (this.mqttClient && this.mqttIsConnected) {
-
       if (queue) {
         startInterval();
         this.mqttPublishQueue.push({ topic: topic, message: message });
@@ -496,7 +511,7 @@ export class Zigbee2MQTT extends EventEmitter {
       .then(() => {
         this.log.debug(`Successfully wrote to ${filePath}.json`);
       })
-      .catch(error => {
+      .catch((error) => {
         this.log.error(`Error writing to ${filePath}.json:`, error);
       });
   }
@@ -509,7 +524,7 @@ export class Zigbee2MQTT extends EventEmitter {
       .then(() => {
         this.log.debug(`Successfully wrote to ${filePath}`);
       })
-      .catch(error => {
+      .catch((error) => {
         this.log.error(`Error writing to ${filePath}:`, error);
       });
   }
@@ -526,7 +541,6 @@ export class Zigbee2MQTT extends EventEmitter {
         this.emit('offline');
       }
       this.log.debug(`Message bridge/state online => ${this.z2mIsOnline}`);
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/info')) {
       const data = JSON.parse(payload.toString());
       //this.log.debug('classZigbee2MQTT=>Message bridge/info', data);
@@ -540,7 +554,6 @@ export class Zigbee2MQTT extends EventEmitter {
       this.emit('info', this.z2mVersion, this.z2mIsAvailabilityEnabled, this.z2mPermitJoin, this.z2mPermitJoinTimeout);
       this.writeBufferJSON('bridge-info', payload);
       this.emit('bridge-info', data);
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/devices')) {
       this.z2mDevices.splice(0, this.z2mDevices.length);
       const devices: Device[] = JSON.parse(payload.toString());
@@ -600,10 +613,12 @@ export class Zigbee2MQTT extends EventEmitter {
           for (const expose of device.definition.exposes) {
             if (!expose.property && !expose.name && expose.features && expose.type) {
               // Specific expose https://www.zigbee2mqtt.io/guide/usage/exposes.html
-              if (z2m.category === '') { // Only the first type: light, switch ...
+              if (z2m.category === '') {
+                // Only the first type: light, switch ...
                 z2m.category = expose.type;
               }
-              for (const feature of expose.features) { // Exposes nested inside features
+              for (const feature of expose.features) {
+                // Exposes nested inside features
                 feature.category = expose.type;
                 z2m.exposes.push(feature);
                 if (feature.endpoint) {
@@ -638,7 +653,6 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`Received ${this.z2mDevices.length} devices`);
       this.emit('devices');
       //this.printDevices();
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/groups')) {
       this.z2mGroups.splice(0, this.z2mGroups.length);
       const groups: Group[] = JSON.parse(payload.toString());
@@ -669,20 +683,16 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`Received ${this.z2mGroups.length} groups`);
       this.emit('groups');
       //this.printGroups();
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/extensions')) {
       const extensions = JSON.parse(payload.toString()) as BridgeExtension[];
       for (const extension of extensions) {
         this.log.warn(`Message topic: ${topic} extension: ${extension.name}`);
       }
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/event')) {
       this.handleEvent(payload);
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/request')) {
       const data = JSON.parse(payload.toString());
       this.log.warn(`Message topic: ${topic} payload:${rs}`, data);
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/response')) {
       if (topic.startsWith(this.mqttTopic + '/bridge/response/networkmap')) {
         this.handleResponseNetworkmap(payload);
@@ -710,16 +720,15 @@ export class Zigbee2MQTT extends EventEmitter {
         transaction: '2ww7l-5'
       }
       */
-
     } else if (topic.startsWith(this.mqttTopic + '/bridge/logging')) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       //const data = JSON.parse(payload.toString());
       //this.log.debug('classZigbee2MQTT=>Message bridge/logging', data);
-
     } else {
       let entity = topic.replace(this.mqttTopic + '/', '');
       let service = '';
-      if (entity.search('/')) { // set get availability or unknown TODO
+      if (entity.search('/')) {
+        // set get availability or unknown TODO
         const parts = entity.split('/');
         entity = parts[0];
         service = parts[1];
@@ -735,15 +744,16 @@ export class Zigbee2MQTT extends EventEmitter {
         }
         return;
       }
-      if (entity.includes('_-_')) { // Eve app test mode!
-        const foundDevice = this.z2mDevices.find(device => device.friendly_name.includes(entity));
+      if (entity.includes('_-_')) {
+        // Eve app test mode!
+        const foundDevice = this.z2mDevices.find((device) => device.friendly_name.includes(entity));
         entity = foundDevice ? foundDevice.friendly_name : entity;
       }
-      const foundDevice = this.z2mDevices.findIndex(device => device.ieee_address === entity || device.friendly_name === entity);
+      const foundDevice = this.z2mDevices.findIndex((device) => device.ieee_address === entity || device.friendly_name === entity);
       if (foundDevice !== -1) {
         this.handleDeviceMessage(foundDevice, entity, service, payload);
       } else {
-        const foundGroup = this.z2mGroups.findIndex(group => group.friendly_name === entity);
+        const foundGroup = this.z2mGroups.findIndex((group) => group.friendly_name === entity);
         if (foundGroup !== -1) {
           this.handleGroupMessage(foundGroup, entity, service, payload);
         } else {
@@ -755,16 +765,15 @@ export class Zigbee2MQTT extends EventEmitter {
           }
         }
       }
-
     }
   }
 
   public getDevice(name: string): z2mDevice | undefined {
-    return this.z2mDevices.find(device => device.ieee_address === name || device.friendly_name === name);
+    return this.z2mDevices.find((device) => device.ieee_address === name || device.friendly_name === name);
   }
 
   public getGroup(name: string): z2mGroup | undefined {
-    return this.z2mGroups.find(group => group.friendly_name === name);
+    return this.z2mGroups.find((group) => group.friendly_name === name);
   }
 
   private handleDeviceMessage(deviceIndex: number, entity: string, service: string, payload: Buffer) {
@@ -861,7 +870,7 @@ export class Zigbee2MQTT extends EventEmitter {
       }
     };
     const friendlyName = (ieeeAddr: string): string => {
-      const node = topology.nodes.find(node => node.ieeeAddr === ieeeAddr);
+      const node = topology.nodes.find((node) => node.ieeeAddr === ieeeAddr);
       if (node) {
         if (node.type === 'Coordinator') {
           return `\x1b[48;5;1m\x1b[38;5;255m${node.friendlyName} [C]${rs}${db}`;
@@ -908,20 +917,26 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.warn('Network map nodes:');
       topology.nodes.sort((a, b) => a.friendlyName.localeCompare(b.friendlyName));
       topology.nodes.forEach((node, index) => {
-        this.log.debug(`Node [${index.toString().padStart(3, ' ')}] ${node.type === 'EndDevice' ? ign : node.type === 'Router' ? idn : '\x1b[48;5;1m\x1b[38;5;255m'}${node.friendlyName}${rs}${db} addr: ${node.ieeeAddr}-0x${node.networkAddress.toString(16)} type: ${node.type} lastseen: ${timePassedSince(node.lastSeen)}`);
+        this.log.debug(
+          `Node [${index.toString().padStart(3, ' ')}] ${node.type === 'EndDevice' ? ign : node.type === 'Router' ? idn : '\x1b[48;5;1m\x1b[38;5;255m'}${node.friendlyName}${rs}${db} addr: ${node.ieeeAddr}-0x${node.networkAddress.toString(16)} type: ${node.type} lastseen: ${timePassedSince(node.lastSeen)}`,
+        );
         // SourceAddr
-        const sourceLinks = topology.links.filter(link => link.sourceIeeeAddr === node.ieeeAddr); // Filter
+        const sourceLinks = topology.links.filter((link) => link.sourceIeeeAddr === node.ieeeAddr); // Filter
         sourceLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         sourceLinks.forEach((link, index) => {
-          const targetNode = topology.nodes.find(node => node.ieeeAddr === link.target.ieeeAddr);
-          this.log.debug(`  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} > > > ${friendlyName(link.target.ieeeAddr)}`);
+          const targetNode = topology.nodes.find((node) => node.ieeeAddr === link.target.ieeeAddr);
+          this.log.debug(
+            `  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} > > > ${friendlyName(link.target.ieeeAddr)}`,
+          );
         });
         // TargetAddr
-        const targetLinks = topology.links.filter(link => link.targetIeeeAddr === node.ieeeAddr); // Filter
+        const targetLinks = topology.links.filter((link) => link.targetIeeeAddr === node.ieeeAddr); // Filter
         targetLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         targetLinks.forEach((link, index) => {
-          const sourceNode = topology.nodes.find(node => node.ieeeAddr === link.source.ieeeAddr);
-          this.log.debug(`  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} < < < ${friendlyName(link.source.ieeeAddr)}`);
+          const sourceNode = topology.nodes.find((node) => node.ieeeAddr === link.source.ieeeAddr);
+          this.log.debug(
+            `  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} < < < ${friendlyName(link.source.ieeeAddr)}`,
+          );
         });
       });
       // Log links
@@ -937,7 +952,6 @@ export class Zigbee2MQTT extends EventEmitter {
       } );
       */
     }
-
   }
 
   private handleResponseDeviceRename(payload: Buffer) {
@@ -954,7 +968,7 @@ export class Zigbee2MQTT extends EventEmitter {
     */
     const json = JSON.parse(payload.toString());
     this.log.warn(`handleResponseDeviceRename from ${json.data.from} to ${json.data.to} status ${json.status}`);
-    const device = this.z2mDevices.find(device => device.friendly_name === json.data.to);
+    const device = this.z2mDevices.find((device) => device.friendly_name === json.data.to);
     if (device && json.status === 'ok') {
       this.emit('rename', device.ieee_address, json.data.from, json.data.to);
     }
@@ -1023,21 +1037,23 @@ export class Zigbee2MQTT extends EventEmitter {
     */
     const json = JSON.parse(payload.toString());
     switch (json.type) {
-    case undefined:
-      this.log.error('handleEvent() undefined type', json);
-      break;
-    case 'device_leave':
-      this.log.warn(`handleEvent() type: device_leave name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
-      break;
-    case 'device_joined':
-      this.log.warn(`handleEvent() type: device_joined name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
-      break;
-    case 'device_interview':
-      this.log.warn(`handleEvent() type: device_interview name: ${json.data.friendly_name} address: ${json.data.ieee_address} status: ${json.data.status} supported: ${json.data.supported}`);
-      break;
-    case 'device_announce':
-      this.log.warn(`handleEvent() type: device_announce name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
-      break;
+      case undefined:
+        this.log.error('handleEvent() undefined type', json);
+        break;
+      case 'device_leave':
+        this.log.warn(`handleEvent() type: device_leave name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        break;
+      case 'device_joined':
+        this.log.warn(`handleEvent() type: device_joined name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        break;
+      case 'device_interview':
+        this.log.warn(
+          `handleEvent() type: device_interview name: ${json.data.friendly_name} address: ${json.data.ieee_address} status: ${json.data.status} supported: ${json.data.supported}`,
+        );
+        break;
+      case 'device_announce':
+        this.log.warn(`handleEvent() type: device_announce name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        break;
     }
   }
 
@@ -1135,7 +1151,9 @@ export class Zigbee2MQTT extends EventEmitter {
         });
         endpoint.configured_reportings.forEach((reporting) => {
           // eslint-disable-next-line max-len
-          this.log.debug(`----Reportings: ${reporting.attribute} ${reporting.cluster} ${reporting.minimum_report_interval} ${reporting.maximum_report_interval}  ${reporting.reportable_change}`);
+          this.log.debug(
+            `----Reportings: ${reporting.attribute} ${reporting.cluster} ${reporting.minimum_report_interval} ${reporting.maximum_report_interval}  ${reporting.reportable_change}`,
+          );
         });
         endpoint.scenes.forEach((scene) => {
           this.log.debug(`----Scenes: ID ${scene.id} Name ${scene.name}`);
@@ -1186,4 +1204,3 @@ export class Zigbee2MQTT extends EventEmitter {
     });
   }
 }
-

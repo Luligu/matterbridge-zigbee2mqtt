@@ -2,44 +2,77 @@
 /* eslint-disable max-len */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ZigbeePlatform } from './matterPlatform.js'
+import { ZigbeePlatform } from './matterPlatform.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify } from 'node-ansi-logger';
 import EventEmitter from 'events';
-import { Payload, PayloadValue } from './payloadTypes.js'
+import { Payload, PayloadValue } from './payloadTypes.js';
 import * as color from './colorUtils.js';
 
 // matter.js imports
 import {
-  Device, DeviceTypes, DeviceTypeDefinition, Endpoint, EndpointOptions,
-  ComposedDevice, getClusterInitialAttributeValues, logEndpoint, WrapCommandHandler, DeviceClasses
+  Device,
+  DeviceTypes,
+  DeviceTypeDefinition,
+  Endpoint,
+  EndpointOptions,
+  ComposedDevice,
+  getClusterInitialAttributeValues,
+  logEndpoint,
+  WrapCommandHandler,
+  DeviceClasses,
 } from '@project-chip/matter-node.js/device';
 import {
-  Cluster, ClusterServer, Attributes, Commands, Events, AttributeInitialValues, ClusterServerHandlers,
-  BridgedDeviceBasicInformation, BridgedDeviceBasicInformationCluster,
-  Identify, createDefaultIdentifyClusterServer,
-  Groups, createDefaultGroupsClusterServer,
-  Scenes, createDefaultScenesClusterServer,
-  OnOff, createDefaultOnOffClusterServer,
-  LevelControl, createDefaultLevelControlClusterServer,
-  ColorControl, ColorControlCluster,
-  Switch, SwitchCluster,
-  TemperatureMeasurement, TemperatureMeasurementCluster,
-  BooleanState, BooleanStateCluster,
-  RelativeHumidityMeasurement, RelativeHumidityMeasurementCluster,
-  PressureMeasurement, PressureMeasurementCluster,
-  OccupancySensingCluster, OccupancySensing,
-  IlluminanceMeasurementCluster, IlluminanceMeasurement, ClusterClient, IdentifyCluster, PowerSource,
+  Cluster,
+  ClusterServer,
+  Attributes,
+  Commands,
+  Events,
+  AttributeInitialValues,
+  ClusterServerHandlers,
+  BridgedDeviceBasicInformation,
+  BridgedDeviceBasicInformationCluster,
+  Identify,
+  createDefaultIdentifyClusterServer,
+  Groups,
+  createDefaultGroupsClusterServer,
+  Scenes,
+  createDefaultScenesClusterServer,
+  OnOff,
+  createDefaultOnOffClusterServer,
+  LevelControl,
+  createDefaultLevelControlClusterServer,
+  ColorControl,
+  ColorControlCluster,
+  Switch,
+  SwitchCluster,
+  TemperatureMeasurement,
+  TemperatureMeasurementCluster,
+  BooleanState,
+  BooleanStateCluster,
+  RelativeHumidityMeasurement,
+  RelativeHumidityMeasurementCluster,
+  PressureMeasurement,
+  PressureMeasurementCluster,
+  OccupancySensingCluster,
+  OccupancySensing,
+  IlluminanceMeasurementCluster,
+  IlluminanceMeasurement,
+  ClusterClient,
+  IdentifyCluster,
+  PowerSource,
 } from '@project-chip/matter-node.js/cluster';
 import { ClusterId, VendorId } from '@project-chip/matter-node.js/datatype';
-import { NamedHandler, extendPublicHandlerMethods } from '@project-chip/matter-node.js/util'
+import { NamedHandler, extendPublicHandlerMethods } from '@project-chip/matter-node.js/util';
 import { NotImplementedError } from '@project-chip/matter.js/common';
 import { createDefaultColorControlClusterServer } from './ColorControlServer.js';
 import { hostname, platform } from 'os';
 import { AirQuality, AirQualityCluster } from './AirQualityCluster.js';
-import { createDefaultPowerSourceRechargableBatteryClusterServer, 
-  createDefaultPowerSourceReplaceableBatteryClusterServer, 
-  createDefaultPowerSourceWiredClusterServer } from './defaultClusterServer.js';
+import {
+  createDefaultPowerSourceRechargableBatteryClusterServer,
+  createDefaultPowerSourceReplaceableBatteryClusterServer,
+  createDefaultPowerSourceWiredClusterServer,
+} from './defaultClusterServer.js';
 
 export class MatterPlatformEntity extends EventEmitter {
   protected log: AnsiLogger;
@@ -74,12 +107,10 @@ export class MatterPlatformEntity extends EventEmitter {
     this.log.debug(`Created MatterEntity: ${this.accessoryName}`);
 
     this.platform.z2m.on('MESSAGE-' + this.accessoryName, (payload: object) => {
-      if (this.bridgedDevice === undefined)
-        return;
+      if (this.bridgedDevice === undefined) return;
       this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${stringify(payload, true, 255, 247)}`);
       Object.entries(payload).forEach(([key, value], index) => {
-        if (this.bridgedDevice === undefined)
-          return;
+        if (this.bridgedDevice === undefined) return;
         if (key === 'state') {
           this.bridgedDevice.getClusterServerById(OnOff.Cluster.id)?.setOnOffAttribute(value === 'ON' ? true : false);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} onOffAttribute: ${value === 'ON' ? true : false}`);
@@ -88,7 +119,7 @@ export class MatterPlatformEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(LevelControl.Cluster.id)?.setCurrentLevelAttribute(value);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentLevelAttribute: ${value}`);
         }
-        if (key === 'color_temp' && ('color_mode' in payload) && payload['color_mode'] === 'color_temp') {
+        if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp') {
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.attributes.colorTemperatureMireds.setLocal(value);
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.attributes.colorMode.setLocal(ColorControl.ColorMode.ColorTemperatureMireds);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorTemperatureMireds: ${value}`);
@@ -97,27 +128,27 @@ export class MatterPlatformEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(TemperatureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
           if (this.bridgedDevice.hasEndpoints) {
             const endpoints = this.bridgedDevice.getChildEndpoints();
-            endpoints.forEach(endpoint => {
+            endpoints.forEach((endpoint) => {
               endpoint.getClusterServerById(TemperatureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
-            })
+            });
           }
         }
         if (key === 'humidity') {
           this.bridgedDevice.getClusterServerById(RelativeHumidityMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
           if (this.bridgedDevice.hasEndpoints) {
             const endpoints = this.bridgedDevice.getChildEndpoints();
-            endpoints.forEach(endpoint => {
+            endpoints.forEach((endpoint) => {
               endpoint.getClusterServerById(RelativeHumidityMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
-            })
+            });
           }
         }
         if (key === 'pressure') {
           this.bridgedDevice.getClusterServerById(PressureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value));
           if (this.bridgedDevice.hasEndpoints) {
             const endpoints = this.bridgedDevice.getChildEndpoints();
-            endpoints.forEach(endpoint => {
+            endpoints.forEach((endpoint) => {
               endpoint.getClusterServerById(PressureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value));
-            })
+            });
           }
         }
         if (key === 'contact') {
@@ -133,12 +164,14 @@ export class MatterPlatformEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(OccupancySensing.Cluster.id)?.setOccupancyAttribute({ occupied: value as boolean });
         }
         if (key === 'illuminance_lux' || (key === 'illuminance' && !('illuminance_lux' in payload))) {
-          this.bridgedDevice.getClusterServerById(IlluminanceMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0)));
+          this.bridgedDevice
+            .getClusterServerById(IlluminanceMeasurement.Cluster.id)
+            ?.setMeasuredValueAttribute(Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0)));
           if (this.bridgedDevice.hasEndpoints) {
             const endpoints = this.bridgedDevice.getChildEndpoints();
-            endpoints.forEach(endpoint => {
+            endpoints.forEach((endpoint) => {
               endpoint.getClusterServerById(IlluminanceMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0)));
-            })
+            });
           }
         }
       });
@@ -164,13 +197,15 @@ export class MatterPlatformEntity extends EventEmitter {
 }
 
 export class MatterPlatformGroup extends MatterPlatformEntity {
-
   constructor(platform: ZigbeePlatform, group: BridgeGroup) {
     super(platform, group);
 
-    this.bridgedDevice = new BridgedBaseDevice(platform, group.friendly_name, 'zigbee2MQTT', 'Group', `group-${group.id}`, false,
-      onOffSwitch, undefined, undefined,
-      [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id]);
+    this.bridgedDevice = new BridgedBaseDevice(platform, group.friendly_name, 'zigbee2MQTT', 'Group', `group-${group.id}`, false, onOffSwitch, undefined, undefined, [
+      Identify.Cluster.id,
+      Groups.Cluster.id,
+      Scenes.Cluster.id,
+      OnOff.Cluster.id,
+    ]);
 
     // Attributes handlers
     this.bridgedDevice.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.subscribeReachableAttribute((newValue: boolean, oldValue: boolean) => {
@@ -204,11 +239,9 @@ export class MatterPlatformGroup extends MatterPlatformEntity {
 }
 
 export class MatterPlatformDevice extends MatterPlatformEntity {
-
   constructor(platform: ZigbeePlatform, device: BridgeDevice) {
     super(platform, device);
-    if (device.friendly_name === 'Coordinator')
-      return;
+    if (device.friendly_name === 'Coordinator') return;
 
     // Get types and properties
     const types: string[] = [];
@@ -217,64 +250,149 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
     const properties: string[] = [];
     const forceLight = ['Aqara switch T1'];
     const forceOutlet = ['Aqara switch no neutral'];
-    device.definition?.exposes.forEach(expose => {
-      if (expose.features) { //Specific features with type
+    device.definition?.exposes.forEach((expose) => {
+      if (expose.features) {
+        //Specific features with type
         types.push(expose.type);
-        if (expose.endpoint)
-          endpoints.push(expose.endpoint);
-        expose.features?.forEach(feature => {
-          names.push(feature.name)
-          properties.push(feature.property)
-        })
-      } else { //Generic features without type
-        if (expose.name)
-          names.push(expose.name);
+        if (expose.endpoint) endpoints.push(expose.endpoint);
+        expose.features?.forEach((feature) => {
+          names.push(feature.name);
+          properties.push(feature.property);
+        });
+      } else {
+        //Generic features without type
+        if (expose.name) names.push(expose.name);
         properties.push(expose.property);
       }
-    })
-    device.definition?.options.forEach(option => {
-      if (option.name)
-        names.push(option.name);
-      properties.push(option.property)
-    })
+    });
+    device.definition?.options.forEach((option) => {
+      if (option.name) names.push(option.name);
+      properties.push(option.property);
+    });
     if (forceLight.includes(device.friendly_name)) {
-      types.forEach((type, index) => { types[index] = (type === 'switch' ? 'light' : type); console.log(`Changed ${device.friendly_name} to light`) });
+      types.forEach((type, index) => {
+        types[index] = type === 'switch' ? 'light' : type;
+        console.log(`Changed ${device.friendly_name} to light`);
+      });
     }
     if (forceOutlet.includes(device.friendly_name)) {
-      types.forEach((type, index) => { types[index] = (type === 'switch' ? 'outlet' : type); console.log(`Changed ${device.friendly_name} to outlet`) });
+      types.forEach((type, index) => {
+        types[index] = type === 'switch' ? 'outlet' : type;
+        console.log(`Changed ${device.friendly_name} to outlet`);
+      });
     }
     this.log.info(`Device ${this.ien}${device.friendly_name}${rs}${nf} endpoints: ${endpoints.length} types: ${types} properties: ${properties} names: ${names}`);
 
     // Create the device with specific properties
     if (types.includes('light')) {
       if (properties.includes('color')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.COLOR_TEMPERATURE_LIGHT, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id, ColorControl.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.COLOR_TEMPERATURE_LIGHT,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id, ColorControl.Cluster.id],
+        );
       } else if (properties.includes('brightness')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.DIMMABLE_LIGHT, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.DIMMABLE_LIGHT,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id],
+        );
       } else {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.ON_OFF_LIGHT, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.ON_OFF_LIGHT,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id],
+        );
       }
     } else if (types.includes('outlet')) {
       if (properties.includes('brightness')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.DIMMABLE_PLUGIN_UNIT, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.DIMMABLE_PLUGIN_UNIT,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id],
+        );
       } else {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.ON_OFF_PLUGIN_UNIT, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.ON_OFF_PLUGIN_UNIT,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id],
+        );
       }
     } else if (types.includes('switch')) {
       if (properties.includes('color')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          colorTemperatureSwitch, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id, ColorControl.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          colorTemperatureSwitch,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id, ColorControl.Cluster.id],
+        );
       } else if (properties.includes('brightness')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          dimmableSwitch, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          dimmableSwitch,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id],
+        );
       } else {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          onOffSwitch, undefined, undefined, [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          onOffSwitch,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id],
+        );
       }
     } else if (types.includes('cover')) {
       //
@@ -285,54 +403,125 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
     } else {
       // Create the device with generic properties
       if (properties.includes('occupancy')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, true,
-          DeviceTypes.OCCUPANCY_SENSOR, undefined, undefined,
-          [Identify.Cluster.id, OccupancySensing.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          true,
+          DeviceTypes.OCCUPANCY_SENSOR,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, OccupancySensing.Cluster.id],
+        );
         if (properties.includes('illuminance') || properties.includes('illuminance_lux'))
           this.bridgedDevice.addDeviceType(DeviceTypes.LIGHT_SENSOR, [IlluminanceMeasurement.Cluster.id]);
       } else if (properties.includes('illuminance') || properties.includes('illuminance_lux')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.LIGHT_SENSOR, undefined, undefined,
-          [Identify.Cluster.id, IlluminanceMeasurement.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.LIGHT_SENSOR,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, IlluminanceMeasurement.Cluster.id],
+        );
       }
       if (properties.includes('air_quality')) {
         console.log('Include air_quality');
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          airQualitySensor, undefined, undefined,
-          [Identify.Cluster.id, AirQuality.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          airQualitySensor,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, AirQuality.Cluster.id],
+        );
         this.bridgedDevice.addDeviceType(DeviceTypes.TEMPERATURE_SENSOR, [TemperatureMeasurement.Cluster.id]);
         this.bridgedDevice.addDeviceType(DeviceTypes.HUMIDITY_SENSOR, [RelativeHumidityMeasurement.Cluster.id]);
       } else if (properties.includes('temperature')) {
         console.log('Include temperature');
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.TEMPERATURE_SENSOR, undefined, undefined,
-          [Identify.Cluster.id, TemperatureMeasurement.Cluster.id /*, RelativeHumidityMeasurement.Cluster.id, PressureMeasurement.Cluster.id*/]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.TEMPERATURE_SENSOR,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, TemperatureMeasurement.Cluster.id /*, RelativeHumidityMeasurement.Cluster.id, PressureMeasurement.Cluster.id*/],
+        );
         this.bridgedDevice.addDeviceType(DeviceTypes.HUMIDITY_SENSOR, [RelativeHumidityMeasurement.Cluster.id]);
         this.bridgedDevice.addDeviceType(DeviceTypes.PRESSURE_SENSOR, [PressureMeasurement.Cluster.id]);
       }
       if (properties.includes('contact')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.CONTACT_SENSOR, { stateValue: false } as AttributeInitialValues<typeof BooleanState.Cluster.attributes>, undefined,
-          [Identify.Cluster.id, BooleanState.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.CONTACT_SENSOR,
+          { stateValue: false } as AttributeInitialValues<typeof BooleanState.Cluster.attributes>,
+          undefined,
+          [Identify.Cluster.id, BooleanState.Cluster.id],
+        );
       }
       if (properties.includes('water_leak')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.CONTACT_SENSOR, { stateValue: false } as AttributeInitialValues<typeof BooleanState.Cluster.attributes>, undefined,
-          [Identify.Cluster.id, BooleanState.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.CONTACT_SENSOR,
+          { stateValue: false } as AttributeInitialValues<typeof BooleanState.Cluster.attributes>,
+          undefined,
+          [Identify.Cluster.id, BooleanState.Cluster.id],
+        );
       }
       if (properties.includes('smoke')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.CONTACT_SENSOR, { stateValue: false } as AttributeInitialValues<typeof BooleanState.Cluster.attributes>, undefined,
-          [Identify.Cluster.id, BooleanState.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.CONTACT_SENSOR,
+          { stateValue: false } as AttributeInitialValues<typeof BooleanState.Cluster.attributes>,
+          undefined,
+          [Identify.Cluster.id, BooleanState.Cluster.id],
+        );
       }
       if (properties.includes('action')) {
-        this.bridgedDevice = new BridgedBaseDevice(platform, device.friendly_name, device.definition.vendor, device.definition.model, device.ieee_address, false,
-          DeviceTypes.GENERIC_SWITCH, undefined, undefined,
-          [Identify.Cluster.id, Switch.Cluster.id]);
+        this.bridgedDevice = new BridgedBaseDevice(
+          platform,
+          device.friendly_name,
+          device.definition.vendor,
+          device.definition.model,
+          device.ieee_address,
+          false,
+          DeviceTypes.GENERIC_SWITCH,
+          undefined,
+          undefined,
+          [Identify.Cluster.id, Switch.Cluster.id],
+        );
       }
     }
-    if (!this.bridgedDevice)
-      return;
+    if (!this.bridgedDevice) return;
 
     // Attributes handlers
     this.bridgedDevice.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.subscribeReachableAttribute((newValue: boolean, oldValue: boolean) => {
@@ -382,7 +571,9 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
     }
     if (properties.includes('color_temp')) {
       this.bridgedDevice.addCommandHandler('moveToColorTemperature', async ({ request: request, attributes: attributes }) => {
-        this.log.debug(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds} attributes: ${attributes.colorTemperatureMireds}`);
+        this.log.debug(
+          `Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds} attributes: ${attributes.colorTemperatureMireds}`,
+        );
         this.log.warn(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
         attributes.colorMode.setLocal(ColorControl.ColorMode.ColorTemperatureMireds);
         this.publishCommand('moveToColorTemperature', device.friendly_name, { color_temp: request.colorTemperatureMireds });
@@ -393,22 +584,26 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
         this.log.debug(`Command moveToHue called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.hue} attributes: ${attributes.currentHue}`);
         this.log.warn(`Command moveToHue called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
         attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-        const rgb = color.hslColorToRgbColor(request.hue / 254 * 360, attributes.currentSaturation!.getLocal() / 254 * 100, 50);
-        this.publishCommand('moveToHue', device.friendly_name, { color: { 'r': rgb.r, 'g': rgb.g, 'b': rgb.b } });
+        const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (attributes.currentSaturation!.getLocal() / 254) * 100, 50);
+        this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
       });
       this.bridgedDevice.addCommandHandler('moveToSaturation', async ({ request: request, attributes: attributes }) => {
-        this.log.debug(`Command moveToSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.saturation} attributes: ${attributes.currentSaturation}`);
+        this.log.debug(
+          `Command moveToSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.saturation} attributes: ${attributes.currentSaturation}`,
+        );
         this.log.warn(`Command moveToSaturation called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
         attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-        const rgb = color.hslColorToRgbColor(attributes.currentHue!.getLocal() / 254 * 360, request.saturation / 254 * 100, 50);
-        this.publishCommand('moveToHue', device.friendly_name, { color: { 'r': rgb.r, 'g': rgb.g, 'b': rgb.b } });
+        const rgb = color.hslColorToRgbColor((attributes.currentHue!.getLocal() / 254) * 360, (request.saturation / 254) * 100, 50);
+        this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
       });
       this.bridgedDevice.addCommandHandler('moveToHueAndSaturation', async ({ request: request, attributes: attributes }) => {
-        this.log.debug(`Command moveToHueAndSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.hue}-${request.saturation} attributes: ${attributes.currentHue}-${attributes.currentSaturation}`);
+        this.log.debug(
+          `Command moveToHueAndSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.hue}-${request.saturation} attributes: ${attributes.currentHue}-${attributes.currentSaturation}`,
+        );
         this.log.warn(`Command moveToHueAndSaturation called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
         attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-        const rgb = color.hslColorToRgbColor(request.hue / 254 * 360, request.saturation / 254 * 100, 50);
-        this.publishCommand('moveToHueAndSaturation', device.friendly_name, { color: { 'r': rgb.r, 'g': rgb.g, 'b': rgb.b } });
+        const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (request.saturation / 254) * 100, 50);
+        this.publishCommand('moveToHueAndSaturation', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
       });
     }
   }
@@ -515,12 +710,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
    * @param deviceName Name of the device
    * @param deviceSerial Serial of the device
    */
-  protected addInfoCluster(
-    deviceName: string,
-    vendorName: string,
-    productName: string,
-    deviceSerial: string,
-  ) {
+  protected addInfoCluster(deviceName: string, vendorName: string, productName: string, deviceSerial: string) {
     const version = process.env.npm_package_version || '1.0';
 
     const bridgedBasicInformationCluster = ClusterServer(
@@ -545,22 +735,15 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
     );
     this.addClusterServer(bridgedBasicInformationCluster);
 
-    bridgedBasicInformationCluster.subscribeReachableAttribute(newValue => {
+    bridgedBasicInformationCluster.subscribeReachableAttribute((newValue) => {
       bridgedBasicInformationCluster.triggerReachableChangedEvent({ reachableNewValue: newValue });
     });
   }
 
-  protected addPowerSourceCluster(
-    powerType: string,
-    batPercentRemaining: number = 100,
-    batChargeLevel: PowerSource.BatChargeLevel = PowerSource.BatChargeLevel.Ok
-  ) {
-    if (powerType === PowerSource.Feature.Replaceable)
-      this.addClusterServer(createDefaultPowerSourceReplaceableBatteryClusterServer(batPercentRemaining, batChargeLevel));
-    else if (powerType === PowerSource.Feature.Rechargeable)
-      this.addClusterServer(createDefaultPowerSourceRechargableBatteryClusterServer(batPercentRemaining, batChargeLevel));
-    else
-      this.addClusterServer(createDefaultPowerSourceWiredClusterServer());
+  protected addPowerSourceCluster(powerType: string, batPercentRemaining: number = 100, batChargeLevel: PowerSource.BatChargeLevel = PowerSource.BatChargeLevel.Ok) {
+    if (powerType === PowerSource.Feature.Replaceable) this.addClusterServer(createDefaultPowerSourceReplaceableBatteryClusterServer(batPercentRemaining, batChargeLevel));
+    else if (powerType === PowerSource.Feature.Rechargeable) this.addClusterServer(createDefaultPowerSourceRechargableBatteryClusterServer(batPercentRemaining, batChargeLevel));
+    else this.addClusterServer(createDefaultPowerSourceWiredClusterServer());
   }
 
   /**
@@ -570,14 +753,9 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
    * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
    * @param includeServerList List of clusters to include
    */
-  protected addDeviceServerClusters(
-    attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> },
-    includeServerList: ClusterId[] = [],
-  ) {
+  protected addDeviceServerClusters(attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> }, includeServerList: ClusterId[] = []) {
     if (includeServerList.includes(Identify.Cluster.id)) {
-      this.addClusterServer(createDefaultIdentifyClusterServer(
-        { identify: async data => await this.commandHandler.executeHandler('identify', data) }
-      ));
+      this.addClusterServer(createDefaultIdentifyClusterServer({ identify: async (data) => await this.commandHandler.executeHandler('identify', data) }));
     }
     if (includeServerList.includes(Groups.Cluster.id)) {
       this.addClusterServer(createDefaultGroupsClusterServer());
@@ -586,16 +764,15 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
       this.addClusterServer(createDefaultScenesClusterServer());
     }
     if (includeServerList.includes(OnOff.Cluster.id)) {
-      this.addClusterServer(createDefaultOnOffClusterServer(
-        this.commandHandler,
-        getClusterInitialAttributeValues(attributeInitialValues, OnOff.Cluster),
-      ));
+      this.addClusterServer(createDefaultOnOffClusterServer(this.commandHandler, getClusterInitialAttributeValues(attributeInitialValues, OnOff.Cluster)));
     }
     if (includeServerList.includes(LevelControl.Cluster.id)) {
-      this.addClusterServer(createDefaultLevelControlClusterServer(
-        this.commandHandler,
-        getClusterInitialAttributeValues(attributeInitialValues, LevelControl.Cluster.with(LevelControl.Feature.OnOff)),
-      ));
+      this.addClusterServer(
+        createDefaultLevelControlClusterServer(
+          this.commandHandler,
+          getClusterInitialAttributeValues(attributeInitialValues, LevelControl.Cluster.with(LevelControl.Feature.OnOff)),
+        ),
+      );
     }
     if (includeServerList.includes(ColorControl.Cluster.id)) {
       const colorCluster = ClusterServer(
@@ -612,11 +789,11 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
           currentSaturation: 0,
           colorTemperatureMireds: 500,
           colorTempPhysicalMinMireds: 147,
-          colorTempPhysicalMaxMireds: 500
+          colorTempPhysicalMaxMireds: 500,
         },
         {
           moveToHue: async ({ request: request, attributes: attributes }) => {
-            console.log('Command moveToHue request:', request/*, 'attributes:', attributes*/);
+            console.log('Command moveToHue request:', request /*, 'attributes:', attributes*/);
             attributes.currentHue.setLocal(request.hue);
             this.commandHandler.executeHandler('moveToHue', { request: request, attributes: attributes });
           },
@@ -627,7 +804,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
             throw new NotImplementedError('Not implemented');
           },
           moveToSaturation: async ({ request: request, attributes: attributes }) => {
-            console.log('Command moveToSaturation request:', request/*, 'attributes:', attributes*/);
+            console.log('Command moveToSaturation request:', request /*, 'attributes:', attributes*/);
             attributes.currentSaturation.setLocal(request.saturation);
             this.commandHandler.executeHandler('moveToSaturation', { request: request, attributes: attributes });
           },
@@ -638,7 +815,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
             throw new NotImplementedError('Not implemented');
           },
           moveToHueAndSaturation: async ({ request: request, attributes: attributes }) => {
-            console.log('Command moveToHueAndSaturation request:', request/*, 'attributes:', attributes*/);
+            console.log('Command moveToHueAndSaturation request:', request /*, 'attributes:', attributes*/);
             attributes.currentHue.setLocal(request.hue);
             attributes.currentSaturation.setLocal(request.saturation);
             this.commandHandler.executeHandler('moveToHueAndSaturation', { request: request, attributes: attributes });
@@ -647,7 +824,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
             throw new NotImplementedError('Not implemented');
           },
           moveToColorTemperature: async ({ request: request, attributes: attributes }) => {
-            console.log('Command moveToColorTemperature request:', request/*, 'attributes:', attributes*/);
+            console.log('Command moveToColorTemperature request:', request /*, 'attributes:', attributes*/);
             attributes.colorTemperatureMireds.setLocal(request.colorTemperatureMireds);
             this.commandHandler.executeHandler('moveToColorTemperature', { request: request, attributes: attributes });
           },
@@ -664,11 +841,16 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
     }
     if (includeServerList.includes(Switch.Cluster.id)) {
       const switchCluster = ClusterServer(
-        SwitchCluster.with(Switch.Feature.MomentarySwitch, Switch.Feature.MomentarySwitchRelease, Switch.Feature.MomentarySwitchLongPress, Switch.Feature.MomentarySwitchMultiPress),
+        SwitchCluster.with(
+          Switch.Feature.MomentarySwitch,
+          Switch.Feature.MomentarySwitchRelease,
+          Switch.Feature.MomentarySwitchLongPress,
+          Switch.Feature.MomentarySwitchMultiPress,
+        ),
         {
           numberOfPositions: 2,
           currentPosition: 0,
-          multiPressMax: 2
+          multiPressMax: 2,
         },
         {},
         {
@@ -677,7 +859,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
           shortRelease: true,
           longRelease: true,
           multiPressOngoing: true,
-          multiPressComplete: true
+          multiPressComplete: true,
         },
       );
       this.addClusterServer(switchCluster);
@@ -689,7 +871,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
           measuredValue: 0,
           minMeasuredValue: null,
           maxMeasuredValue: null,
-          tolerance: 0
+          tolerance: 0,
         },
         {},
         {},
@@ -703,7 +885,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
           measuredValue: 0,
           minMeasuredValue: null,
           maxMeasuredValue: null,
-          tolerance: 0
+          tolerance: 0,
         },
         {},
         {},
@@ -717,7 +899,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
           measuredValue: 0,
           minMeasuredValue: null,
           maxMeasuredValue: null,
-          tolerance: 0
+          tolerance: 0,
         },
         {},
         {},
@@ -727,8 +909,8 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
     if (includeServerList.includes(BooleanState.Cluster.id)) {
       const booleanStateCluster = ClusterServer(
         BooleanStateCluster,
-        attributeInitialValues as AttributeInitialValues<typeof BooleanState.Cluster.attributes> ?? {
-          stateValue: true // true=contact false=no_contact
+        (attributeInitialValues as AttributeInitialValues<typeof BooleanState.Cluster.attributes>) ?? {
+          stateValue: true, // true=contact false=no_contact
         },
         {},
         {
@@ -747,7 +929,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
         {
           occupancy: { occupied: false },
           occupancySensorType: OccupancySensing.OccupancySensorType.Pir,
-          occupancySensorTypeBitmap: { pir: true, ultrasonic: false, physicalContact: false }
+          occupancySensorTypeBitmap: { pir: true, ultrasonic: false, physicalContact: false },
         },
         {},
         {},
@@ -762,7 +944,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
           measuredValue: 0,
           minMeasuredValue: null,
           maxMeasuredValue: null,
-          tolerance: 0
+          tolerance: 0,
         },
         {},
         {},
@@ -795,10 +977,7 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
    * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
    * @param includeClientList List of clusters to include
    */
-  protected addDeviceClientClusters(
-    attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> },
-    includeClientList: ClusterId[] = [],
-  ) {
+  protected addDeviceClientClusters(attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> }, includeClientList: ClusterId[] = []) {
     /*
     const interactionClient: InteractionClient = new InteractionClient();
     if (includeClientList.includes(Identify.Cluster.id)) {
@@ -844,55 +1023,33 @@ const onOffSwitch = DeviceTypeDefinition({
   code: 0x0103,
   deviceClass: DeviceClasses.Simple,
   revision: 2,
-  requiredServerClusters: [
-    Identify.Cluster.id,
-    Groups.Cluster.id,
-    Scenes.Cluster.id,
-    OnOff.Cluster.id,
-  ],
+  requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id],
   optionalServerClusters: [LevelControl.Cluster.id],
-})
+});
 const dimmableSwitch = DeviceTypeDefinition({
   name: 'MA-dimmableswitch',
   code: 0x0104,
   deviceClass: DeviceClasses.Simple,
   revision: 2,
-  requiredServerClusters: [
-    Identify.Cluster.id,
-    Groups.Cluster.id,
-    Scenes.Cluster.id,
-    OnOff.Cluster.id,
-    LevelControl.Cluster.id,
-  ],
+  requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id],
   optionalServerClusters: [],
-})
+});
 const colorTemperatureSwitch = DeviceTypeDefinition({
   name: 'MA-colortemperatureswitch',
   code: 0x0105,
   deviceClass: DeviceClasses.Simple,
   revision: 2,
-  requiredServerClusters: [
-    Identify.Cluster.id,
-    Groups.Cluster.id,
-    Scenes.Cluster.id,
-    OnOff.Cluster.id,
-    LevelControl.Cluster.id,
-    ColorControl.Cluster.id,
-  ],
+  requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id, ColorControl.Cluster.id],
   optionalServerClusters: [],
-})
+});
 const airQualitySensor = DeviceTypeDefinition({
   name: 'MA-airqualitysensor',
-  code: 0x002C,
+  code: 0x002c,
   deviceClass: DeviceClasses.Simple,
   revision: 1,
-  requiredServerClusters: [
-    Identify.Cluster.id,
-    AirQuality.Cluster.id,
-  ],
+  requiredServerClusters: [Identify.Cluster.id, AirQuality.Cluster.id],
   optionalServerClusters: [TemperatureMeasurement.Cluster.id, RelativeHumidityMeasurement.Cluster.id],
-})
-
+});
 
 // Internal types not exported !!!
 
