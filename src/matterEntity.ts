@@ -66,12 +66,16 @@ import { ClusterId, VendorId } from '@project-chip/matter-node.js/datatype';
 import { NamedHandler, extendPublicHandlerMethods } from '@project-chip/matter-node.js/util';
 import { NotImplementedError } from '@project-chip/matter.js/common';
 
-import { AirQuality, AirQualityCluster, createDefaultColorControlClusterServer } from '../../matterbridge/dist/index.js';
 import {
-  createDefaultPowerSourceRechargableBatteryClusterServer,
-  createDefaultPowerSourceReplaceableBatteryClusterServer,
-  createDefaultPowerSourceWiredClusterServer,
-} from './defaultClusterServer.js';
+  AirQuality,
+  AirQualityCluster,
+  MatterbridgeDevice,
+  airQualitySensor,
+  colorTemperatureSwitch,
+  createDefaultColorControlClusterServer,
+  dimmableSwitch,
+  onOffSwitch,
+} from '../../matterbridge/dist/index.js';
 
 import { hostname } from 'os';
 
@@ -610,7 +614,7 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
   }
 }
 
-export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device, LightBaseDeviceCommands>(Device) {
+export class BridgedBaseDevice extends MatterbridgeDevice {
   public deviceName: string;
   public hasEndpoints = false;
 
@@ -712,39 +716,19 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
    * @param deviceSerial Serial of the device
    */
   protected addInfoCluster(deviceName: string, vendorName: string, productName: string, deviceSerial: string) {
-    const version = process.env.npm_package_version || '1.0';
+    const version = process.env.npm_package_version || '1.0.5';
+    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName, (deviceSerial + '_' + version + '_' + hostname).slice(0, 32), undefined, vendorName, productName);
 
-    const bridgedBasicInformationCluster = ClusterServer(
-      BridgedDeviceBasicInformationCluster,
-      {
-        vendorName,
-        productName,
-        productLabel: deviceName.slice(0, 32),
-        nodeLabel: deviceName.slice(0, 32),
-        serialNumber: (deviceSerial + '_' + version + '_' + hostname).slice(0, 32),
-        uniqueId: (deviceSerial + '_' + version + '_' + hostname).slice(0, 32),
-        softwareVersion: 1.0,
-        softwareVersionString: '1.0', // Home app = Firmware Revision
-        hardwareVersion: 1.1,
-        hardwareVersionString: '1.1',
-        reachable: true,
-      },
-      {},
-      {
-        reachableChanged: true,
-      },
-    );
-    this.addClusterServer(bridgedBasicInformationCluster);
-
-    bridgedBasicInformationCluster.subscribeReachableAttribute((newValue) => {
+    const bridgedBasicInformationCluster = this.getClusterServer(BridgedDeviceBasicInformationCluster);
+    bridgedBasicInformationCluster?.subscribeReachableAttribute((newValue) => {
       bridgedBasicInformationCluster.triggerReachableChangedEvent({ reachableNewValue: newValue });
     });
   }
 
   protected addPowerSourceCluster(powerType: string, batPercentRemaining: number = 100, batChargeLevel: PowerSource.BatChargeLevel = PowerSource.BatChargeLevel.Ok) {
-    if (powerType === PowerSource.Feature.Replaceable) this.addClusterServer(createDefaultPowerSourceReplaceableBatteryClusterServer(batPercentRemaining, batChargeLevel));
-    else if (powerType === PowerSource.Feature.Rechargeable) this.addClusterServer(createDefaultPowerSourceRechargableBatteryClusterServer(batPercentRemaining, batChargeLevel));
-    else this.addClusterServer(createDefaultPowerSourceWiredClusterServer());
+    if (powerType === PowerSource.Feature.Replaceable) this.createDefaultPowerSourceReplaceableBatteryClusterServer(batPercentRemaining, batChargeLevel);
+    else if (powerType === PowerSource.Feature.Rechargeable) this.createDefaultPowerSourceRechargableBatteryClusterServer(batPercentRemaining, batChargeLevel);
+    else this.createDefaultPowerSourceWiredClusterServer();
   }
 
   /**
@@ -756,16 +740,16 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
    */
   protected addDeviceServerClusters(attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> }, includeServerList: ClusterId[] = []) {
     if (includeServerList.includes(Identify.Cluster.id)) {
-      this.addClusterServer(createDefaultIdentifyClusterServer({ identify: async (data) => await this.commandHandler.executeHandler('identify', data) }));
+      this.createDefaultIdentifyClusterServer();
     }
     if (includeServerList.includes(Groups.Cluster.id)) {
-      this.addClusterServer(createDefaultGroupsClusterServer());
+      this.createDefaultGroupsClusterServer();
     }
     if (includeServerList.includes(Scenes.Cluster.id)) {
-      this.addClusterServer(createDefaultScenesClusterServer());
+      this.createDefaultScenesClusterServer();
     }
     if (includeServerList.includes(OnOff.Cluster.id)) {
-      this.addClusterServer(createDefaultOnOffClusterServer(this.commandHandler, getClusterInitialAttributeValues(attributeInitialValues, OnOff.Cluster)));
+      this.createDefaultOnOffClusterServer();
     }
     if (includeServerList.includes(LevelControl.Cluster.id)) {
       this.addClusterServer(
@@ -1011,65 +995,3 @@ export class BridgedBaseDevice extends extendPublicHandlerMethods<typeof Device,
     return this.getChildEndpoints();
   }
 }
-
-// Custom device types
-const onOffSwitch = DeviceTypeDefinition({
-  name: 'MA-onoffswitch',
-  code: 0x0103,
-  deviceClass: DeviceClasses.Simple,
-  revision: 2,
-  requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id],
-  optionalServerClusters: [LevelControl.Cluster.id],
-});
-
-const dimmableSwitch = DeviceTypeDefinition({
-  name: 'MA-dimmableswitch',
-  code: 0x0104,
-  deviceClass: DeviceClasses.Simple,
-  revision: 2,
-  requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id],
-  optionalServerClusters: [],
-});
-
-const colorTemperatureSwitch = DeviceTypeDefinition({
-  name: 'MA-colortemperatureswitch',
-  code: 0x0105,
-  deviceClass: DeviceClasses.Simple,
-  revision: 2,
-  requiredServerClusters: [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id, LevelControl.Cluster.id, ColorControl.Cluster.id],
-  optionalServerClusters: [],
-});
-
-const airQualitySensor = DeviceTypeDefinition({
-  name: 'MA-airqualitysensor',
-  code: 0x002c,
-  deviceClass: DeviceClasses.Simple,
-  revision: 1,
-  requiredServerClusters: [Identify.Cluster.id, AirQuality.Cluster.id],
-  optionalServerClusters: [TemperatureMeasurement.Cluster.id, RelativeHumidityMeasurement.Cluster.id],
-});
-
-// Internal types not exported !!!
-
-type MakeMandatory<T> = Exclude<T, undefined>;
-
-type LightBaseDeviceCommands = {
-  identify: MakeMandatory<ClusterServerHandlers<typeof Identify.Cluster>['identify']>;
-
-  on: MakeMandatory<ClusterServerHandlers<typeof OnOff.Complete>['on']>;
-  off: MakeMandatory<ClusterServerHandlers<typeof OnOff.Complete>['off']>;
-  toggle: MakeMandatory<ClusterServerHandlers<typeof OnOff.Complete>['toggle']>;
-  offWithEffect: MakeMandatory<ClusterServerHandlers<typeof OnOff.Complete>['offWithEffect']>;
-
-  moveToLevel: MakeMandatory<ClusterServerHandlers<typeof LevelControl.Complete>['moveToLevel']>;
-  moveToLevelWithOnOff: MakeMandatory<ClusterServerHandlers<typeof LevelControl.Complete>['moveToLevelWithOnOff']>;
-
-  moveToHue: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['moveToHue']>;
-  moveHue: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['moveHue']>;
-  stepHue: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['stepHue']>;
-  moveToSaturation: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['moveToSaturation']>;
-  moveSaturation: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['moveSaturation']>;
-  stepSaturation: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['stepSaturation']>;
-  moveToHueAndSaturation: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['moveToHueAndSaturation']>;
-  moveToColorTemperature: MakeMandatory<ClusterServerHandlers<typeof ColorControl.Complete>['moveToColorTemperature']>;
-};
