@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
-import { MatterPlatformDevice, MatterPlatformEntity, MatterPlatformGroup, BridgedBaseDevice } from './matterEntity.js';
+import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
 import { AnsiLogger, dn, gn, db, wr, zb } from 'node-ansi-logger';
 import EventEmitter from 'events';
 
@@ -10,7 +10,7 @@ import { Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform } from '.
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
   private bridgedDevices: BridgedBaseDevice[] = [];
-  private bridgedEntities: MatterPlatformEntity[] = [];
+  private bridgedEntities: ZigbeeEntity[] = [];
   private whiteList: string[] = [];
   private blackList: string[] = [];
 
@@ -103,7 +103,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       return;
     }
     this.log.debug(`Registering device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
-    const matterDevice = new MatterPlatformDevice(this, device);
+    const matterDevice = new ZigbeeDevice(this, device);
     if (matterDevice.bridgedDevice) {
       this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
       this.bridgedDevices.push(matterDevice.bridgedDevice);
@@ -117,7 +117,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       return;
     }
     this.log.debug(`Registering group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
-    const matterGroup = new MatterPlatformGroup(this, group);
+    const matterGroup = new ZigbeeGroup(this, group);
     if (matterGroup.bridgedDevice) {
       this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
       this.bridgedDevices.push(matterGroup.bridgedDevice);

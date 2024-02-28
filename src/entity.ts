@@ -2,7 +2,7 @@
 /* eslint-disable max-len */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ZigbeePlatform } from './matterPlatform.js';
+import { ZigbeePlatform } from './platform.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify } from 'node-ansi-logger';
 import EventEmitter from 'events';
@@ -79,7 +79,7 @@ import {
 
 import { hostname } from 'os';
 
-export class MatterPlatformEntity extends EventEmitter {
+export class ZigbeeEntity extends EventEmitter {
   protected log: AnsiLogger;
   protected platform: ZigbeePlatform;
   protected device: BridgeDevice | undefined;
@@ -201,11 +201,11 @@ export class MatterPlatformEntity extends EventEmitter {
   }
 }
 
-export class MatterPlatformGroup extends MatterPlatformEntity {
+export class ZigbeeGroup extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, group: BridgeGroup) {
     super(platform, group);
 
-    this.bridgedDevice = new BridgedBaseDevice(platform, group.friendly_name, 'zigbee2MQTT', 'Group', `group-${group.id}`, false, onOffSwitch, undefined, undefined, [
+    this.bridgedDevice = new BridgedBaseDevice(group.friendly_name, 'zigbee2MQTT', 'Group', `group-${group.id}`, false, onOffSwitch, undefined, undefined, [
       Identify.Cluster.id,
       Groups.Cluster.id,
       Scenes.Cluster.id,
@@ -243,7 +243,7 @@ export class MatterPlatformGroup extends MatterPlatformEntity {
   }
 }
 
-export class MatterPlatformDevice extends MatterPlatformEntity {
+export class ZigbeeDevice extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, device: BridgeDevice) {
     super(platform, device);
     if (device.friendly_name === 'Coordinator') return;
@@ -292,7 +292,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
     if (types.includes('light')) {
       if (properties.includes('color')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -305,7 +304,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
         );
       } else if (properties.includes('brightness')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -318,7 +316,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
         );
       } else {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -333,7 +330,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
     } else if (types.includes('outlet')) {
       if (properties.includes('brightness')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -346,7 +342,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
         );
       } else {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -361,7 +356,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
     } else if (types.includes('switch')) {
       if (properties.includes('color')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -374,7 +368,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
         );
       } else if (properties.includes('brightness')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -387,7 +380,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
         );
       } else {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -409,7 +401,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
       // Create the device with generic properties
       if (properties.includes('occupancy')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -424,7 +415,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
           this.bridgedDevice.addDeviceType(DeviceTypes.LIGHT_SENSOR, [IlluminanceMeasurement.Cluster.id]);
       } else if (properties.includes('illuminance') || properties.includes('illuminance_lux')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -439,7 +429,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
       if (properties.includes('air_quality')) {
         console.log('Include air_quality');
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -455,7 +444,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
       } else if (properties.includes('temperature')) {
         console.log('Include temperature');
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -471,7 +459,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
       }
       if (properties.includes('contact')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -485,7 +472,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
       }
       if (properties.includes('water_leak')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -499,7 +485,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
       }
       if (properties.includes('smoke')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -513,7 +498,6 @@ export class MatterPlatformDevice extends MatterPlatformEntity {
       }
       if (properties.includes('action')) {
         this.bridgedDevice = new BridgedBaseDevice(
-          platform,
           device.friendly_name,
           device.definition.vendor,
           device.definition.model,
@@ -619,7 +603,6 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
   public hasEndpoints = false;
 
   constructor(
-    platform: ZigbeePlatform,
     deviceName: string,
     vendorName: string,
     productName: string,

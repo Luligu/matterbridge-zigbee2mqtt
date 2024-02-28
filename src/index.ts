@@ -1,7 +1,7 @@
 import { StorageBackendJsonFile, StorageManager } from '@project-chip/matter-node.js/storage';
 import { MatterServer } from '@project-chip/matter-node.js';
 import { Matterbridge } from '../../matterbridge/dist/index.js';
-import { ZigbeePlatform } from './matterPlatform.js';
+import { ZigbeePlatform } from './platform.js';
 import { AnsiLogger } from 'node-ansi-logger';
 import { Format, Level, Logger } from '@project-chip/matter-node.js/log';
 
