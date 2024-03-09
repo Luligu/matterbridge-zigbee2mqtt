@@ -1,11 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Level, Logger } from 'matterbridge';
+
+import { Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform } from 'matterbridge';
+import { AnsiLogger, dn, gn, db, wr, zb } from 'node-ansi-logger';
+
+import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
-import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
-import { AnsiLogger, dn, gn, db, wr, zb } from 'node-ansi-logger';
-import EventEmitter from 'events';
-
-import { Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform } from '../../matterbridge/dist/index.js';
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
@@ -31,7 +31,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug('Created MatterPlatform');
   }
 
-  override onStartDynamicPlatform() {
+  override async onStart() {
     this.z2m.start();
     this.z2mStarted = true;
 
@@ -53,35 +53,37 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('bridge-info', (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
-      this.log.debug(`zigbee2MQTT sent bridge-info version: ${bridgeInfo.version}`);
+      this.log.debug(`zigbee2MQTT sent bridge-info version: ${this.z2mBridgeInfo.version}`);
     });
 
     this.z2m.on('bridge-devices', (devices: BridgeDevice[]) => {
-      //Logger.defaultLogLevel = Level.INFO;
+      Logger.defaultLogLevel = Level.INFO;
       this.z2mBridgeDevices = devices;
       this.log.debug(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
       if (this.z2mDevicesRegistered) return;
-      Object.entries(devices).forEach(([key, device], index) => {
-        this.registerZigbeeDevice(device);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      Object.entries(this.z2mBridgeDevices).forEach(async ([key, device], index) => {
+        await this.registerZigbeeDevice(device);
       });
       this.z2mDevicesRegistered = true;
-      //Logger.defaultLogLevel = Level.DEBUG;
+      Logger.defaultLogLevel = Level.DEBUG;
     });
 
     this.z2m.on('bridge-groups', (groups: BridgeGroup[]) => {
-      //Logger.defaultLogLevel = Level.INFO;
+      Logger.defaultLogLevel = Level.INFO;
       this.z2mBridgeGroups = groups;
       this.log.debug(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
       if (this.z2mGroupsRegistered) return;
-      Object.entries(groups).forEach(([key, group], index) => {
-        this.registerZigbeeGroup(group);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      Object.entries(this.z2mBridgeGroups).forEach(async ([key, group], index) => {
+        await this.registerZigbeeGroup(group);
       });
       this.z2mGroupsRegistered = true;
-      //Logger.defaultLogLevel = Level.DEBUG;
+      Logger.defaultLogLevel = Level.DEBUG;
     });
   }
 
-  override onShutdown() {
+  override async onShutdown() {
     //this.updateAvailability(false);
     this.z2m.stop();
   }
@@ -98,28 +100,28 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     return true;
   }
 
-  private registerZigbeeDevice(device: BridgeDevice) {
+  private async registerZigbeeDevice(device: BridgeDevice) {
     if (!this.validateWhiteBlackList(device.friendly_name)) {
       return;
     }
     this.log.debug(`Registering device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
     const matterDevice = new ZigbeeDevice(this, device);
     if (matterDevice.bridgedDevice) {
-      this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
+      await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
       this.bridgedDevices.push(matterDevice.bridgedDevice);
       this.bridgedEntities.push(matterDevice);
       this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
     } else this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
   }
 
-  public registerZigbeeGroup(group: BridgeGroup) {
+  public async registerZigbeeGroup(group: BridgeGroup) {
     if (!this.validateWhiteBlackList(group.friendly_name)) {
       return;
     }
     this.log.debug(`Registering group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
     const matterGroup = new ZigbeeGroup(this, group);
     if (matterGroup.bridgedDevice) {
-      this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
+      await this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
       this.bridgedDevices.push(matterGroup.bridgedDevice);
       this.bridgedEntities.push(matterGroup);
       this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
@@ -128,16 +130,18 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
   public unregisterAll() {
     this.log.warn(`Unregistering ${this.bridgedDevices.length} accessories`);
+    /*
     for (const bridgedDevice of this.bridgedDevices) {
-      //this.log.warn(`- ${bridgedDevice.deviceName} ${bridgedDevice.id} (${bridgedDevice.name})`);
-      //this.matterAggregator?.removeBridgedDevice(bridgedDevice);
+      this.log.warn(`- ${bridgedDevice.deviceName} ${bridgedDevice.id} (${bridgedDevice.name})`);
+      this.matterAggregator?.removeBridgedDevice(bridgedDevice);
     }
     for (const bridgedEntity of this.bridgedEntities) {
-      //this.log.warn(`- ${bridgedEntity.bridgedDevice?.deviceName} ${bridgedEntity.bridgedDevice?.id} (${bridgedEntity.bridgedDevice?.name})`);
-      //this.matterAggregator?.removeBridgedDevice(bridgedEntity.bridgedDevice!);
+      this.log.warn(`- ${bridgedEntity.bridgedDevice?.deviceName} ${bridgedEntity.bridgedDevice?.id} (${bridgedEntity.bridgedDevice?.name})`);
+      this.matterAggregator?.removeBridgedDevice(bridgedEntity.bridgedDevice!);
     }
     this.bridgedDevices.splice(0);
     this.bridgedEntities.splice(0);
+    */
   }
 
   public updateAvailability(available: boolean) {

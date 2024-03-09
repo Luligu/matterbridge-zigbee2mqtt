@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "MIT",
@@ -26,7 +26,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "start": "node ./dist/index.js",
+    "start": "matterbridge -bridge",
     "test": "jest",
     "test:verbose": "jest --verbose",
     "test:watch": "jest --watch",
@@ -40,7 +40,16 @@
     "prepublishOnly": "npm run lint && npm run cleanBuild",
     "checkDependencies": "npx npm-check-updates",
     "updateDependencies": "npx npm-check-updates -u",
-    "updateMatter": "npm install @project-chip/matter.js@dev && npm install @project-chip/matter-node.js@dev && npm install @project-chip/matter.js-tools@dev && npm install @project-chip/matter-node-ble.js@dev"
+    "matterbridge:add": "matterbridge -add .\\",
+    "matterbridge:remove": "matterbridge -remove .\\",
+    "matterbridge:enable": "matterbridge -enable .\\",
+    "matterbridge:disable": "matterbridge -disable .\\",
+    "matterbridge:list": "matterbridge -list",
+    "dev:link": "npm link matterbridge",
+    "dev:unlink": "npm unlink matterbridge",
+    "dev:install": "npm install --save-dev matterbridge",
+    "updateMatter:dev": "npm install @project-chip/matter-node.js@dev",
+    "updateMatter:latest": "npm install @project-chip/matter-node.js"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^1.6.2",
@@ -54,10 +63,8 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@project-chip/matter-node.js": "^0.7.5",
     "moment": "^2.30.1",
     "mqtt": "^5.3.5",
-    "node-ansi-logger": "^1.9.1",
-    "node-persist-manager": "^1.0.3"
+    "node-ansi-logger": "^1.9.1"
   }
 }

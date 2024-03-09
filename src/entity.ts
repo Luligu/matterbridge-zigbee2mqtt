@@ -2,44 +2,30 @@
 /* eslint-disable max-len */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ZigbeePlatform } from './platform.js';
-import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify } from 'node-ansi-logger';
-import EventEmitter from 'events';
-import { Payload, PayloadValue } from './payloadTypes.js';
-import * as color from './colorUtils.js';
 
 // matter.js imports
 import {
   Device,
   DeviceTypes,
   DeviceTypeDefinition,
-  Endpoint,
   EndpointOptions,
-  ComposedDevice,
   getClusterInitialAttributeValues,
   logEndpoint,
-  WrapCommandHandler,
-  DeviceClasses,
-} from '@project-chip/matter-node.js/device';
-import {
-  Cluster,
+  AirQuality,
+  AirQualityCluster,
+  MatterbridgeDevice,
+  airQualitySensor,
+  colorTemperatureSwitch,
+  dimmableSwitch,
+  onOffSwitch,
   ClusterServer,
-  Attributes,
-  Commands,
-  Events,
   AttributeInitialValues,
-  ClusterServerHandlers,
   BridgedDeviceBasicInformation,
   BridgedDeviceBasicInformationCluster,
   Identify,
-  createDefaultIdentifyClusterServer,
   Groups,
-  createDefaultGroupsClusterServer,
   Scenes,
-  createDefaultScenesClusterServer,
   OnOff,
-  createDefaultOnOffClusterServer,
   LevelControl,
   createDefaultLevelControlClusterServer,
   ColorControl,
@@ -58,26 +44,19 @@ import {
   OccupancySensing,
   IlluminanceMeasurementCluster,
   IlluminanceMeasurement,
-  ClusterClient,
-  IdentifyCluster,
   PowerSource,
-} from '@project-chip/matter-node.js/cluster';
-import { ClusterId, VendorId } from '@project-chip/matter-node.js/datatype';
-import { NamedHandler, extendPublicHandlerMethods } from '@project-chip/matter-node.js/util';
-import { NotImplementedError } from '@project-chip/matter.js/common';
+  ClusterId,
+} from 'matterbridge';
 
-import {
-  AirQuality,
-  AirQualityCluster,
-  MatterbridgeDevice,
-  airQualitySensor,
-  colorTemperatureSwitch,
-  createDefaultColorControlClusterServer,
-  dimmableSwitch,
-  onOffSwitch,
-} from '../../matterbridge/dist/index.js';
-
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify } from 'node-ansi-logger';
+import { ZigbeePlatform } from './platform.js';
+import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
+import { Payload } from './payloadTypes.js';
+import * as color from './colorUtils.js';
+import EventEmitter from 'events';
 import { hostname } from 'os';
+
+//import { NotImplementedError } from '@project-chip/matter.js/common';
 
 export class ZigbeeEntity extends EventEmitter {
   protected log: AnsiLogger;
@@ -412,7 +391,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           [Identify.Cluster.id, OccupancySensing.Cluster.id],
         );
         if (properties.includes('illuminance') || properties.includes('illuminance_lux'))
-          this.bridgedDevice.addDeviceType(DeviceTypes.LIGHT_SENSOR, [IlluminanceMeasurement.Cluster.id]);
+          this.bridgedDevice.addDeviceTypeServer(DeviceTypes.LIGHT_SENSOR, [IlluminanceMeasurement.Cluster.id]);
       } else if (properties.includes('illuminance') || properties.includes('illuminance_lux')) {
         this.bridgedDevice = new BridgedBaseDevice(
           device.friendly_name,
@@ -439,8 +418,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           undefined,
           [Identify.Cluster.id, AirQuality.Cluster.id],
         );
-        this.bridgedDevice.addDeviceType(DeviceTypes.TEMPERATURE_SENSOR, [TemperatureMeasurement.Cluster.id]);
-        this.bridgedDevice.addDeviceType(DeviceTypes.HUMIDITY_SENSOR, [RelativeHumidityMeasurement.Cluster.id]);
+        this.bridgedDevice.addDeviceTypeServer(DeviceTypes.TEMPERATURE_SENSOR, [TemperatureMeasurement.Cluster.id]);
+        this.bridgedDevice.addDeviceTypeServer(DeviceTypes.HUMIDITY_SENSOR, [RelativeHumidityMeasurement.Cluster.id]);
       } else if (properties.includes('temperature')) {
         console.log('Include temperature');
         this.bridgedDevice = new BridgedBaseDevice(
@@ -454,8 +433,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           undefined,
           [Identify.Cluster.id, TemperatureMeasurement.Cluster.id /*, RelativeHumidityMeasurement.Cluster.id, PressureMeasurement.Cluster.id*/],
         );
-        this.bridgedDevice.addDeviceType(DeviceTypes.HUMIDITY_SENSOR, [RelativeHumidityMeasurement.Cluster.id]);
-        this.bridgedDevice.addDeviceType(DeviceTypes.PRESSURE_SENSOR, [PressureMeasurement.Cluster.id]);
+        this.bridgedDevice.addDeviceTypeServer(DeviceTypes.HUMIDITY_SENSOR, [RelativeHumidityMeasurement.Cluster.id]);
+        this.bridgedDevice.addDeviceTypeServer(DeviceTypes.PRESSURE_SENSOR, [PressureMeasurement.Cluster.id]);
       }
       if (properties.includes('contact')) {
         this.bridgedDevice = new BridgedBaseDevice(
@@ -699,8 +678,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
    * @param deviceSerial Serial of the device
    */
   protected addInfoCluster(deviceName: string, vendorName: string, productName: string, deviceSerial: string) {
-    const version = process.env.npm_package_version || '1.0.5';
-    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName, (deviceSerial + '_' + version + '_' + hostname).slice(0, 32), undefined, vendorName, productName);
+    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName, (deviceSerial + '_' + hostname).slice(0, 32), 0xfff1, vendorName, productName);
 
     const bridgedBasicInformationCluster = this.getClusterServer(BridgedDeviceBasicInformationCluster);
     bridgedBasicInformationCluster?.subscribeReachableAttribute((newValue) => {
@@ -766,10 +744,10 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
             this.commandHandler.executeHandler('moveToHue', { request: request, attributes: attributes });
           },
           moveHue: async () => {
-            throw new NotImplementedError('Not implemented');
+            console.error('Not implemented');
           },
           stepHue: async () => {
-            throw new NotImplementedError('Not implemented');
+            console.error('Not implemented');
           },
           moveToSaturation: async ({ request: request, attributes: attributes }) => {
             console.log('Command moveToSaturation request:', request /*, 'attributes:', attributes*/);
@@ -777,10 +755,10 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
             this.commandHandler.executeHandler('moveToSaturation', { request: request, attributes: attributes });
           },
           moveSaturation: async () => {
-            throw new NotImplementedError('Not implemented');
+            console.error('Not implemented');
           },
           stepSaturation: async () => {
-            throw new NotImplementedError('Not implemented');
+            console.error('Not implemented');
           },
           moveToHueAndSaturation: async ({ request: request, attributes: attributes }) => {
             console.log('Command moveToHueAndSaturation request:', request /*, 'attributes:', attributes*/);
@@ -789,7 +767,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
             this.commandHandler.executeHandler('moveToHueAndSaturation', { request: request, attributes: attributes });
           },
           stopMoveStep: async () => {
-            throw new NotImplementedError('Not implemented');
+            console.error('Not implemented');
           },
           moveToColorTemperature: async ({ request: request, attributes: attributes }) => {
             console.log('Command moveToColorTemperature request:', request /*, 'attributes:', attributes*/);
@@ -797,10 +775,10 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
             this.commandHandler.executeHandler('moveToColorTemperature', { request: request, attributes: attributes });
           },
           moveColorTemperature: async () => {
-            throw new NotImplementedError('Not implemented');
+            console.error('Not implemented');
           },
           stepColorTemperature: async () => {
-            throw new NotImplementedError('Not implemented');
+            console.error('Not implemented');
           },
         },
         {},
@@ -954,7 +932,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     */
   }
 
-  public addDeviceType(deviceType: DeviceTypeDefinition, serverList: ClusterId[]) {
+  public addDeviceTypeServer(deviceType: DeviceTypeDefinition, serverList: ClusterId[]) {
     const deviceTypes = this.getDeviceTypes();
     deviceTypes.push(deviceType);
     this.setDeviceTypes(deviceTypes);
