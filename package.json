@@ -26,7 +26,8 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "start": "matterbridge -bridge",
+    "start:bridge": "matterbridge -bridge",
+    "start:childbridge": "matterbridge -childbridge",
     "test": "jest",
     "test:verbose": "jest --verbose",
     "test:watch": "jest --watch",
@@ -45,11 +46,10 @@
     "matterbridge:enable": "matterbridge -enable .\\",
     "matterbridge:disable": "matterbridge -disable .\\",
     "matterbridge:list": "matterbridge -list",
-    "dev:link": "npm link matterbridge",
-    "dev:unlink": "npm unlink matterbridge",
+    "dev:link": "npm link --save-dev matterbridge",
     "dev:install": "npm install --save-dev matterbridge",
-    "updateMatter:dev": "npm install @project-chip/matter-node.js@dev",
-    "updateMatter:latest": "npm install @project-chip/matter-node.js"
+    "dev:unlink": "npm uninstall matterbridge && npm unlink matterbridge",
+    "install": "node link-matterbridge-script.js && npm run build"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^1.6.3",
