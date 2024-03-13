@@ -578,7 +578,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
 }
 
 export class BridgedBaseDevice extends MatterbridgeDevice {
-  public deviceName: string;
+  //public deviceName: string;
   public hasEndpoints = false;
 
   constructor(
