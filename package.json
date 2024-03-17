@@ -52,7 +52,7 @@
     "install": "node link-matterbridge-script.js && npm run build"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^1.6.3",
+    "@stylistic/eslint-plugin": "^1.7.0",
     "@tsconfig/node-lts": "^20.1.1",
     "@types/node": "^20.11.27",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
