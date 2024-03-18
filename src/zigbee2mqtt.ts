@@ -4,33 +4,19 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.8
+ * @version 2.2.9
  *
  * All rights reserved.
  *
  */
 
-/* eslint-disable max-len */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import fs from 'fs';
 import path from 'path';
 import * as util from 'util';
 import * as crypto from 'crypto';
-import {
-  connect,
-  MqttClient,
-  IClientOptions,
-  connectAsync,
-  MqttClientEventCallbacks,
-  OnErrorCallback,
-  ErrorWithReasonCode,
-  IConnackPacket,
-  IDisconnectPacket,
-  IPublishPacket,
-  Packet,
-} from 'mqtt';
+import { MqttClient, IClientOptions, connectAsync, ErrorWithReasonCode, IConnackPacket, IDisconnectPacket, IPublishPacket, Packet } from 'mqtt';
 import { EventEmitter } from 'events';
-import { Logger, AnsiLogger, TimestampFormat, rs, db, dn, gn, wr, er, zb, hk, pl, nf, id, idn, ign, REVERSE, REVERSEOFF } from 'node-ansi-logger';
+import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF } from 'node-ansi-logger';
 import { BridgeExtension, KeyValue, Topology } from './zigbee2mqttTypes.js';
 import { mkdir } from 'fs/promises';
 
@@ -273,7 +259,7 @@ export class Zigbee2MQTT extends EventEmitter {
   };
 
   // Constructor
-  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, hb_log?: Logger) {
+  constructor(mqttHost: string, mqttPort: number, mqttTopic: string) {
     super();
 
     this.mqttHost = mqttHost;
@@ -320,6 +306,7 @@ export class Zigbee2MQTT extends EventEmitter {
         this.log.debug('Connection established');
         this.mqttClient = client;
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('connect', (packet: IConnackPacket) => {
           this.log.debug(`Event connect to ${this.getUrl()}${rs}` /*, connack*/);
           this.mqttIsConnected = true;
@@ -363,14 +350,17 @@ export class Zigbee2MQTT extends EventEmitter {
           this.emit('mqtt_error', error);
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('packetsend', (packet: Packet) => {
           //this.log.debug('classZigbee2MQTT=>Event packetsend');
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('packetreceive', (packet: Packet) => {
           //this.log.debug('classZigbee2MQTT=>Event packetreceive');
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('message', (topic: string, payload: Buffer, packet: IPublishPacket) => {
           //this.log.debug(`classZigbee2MQTT=>Event message topic: ${topic} payload: ${payload.toString()} packet: ${stringify(packet, true)}`);
           this.messageHandler(topic, payload);
@@ -397,6 +387,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.mqttClient
         .endAsync(false)
         .then(() => {
+          this.mqttClient?.removeAllListeners();
           this.mqttIsConnected = false;
           this.mqttIsReconnecting = false;
           this.mqttIsEnding = false;
@@ -924,7 +915,7 @@ export class Zigbee2MQTT extends EventEmitter {
         const sourceLinks = topology.links.filter((link) => link.sourceIeeeAddr === node.ieeeAddr); // Filter
         sourceLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         sourceLinks.forEach((link, index) => {
-          const targetNode = topology.nodes.find((node) => node.ieeeAddr === link.target.ieeeAddr);
+          //const targetNode = topology.nodes.find((node) => node.ieeeAddr === link.target.ieeeAddr);
           this.log.debug(
             `  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} > > > ${friendlyName(link.target.ieeeAddr)}`,
           );
@@ -933,7 +924,7 @@ export class Zigbee2MQTT extends EventEmitter {
         const targetLinks = topology.links.filter((link) => link.targetIeeeAddr === node.ieeeAddr); // Filter
         targetLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         targetLinks.forEach((link, index) => {
-          const sourceNode = topology.nodes.find((node) => node.ieeeAddr === link.source.ieeeAddr);
+          //const sourceNode = topology.nodes.find((node) => node.ieeeAddr === link.source.ieeeAddr);
           this.log.debug(
             `  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} < < < ${friendlyName(link.source.ieeeAddr)}`,
           );
