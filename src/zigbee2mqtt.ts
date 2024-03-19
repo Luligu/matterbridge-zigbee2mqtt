@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.9
+ * @version 2.2.10
  *
  * All rights reserved.
  *
@@ -427,6 +427,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.mqttPublishQueueTimeout = setInterval(async () => {
         if (this.mqttClient && this.mqttPublishQueue.length > 0) {
           this.log.debug(
+            // eslint-disable-next-line max-len
             `**Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} topic: ${this.mqttPublishQueue[0].topic} message: ${this.mqttPublishQueue[0].message}${rs}`,
           );
           //this.publish(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message);
@@ -442,6 +443,7 @@ export class Zigbee2MQTT extends EventEmitter {
           } catch (error) {
             this.mqttPublishInflights--;
             this.log.error(
+              // eslint-disable-next-line max-len
               `****Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
             );
           }
@@ -909,6 +911,7 @@ export class Zigbee2MQTT extends EventEmitter {
       topology.nodes.sort((a, b) => a.friendlyName.localeCompare(b.friendlyName));
       topology.nodes.forEach((node, index) => {
         this.log.debug(
+          // eslint-disable-next-line max-len
           `Node [${index.toString().padStart(3, ' ')}] ${node.type === 'EndDevice' ? ign : node.type === 'Router' ? idn : '\x1b[48;5;1m\x1b[38;5;255m'}${node.friendlyName}${rs}${db} addr: ${node.ieeeAddr}-0x${node.networkAddress.toString(16)} type: ${node.type} lastseen: ${timePassedSince(node.lastSeen)}`,
         );
         // SourceAddr
@@ -939,7 +942,8 @@ export class Zigbee2MQTT extends EventEmitter {
         assert(sourceNode, `${wr}NwkAddr error node ${link.sourceIeeeAddr} not found${db}`);
         const targetNode = map.nodes.find(node => node.ieeeAddr === link.target.ieeeAddr);
         assert(targetNode, `${wr}NwkAddr error node ${link.targetIeeeAddr} not found${db}`);
-        this.log.debug(`- link[${index}]: ${link.source.ieeeAddr}-${link.source.networkAddress.toString(16)} (${sourceNode?.friendlyName}) Lqi: ${link.lqi} Depth: ${link.depth} Relation: ${link.relationship} => ${link.target.ieeeAddr}-${link.target.networkAddress.toString(16)} (${targetNode?.friendlyName})`);
+        this.log.debug(`- link[${index}]: ${link.source.ieeeAddr}-${link.source.networkAddress.toString(16)} (${sourceNode?.friendlyName}) 
+        Lqi: ${link.lqi} Depth: ${link.depth} Relation: ${link.relationship} => ${link.target.ieeeAddr}-${link.target.networkAddress.toString(16)} (${targetNode?.friendlyName})`);
       } );
       */
     }
@@ -1038,9 +1042,7 @@ export class Zigbee2MQTT extends EventEmitter {
         this.log.warn(`handleEvent() type: device_joined name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
         break;
       case 'device_interview':
-        this.log.warn(
-          `handleEvent() type: device_interview name: ${json.data.friendly_name} address: ${json.data.ieee_address} status: ${json.data.status} supported: ${json.data.supported}`,
-        );
+        this.log.warn(`handleEvent() type: device_interview name: ${json.data.friendly_name} address: ${json.data.ieee_address} status: ${json.data.status} supported: ${json.data.supported}`);
         break;
       case 'device_announce':
         this.log.warn(`handleEvent() type: device_announce name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
@@ -1142,9 +1144,7 @@ export class Zigbee2MQTT extends EventEmitter {
         });
         endpoint.configured_reportings.forEach((reporting) => {
           // eslint-disable-next-line max-len
-          this.log.debug(
-            `----Reportings: ${reporting.attribute} ${reporting.cluster} ${reporting.minimum_report_interval} ${reporting.maximum_report_interval}  ${reporting.reportable_change}`,
-          );
+          this.log.debug(`----Reportings: ${reporting.attribute} ${reporting.cluster} ${reporting.minimum_report_interval} ${reporting.maximum_report_interval}  ${reporting.reportable_change}`);
         });
         endpoint.scenes.forEach((scene) => {
           this.log.debug(`----Scenes: ID ${scene.id} Name ${scene.name}`);
