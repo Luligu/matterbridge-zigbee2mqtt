@@ -1,10 +1,11 @@
 import { Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb } from 'node-ansi-logger';
+import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import path from 'path';
+import { Payload } from './payloadTypes.js';
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
@@ -88,6 +89,16 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
   override async onConfigure() {
     this.log.debug('Configuring platform');
+    if (this.z2mBridgeDevices) {
+      for (const device of this.z2mBridgeDevices) {
+        await this.requestDeviceUpdate(device);
+      }
+    }
+    if (this.z2mBridgeGroups) {
+      for (const group of this.z2mBridgeGroups) {
+        await this.requestGroupUpdate(group);
+      }
+    }
   }
 
   override async onShutdown(reason?: string) {
@@ -95,6 +106,36 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     //this.updateAvailability(false);
     await this.unregisterAll();
     this.z2m.stop();
+  }
+
+  private async requestDeviceUpdate(device: BridgeDevice) {
+    const payload: Payload = {};
+    if (!device.definition || !device.definition.exposes) return;
+    for (const feature of device.definition.exposes) {
+      if (feature.features) {
+        for (const subFeature of feature.features) {
+          if (subFeature.access & 0b100) {
+            payload[subFeature.property] = '';
+          }
+        }
+      }
+      if (feature.access & 0b100) {
+        payload[feature.property] = '';
+      }
+    }
+    if (payload && Object.keys(payload).length > 0) {
+      const topic = this.z2m.mqttTopic + '/' + device.friendly_name + '/get';
+      await this.z2m.publish(topic, payloadStringify(payload), false);
+    }
+  }
+
+  private async requestGroupUpdate(group: BridgeGroup) {
+    const payload: Payload = {};
+    payload['state'] = '';
+    if (payload && Object.keys(payload).length > 0) {
+      const topic = this.z2m.mqttTopic + '/' + group.friendly_name + '/get';
+      await this.z2m.publish(topic, payloadStringify(payload), false);
+    }
   }
 
   public validateWhiteBlackList(entityName: string) {
