@@ -21,3 +21,43 @@ See the guidelines on [Matterbridge](https://github.com/Luligu/matterbridge/blob
 ### Zigbee2mqtt
 
 See the guidelines on [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) for more information.
+
+## How to install
+
+### If you want to use the plugin 
+
+On linux:
+```
+cd ~/Matterbridge
+sudo npm install -g matterbridge-zigbee2mqtt
+matterbridge -add matterbridge-zigbee2mqtt
+```
+
+On windows:
+```
+cd $HOME\Matterbridge
+npm install -g matterbridge-zigbee2mqtt
+matterbridge -add matterbridge-zigbee2mqtt
+```
+
+### If you want to contribute to the plugin 
+
+On linux:
+```
+cd ~/Matterbridge
+git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
+cd matterbridge-zigbee2mqtt
+npm install
+matterbridge -add ./
+```
+
+On windows:
+```
+cd $HOME\Matterbridge
+git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
+cd matterbridge-zigbee2mqtt
+npm install
+matterbridge -add .\
+```
+
+
