@@ -10,6 +10,6 @@
 
 ---
 
-Matterbridge dynamic platform example plugin is a template to develop your own plugin using the dynamic platform.
+Matterbridge zigbee2mqtt is production level plugin that expose to Matter all zigbee2mqtt devices and groups.
 
 See the guidelines on [Matterbridge](https://github.com/Luligu/matterbridge/blob/main/README.md) for more information.
