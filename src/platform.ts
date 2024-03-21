@@ -104,7 +104,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onShutdown(reason?: string) {
     this.log.debug('Shutting down platform: ' + reason);
     //this.updateAvailability(false);
-    await this.unregisterAll();
+    //await this.unregisterAll();
     this.z2m.stop();
   }
 

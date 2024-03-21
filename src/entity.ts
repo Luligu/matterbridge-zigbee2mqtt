@@ -119,9 +119,16 @@ export class ZigbeeEntity extends EventEmitter {
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentLevelAttribute: ${value}`);
         }
         if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp') {
-          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.attributes.colorTemperatureMireds.setLocal(value);
-          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.attributes.colorMode.setLocal(ColorControl.ColorMode.ColorTemperatureMireds);
+          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorTemperatureMiredsAttribute(value);
+          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.ColorTemperatureMireds);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorTemperatureMireds: ${value}`);
+        }
+        if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
+          const hsl = color.xyToHsl(value.x, value.y);
+          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentHueAttribute((hsl.h / 360) * 254);
+          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentSaturationAttribute((hsl.s / 100) * 254);
+          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorXY: X:${value.x} Y:${value.y}`);
         }
         if (key === 'temperature') {
           this.bridgedDevice.getClusterServerById(TemperatureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
@@ -361,30 +368,40 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
     if (this.bridgedDevice.hasClusterServer(ColorControlCluster) && this.bridgedDevice.getClusterServer(ColorControlCluster)?.isAttributeSupportedByName('colorTemperatureMireds')) {
       this.bridgedDevice.addCommandHandler('moveToColorTemperature', async ({ request: request, attributes: attributes }) => {
-        this.log.debug(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds} attributes: ${attributes.colorTemperatureMireds}`);
+        this.log.debug(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds} attributes: ${attributes.colorTemperatureMireds?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
         this.log.warn(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
         attributes.colorMode.setLocal(ColorControl.ColorMode.ColorTemperatureMireds);
         this.publishCommand('moveToColorTemperature', device.friendly_name, { color_temp: request.colorTemperatureMireds });
       });
     }
     if (this.bridgedDevice.hasClusterServer(ColorControlCluster) && this.bridgedDevice.getClusterServer(ColorControlCluster)?.isAttributeSupportedByName('currentHue')) {
+      let lastRequestedHue = 0;
+      let lastRequestedSaturation = 0;
+      let lastRequestTimeout: NodeJS.Timeout;
       this.bridgedDevice.addCommandHandler('moveToHue', async ({ request: request, attributes: attributes }) => {
-        this.log.debug(`Command moveToHue called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.hue} attributes: ${attributes.currentHue}`);
-        this.log.warn(`Command moveToHue called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
+        this.log.debug(`Command moveToHue called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.hue} attributes: hue ${attributes.currentHue?.getLocal()} saturation ${attributes.currentSaturation?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
         attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-        const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (attributes.currentSaturation!.getLocal() / 254) * 100, 50);
-        this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+        lastRequestedHue = request.hue;
+        lastRequestTimeout = setTimeout(() => {
+          clearTimeout(lastRequestTimeout);
+          const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (lastRequestedSaturation / 254) * 100, 50);
+          this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+        }, 500);
       });
       this.bridgedDevice.addCommandHandler('moveToSaturation', async ({ request: request, attributes: attributes }) => {
-        this.log.debug(`Command moveToSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.saturation} attributes: ${attributes.currentSaturation}`);
-        this.log.warn(`Command moveToSaturation called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
+        this.log.debug(`Command moveToSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.saturation} attributes: hue ${attributes.currentHue?.getLocal()} saturation ${attributes.currentSaturation?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
         attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-        const rgb = color.hslColorToRgbColor((attributes.currentHue!.getLocal() / 254) * 360, (request.saturation / 254) * 100, 50);
-        this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+        lastRequestedSaturation = request.saturation;
+        lastRequestTimeout = setTimeout(() => {
+          clearTimeout(lastRequestTimeout);
+          const rgb = color.hslColorToRgbColor((lastRequestedHue / 254) * 360, (request.saturation / 254) * 100, 50);
+          this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+        }, 500);
       });
       this.bridgedDevice.addCommandHandler('moveToHueAndSaturation', async ({ request: request, attributes: attributes }) => {
-        this.log.debug(`Command moveToHueAndSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.hue}-${request.saturation} attributes: ${attributes.currentHue}-${attributes.currentSaturation}`);
-        this.log.warn(`Command moveToHueAndSaturation called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
+        this.log.debug(
+          `Command moveToHueAndSaturation called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.hue}-${request.saturation} attributes: hue ${attributes.currentHue?.getLocal()} saturation ${attributes.currentSaturation?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`,
+        );
         attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
         const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (request.saturation / 254) * 100, 50);
         this.publishCommand('moveToHueAndSaturation', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
@@ -410,6 +427,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           data.attributes.currentPositionLiftPercent100ths?.setLocal(liftPercent100thsValue);
           data.attributes.targetPositionLiftPercent100ths?.setLocal(liftPercent100thsValue);
         }
+        data.attributes.operationalStatus?.setLocal({ global: WindowCovering.MovementStatus.Stopped, lift: WindowCovering.MovementStatus.Stopped, tilt: WindowCovering.MovementStatus.Stopped });
         this.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
       this.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue }, attributes }) => {
