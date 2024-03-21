@@ -15,6 +15,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private blackList: string[] = [];
 
   // zigbee2Mqtt
+  public debugEnabled: boolean;
   public z2m: Zigbee2MQTT;
   public z2mStarted = false;
   public z2mDevicesRegistered = false;
@@ -26,6 +27,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   constructor(matterbridge: Matterbridge, log: AnsiLogger) {
     super(matterbridge, log);
 
+    this.debugEnabled = matterbridge.debugEnabled;
     //this.z2m = new Zigbee2MQTT('raspberrypi.local', 1883, 'zigbee2mqtt');
     this.z2m = new Zigbee2MQTT('localhost', 1883, 'zigbee2mqtt');
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));

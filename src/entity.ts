@@ -53,7 +53,7 @@ import {
   LevelControlCluster,
 } from 'matterbridge';
 
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify } from 'node-ansi-logger';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify, payloadStringify, colorStringify } from 'node-ansi-logger';
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
@@ -90,12 +90,12 @@ export class ZigbeeEntity extends EventEmitter {
       this.en = gn;
       this.ien = ign;
     }
-    this.log = new AnsiLogger({ logName: this.accessoryName, logTimestampFormat: TimestampFormat.TIME_MILLIS });
+    this.log = new AnsiLogger({ logName: this.accessoryName, logTimestampFormat: TimestampFormat.TIME_MILLIS, logDebug: platform.debugEnabled });
     this.log.debug(`Created MatterEntity: ${this.accessoryName}`);
 
     this.platform.z2m.on('MESSAGE-' + this.accessoryName, (payload: object) => {
       if (this.bridgedDevice === undefined) return;
-      this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${stringify(payload, true, 255, 247)}`);
+      this.log.info(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${nf} payload: ${colorStringify(payload)}`);
       Object.entries(payload).forEach(([key, value], index) => {
         if (this.bridgedDevice === undefined) return;
         if (key === 'position') {
@@ -129,6 +129,10 @@ export class ZigbeeEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentSaturationAttribute((hsl.s / 100) * 254);
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorXY: X:${value.x} Y:${value.y}`);
+        }
+        if (key === 'battery') {
+          this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatPercentRemainingAttribute(Math.round(value * 2));
+          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batPercentRemaining: ${Math.round(value * 2)}`);
         }
         if (key === 'temperature') {
           this.bridgedDevice.getClusterServerById(TemperatureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
@@ -247,28 +251,28 @@ interface ZigbeeToMatter {
 /* eslint-disable */
 // prettier-ignore
 const z2ms: ZigbeeToMatter[] = [
-  { type: 'switch', name: 'state',        property: 'state',      deviceType: onOffSwitch, cluster: OnOff.Cluster.id, attribute: OnOff.Cluster.attributes.onOff.id },
-  { type: 'switch', name: 'brightness',   property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.Cluster.id, attribute: LevelControl.Cluster.attributes.currentLevel.id },
-  { type: 'switch', name: 'color_xy',     property: 'color_xy',   deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: ColorControl.Cluster.attributes.colorMode.id },
-  { type: 'outlet', name: 'state',        property: 'state',      deviceType: DeviceTypes.ON_OFF_LIGHT, cluster: OnOff.Cluster.id, attribute: OnOff.Cluster.attributes.onOff.id },
-  { type: 'outlet', name: 'brightness',   property: 'brightness', deviceType: DeviceTypes.DIMMABLE_PLUGIN_UNIT, cluster: LevelControl.Cluster.id, attribute: LevelControl.Cluster.attributes.currentLevel.id },
-  { type: 'light',  name: 'state',        property: 'state',      deviceType: DeviceTypes.ON_OFF_LIGHT, cluster: OnOff.Cluster.id, attribute: OnOff.Cluster.attributes.onOff.id },
-  { type: 'light',  name: 'brightness',   property: 'brightness', deviceType: DeviceTypes.DIMMABLE_LIGHT, cluster: LevelControl.Cluster.id, attribute: LevelControl.Cluster.attributes.currentLevel.id },
-  { type: 'light',  name: 'color_xy',     property: 'color_xy',   deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: ColorControl.Cluster.attributes.colorMode.id },
-  { type: 'cover',  name: 'state',        property: 'state',      deviceType: DeviceTypes.WINDOW_COVERING, cluster: WindowCovering.Cluster.id, attribute: WindowCovering.Complete.attributes.currentPositionLiftPercent100ths.id },
-  { type: '',       name: 'occupancy',    property: 'occupancy',  deviceType: DeviceTypes.OCCUPANCY_SENSOR, cluster: OccupancySensing.Cluster.id, attribute: OccupancySensing.Cluster.attributes.occupancy.id },
-  { type: '',       name: 'illuminance',  property: 'illuminance', deviceType: DeviceTypes.LIGHT_SENSOR, cluster: IlluminanceMeasurement.Cluster.id, attribute: IlluminanceMeasurement.Cluster.attributes.measuredValue.id },
-  { type: '',       name: 'contact',      property: 'contact',    deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
-  { type: '',       name: 'water_leak',   property: 'water_leak', deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
-  { type: '',       name: 'vibration',    property: 'vibration',  deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
-  { type: '',       name: 'smoke',        property: 'smoke',      deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
+  { type: 'switch', name: 'state',          property: 'state',      deviceType: onOffSwitch,                cluster: OnOff.Cluster.id, attribute: OnOff.Cluster.attributes.onOff.id },
+  { type: 'switch', name: 'brightness',     property: 'brightness', deviceType: dimmableSwitch,             cluster: LevelControl.Cluster.id, attribute: LevelControl.Cluster.attributes.currentLevel.id },
+  { type: 'switch', name: 'color_xy',       property: 'color_xy',   deviceType: colorTemperatureSwitch,     cluster: ColorControl.Cluster.id, attribute: ColorControl.Cluster.attributes.colorMode.id },
+  { type: 'outlet', name: 'state',          property: 'state',      deviceType: DeviceTypes.ON_OFF_LIGHT,   cluster: OnOff.Cluster.id, attribute: OnOff.Cluster.attributes.onOff.id },
+  { type: 'outlet', name: 'brightness',     property: 'brightness', deviceType: DeviceTypes.DIMMABLE_PLUGIN_UNIT, cluster: LevelControl.Cluster.id, attribute: LevelControl.Cluster.attributes.currentLevel.id },
+  { type: 'light',  name: 'state',          property: 'state',      deviceType: DeviceTypes.ON_OFF_LIGHT,   cluster: OnOff.Cluster.id, attribute: OnOff.Cluster.attributes.onOff.id },
+  { type: 'light',  name: 'brightness',     property: 'brightness', deviceType: DeviceTypes.DIMMABLE_LIGHT, cluster: LevelControl.Cluster.id, attribute: LevelControl.Cluster.attributes.currentLevel.id },
+  { type: 'light',  name: 'color_xy',       property: 'color_xy',   deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: ColorControl.Cluster.attributes.colorMode.id },
+  { type: 'cover',  name: 'state',          property: 'state',      deviceType: DeviceTypes.WINDOW_COVERING, cluster: WindowCovering.Cluster.id, attribute: WindowCovering.Complete.attributes.currentPositionLiftPercent100ths.id },
+  { type: '',       name: 'occupancy',      property: 'occupancy',  deviceType: DeviceTypes.OCCUPANCY_SENSOR, cluster: OccupancySensing.Cluster.id, attribute: OccupancySensing.Cluster.attributes.occupancy.id },
+  { type: '',       name: 'illuminance',    property: 'illuminance', deviceType: DeviceTypes.LIGHT_SENSOR,  cluster: IlluminanceMeasurement.Cluster.id, attribute: IlluminanceMeasurement.Cluster.attributes.measuredValue.id },
+  { type: '',       name: 'contact',        property: 'contact',    deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
+  { type: '',       name: 'water_leak',     property: 'water_leak', deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
+  { type: '',       name: 'vibration',      property: 'vibration',  deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
+  { type: '',       name: 'smoke',          property: 'smoke',      deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
   { type: '',       name: 'carbon_monoxide', property: 'carbon_monoxide', deviceType: DeviceTypes.CONTACT_SENSOR, cluster: BooleanState.Cluster.id, attribute: BooleanState.Cluster.attributes.stateValue.id },
-  { type: '',       name: 'temperature',  property: 'temperature', deviceType: DeviceTypes.TEMPERATURE_SENSOR, cluster: TemperatureMeasurement.Cluster.id, attribute: TemperatureMeasurement.Cluster.attributes.measuredValue.id },
-  { type: '',       name: 'humidity',     property: 'humidity',   deviceType: DeviceTypes.HUMIDITY_SENSOR, cluster: RelativeHumidityMeasurement.Cluster.id, attribute: RelativeHumidityMeasurement.Cluster.attributes.measuredValue.id },
-  { type: '',       name: 'pressure',     property: 'pressure',   deviceType: DeviceTypes.PRESSURE_SENSOR, cluster: PressureMeasurement.Cluster.id, attribute: PressureMeasurement.Cluster.attributes.measuredValue.id },
-  { type: '',       name: 'air_quality',  property: 'air_quality', deviceType: airQualitySensor, cluster: AirQuality.Cluster.id, attribute: AirQuality.Cluster.attributes.airQuality.id },
-  { type: '',       name: 'voc',          property: 'voc',        deviceType: airQualitySensor, cluster: TvocMeasurement.Cluster.id, attribute: TvocMeasurement.Cluster.attributes.measuredValue.id },
-  { type: '',       name: 'action',       property: 'action',     deviceType: DeviceTypes.GENERIC_SWITCH, cluster: Switch.Cluster.id, attribute: Switch.Cluster.attributes.currentPosition.id },
+  { type: '',       name: 'temperature',    property: 'temperature', deviceType: DeviceTypes.TEMPERATURE_SENSOR, cluster: TemperatureMeasurement.Cluster.id, attribute: TemperatureMeasurement.Cluster.attributes.measuredValue.id },
+  { type: '',       name: 'humidity',       property: 'humidity',   deviceType: DeviceTypes.HUMIDITY_SENSOR, cluster: RelativeHumidityMeasurement.Cluster.id, attribute: RelativeHumidityMeasurement.Cluster.attributes.measuredValue.id },
+  { type: '',       name: 'pressure',       property: 'pressure',   deviceType: DeviceTypes.PRESSURE_SENSOR, cluster: PressureMeasurement.Cluster.id, attribute: PressureMeasurement.Cluster.attributes.measuredValue.id },
+  { type: '',       name: 'air_quality',    property: 'air_quality', deviceType: airQualitySensor,          cluster: AirQuality.Cluster.id, attribute: AirQuality.Cluster.attributes.airQuality.id },
+  { type: '',       name: 'voc',            property: 'voc',        deviceType: airQualitySensor,           cluster: TvocMeasurement.Cluster.id, attribute: TvocMeasurement.Cluster.attributes.measuredValue.id },
+  { type: '',       name: 'action',         property: 'action',     deviceType: DeviceTypes.GENERIC_SWITCH, cluster: Switch.Cluster.id, attribute: Switch.Cluster.attributes.currentPosition.id },
 ];
 /* eslint-enable */
 
@@ -316,13 +320,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
     }
     if (types.length === 0) types.push('');
-    this.log.info(`**Device ${this.ien}${device.friendly_name}${rs}${nf} endpoints: ${endpoints.length} \ntypes: ${types.join(' ')} \nproperties: ${properties.join(' ')} \nnames: ${names.join(' ')}`);
+    this.log.debug(`**Device ${this.ien}${device.friendly_name}${rs}${nf} endpoints: ${endpoints.length} \ntypes: ${types.join(' ')} \nproperties: ${properties.join(' ')} \nnames: ${names.join(' ')}`);
 
     [...types].forEach((type) => {
       [...names].forEach((name) => {
         const z2m = z2ms.find((z2m) => z2m.type === type && z2m.property === name);
         if (z2m) {
-          this.log.info(`***Device ${this.ien}${device.friendly_name}${rs}${nf} type: ${type} property: ${name} => deviceType: ${z2m.deviceType.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
+          this.log.debug(`***Device ${this.ien}${device.friendly_name}${rs}${nf} type: ${type} property: ${name} => deviceType: ${z2m.deviceType.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
           const requiredServerClusters: ClusterId[] = [];
           if (z2m.deviceType.requiredServerClusters.includes(Groups.Cluster.id)) requiredServerClusters.push(Groups.Cluster.id);
           if (z2m.deviceType.requiredServerClusters.includes(Scenes.Cluster.id)) requiredServerClusters.push(Scenes.Cluster.id);
@@ -333,13 +337,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
       types.splice(types.indexOf(type), 1);
     });
-    this.log.info(`****Device ${this.ien}${device.friendly_name}${rs}${nf} endpoints: ${endpoints.length} \ntypes: ${types.join(' ')} \nproperties: ${properties.join(' ')} \nnames: ${names.join(' ')}`);
+    this.log.debug(`****Device ${this.ien}${device.friendly_name}${rs}${nf} endpoints: ${endpoints.length} \ntypes: ${types.join(' ')} \nproperties: ${properties.join(' ')} \nnames: ${names.join(' ')}`);
 
     if (!this.bridgedDevice) return;
 
     // Command handlers
     this.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
-      this.log.warn(`Command identify called for ${this.ien}${device.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
+      this.log.debug(`Command identify called for ${this.ien}${device.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
       logEndpoint(this.bridgedDevice!);
     });
     if (this.bridgedDevice.hasClusterServer(OnOffCluster)) {
