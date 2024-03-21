@@ -4,7 +4,7 @@
  * @file colorUtils.ts
  * @author Luca Liguori
  * @date 2023-10-05
- * @version 1.2.3
+ * @version 1.2.4
  *
  * All rights reserved.
  *
@@ -237,15 +237,10 @@ export function testColors(): void {
 
   colors.forEach((color) => {
     // eslint-disable-next-line no-console
-    console.log(
-      `\x1b[48;2;${color.rgb.r};${color.rgb.g};${color.rgb.b}mColor: ${color.name}\x1b[0m, hsl: { h: ${color.hsl.h}, s: ${color.hsl.s}, l: ${color.hsl.l} }, rgb: { r: ${color.rgb.r}, g: ${color.rgb.g}, b: ${color.rgb.b} }, xy: { x: ${color.xy.x}, y: ${color.xy.y} }`,
-    );
+    console.log(`\x1b[48;2;${color.rgb.r};${color.rgb.g};${color.rgb.b}mColor: ${color.name}\x1b[0m, hsl: { h: ${color.hsl.h}, s: ${color.hsl.s}, l: ${color.hsl.l} }, rgb: { r: ${color.rgb.r}, g: ${color.rgb.g}, b: ${color.rgb.b} }, xy: { x: ${color.xy.x}, y: ${color.xy.y} }`);
 
     const rgb = hslColorToRgbColor(color.hsl.h, color.hsl.s, color.hsl.l);
-    assert(
-      rgb.r === color.rgb.r && rgb.g === color.rgb.g && rgb.b === color.rgb.b,
-      `\x1b[48;2;${rgb.r};${rgb.g};${rgb.b}mColor: ${color.name}\x1b[0m hslColorToRgbColor { r: ${rgb.r}, g: ${rgb.g}, b: ${rgb.b} } conversion error`,
-    );
+    assert(rgb.r === color.rgb.r && rgb.g === color.rgb.g && rgb.b === color.rgb.b, `\x1b[48;2;${rgb.r};${rgb.g};${rgb.b}mColor: ${color.name}\x1b[0m hslColorToRgbColor { r: ${rgb.r}, g: ${rgb.g}, b: ${rgb.b} } conversion error`);
 
     const hsl = rgbColorToHslColor({ r: color.rgb.r, g: color.rgb.g, b: color.rgb.b });
     assert(hsl.h === color.hsl.h && hsl.s === color.hsl.s && hsl.l === color.hsl.l, `Color: ${color.name} rgbColorToHslColor conversion error`);
@@ -254,10 +249,7 @@ export function testColors(): void {
     assert(xy.x === color.xy.x && xy.y === color.xy.y, `Color: ${color.name} rgbColorToXYColor conversion error got x ${xy.x} y ${xy.y}`);
 
     const rgb2 = xyColorToRgbColor(color.xy.x, color.xy.y);
-    assert(
-      rgb2.r === color.rgb.r && rgb2.g === color.rgb.g && rgb2.b === color.rgb.b,
-      `\x1b[48;2;${rgb2.r};${rgb2.g};${rgb2.b}mColor: ${color.name}\x1b[0m xyColorToRgbColor(${color.xy.x}, ${color.xy.y}) conversion error -> r: ${rgb2.r} g: ${rgb2.g} b: ${rgb2.g}`,
-    );
+    assert(rgb2.r === color.rgb.r && rgb2.g === color.rgb.g && rgb2.b === color.rgb.b, `\x1b[48;2;${rgb2.r};${rgb2.g};${rgb2.b}mColor: ${color.name}\x1b[0m xyColorToRgbColor(${color.xy.x}, ${color.xy.y}) conversion error -> r: ${rgb2.r} g: ${rgb2.g} b: ${rgb2.g}`);
   });
 }
 

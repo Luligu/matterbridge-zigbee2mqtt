@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.10
+ * @version 2.2.11
  *
  * All rights reserved.
  *
@@ -435,9 +435,7 @@ export class Zigbee2MQTT extends EventEmitter {
           try {
             this.mqttPublishInflights++;
             await this.mqttClient.publishAsync(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message, { qos: 2 });
-            this.log.debug(
-              `***Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
-            );
+            this.log.debug(`***Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`);
             this.emit('mqtt_published');
             this.mqttPublishInflights--;
           } catch (error) {
@@ -919,18 +917,14 @@ export class Zigbee2MQTT extends EventEmitter {
         sourceLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         sourceLinks.forEach((link, index) => {
           //const targetNode = topology.nodes.find((node) => node.ieeeAddr === link.target.ieeeAddr);
-          this.log.debug(
-            `  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} > > > ${friendlyName(link.target.ieeeAddr)}`,
-          );
+          this.log.debug(`  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} > > > ${friendlyName(link.target.ieeeAddr)}`);
         });
         // TargetAddr
         const targetLinks = topology.links.filter((link) => link.targetIeeeAddr === node.ieeeAddr); // Filter
         targetLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         targetLinks.forEach((link, index) => {
           //const sourceNode = topology.nodes.find((node) => node.ieeeAddr === link.source.ieeeAddr);
-          this.log.debug(
-            `  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} < < < ${friendlyName(link.source.ieeeAddr)}`,
-          );
+          this.log.debug(`  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} < < < ${friendlyName(link.source.ieeeAddr)}`);
         });
       });
       // Log links
