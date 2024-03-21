@@ -53,7 +53,7 @@ import {
   LevelControlCluster,
 } from 'matterbridge';
 
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify, payloadStringify, colorStringify } from 'node-ansi-logger';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify, payloadStringify, colorStringify, debugStringify } from 'node-ansi-logger';
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
@@ -95,7 +95,10 @@ export class ZigbeeEntity extends EventEmitter {
 
     this.platform.z2m.on('MESSAGE-' + this.accessoryName, (payload: object) => {
       if (this.bridgedDevice === undefined) return;
-      this.log.info(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${nf} payload: ${colorStringify(payload)}`);
+      const debugEnabled = this.platform.debugEnabled;
+      this.log.setLogDebug(true);
+      this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
+      this.log.setLogDebug(debugEnabled);
       Object.entries(payload).forEach(([key, value], index) => {
         if (this.bridgedDevice === undefined) return;
         if (key === 'position') {
@@ -482,7 +485,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
    * @param deviceSerial Serial of the device
    */
   protected addBridgedDeviceBasicInformationCluster(deviceName: string, vendorName: string, productName: string, deviceSerial: string) {
-    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName, (deviceSerial + '_' + hostname).slice(0, 32), 0xfff1, vendorName, productName);
+    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName.slice(0, 32), (deviceSerial + '_' + hostname).slice(0, 32), 0xfff1, vendorName, productName);
   }
 
   /**
