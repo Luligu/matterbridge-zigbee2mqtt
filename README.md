@@ -12,4 +12,12 @@
 
 Matterbridge zigbee2mqtt is production level plugin that expose to Matter all zigbee2mqtt devices and groups.
 
+## Prerequisits
+
+### Matterbridge
+
 See the guidelines on [Matterbridge](https://github.com/Luligu/matterbridge/blob/main/README.md) for more information.
+
+### Zigbee2mqtt
+
+See the guidelines on [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) for more information.
