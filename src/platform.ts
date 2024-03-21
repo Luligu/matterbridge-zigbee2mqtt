@@ -30,11 +30,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m = new Zigbee2MQTT('localhost', 1883, 'zigbee2mqtt');
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
-    this.log.debug('Created ZigbeePlatform');
+    this.log.debug('Created zigbee2mqtt dynamic platform');
   }
 
   override async onStart(reason?: string) {
-    this.log.debug('Starting platform: ' + reason);
+    this.log.debug('Starting zigbee2mqtt dynamic platform: ' + reason);
 
     this.z2m.start();
     this.z2mStarted = true;
@@ -102,7 +102,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onShutdown(reason?: string) {
-    this.log.debug('Shutting down platform: ' + reason);
+    this.log.debug('Shutting down zigbee2mqtt platform: ' + reason);
     //this.updateAvailability(false);
     //await this.unregisterAll();
     this.z2m.stop();
