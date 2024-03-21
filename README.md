@@ -26,6 +26,13 @@ See the guidelines on [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt/blob/m
 
 ### If you want to use the plugin 
 
+On windows:
+```
+cd $HOME\Matterbridge
+npm install -g matterbridge-zigbee2mqtt
+matterbridge -add matterbridge-zigbee2mqtt
+```
+
 On linux:
 ```
 cd ~/Matterbridge
@@ -33,12 +40,6 @@ sudo npm install -g matterbridge-zigbee2mqtt
 matterbridge -add matterbridge-zigbee2mqtt
 ```
 
-On windows:
-```
-cd $HOME\Matterbridge
-npm install -g matterbridge-zigbee2mqtt
-matterbridge -add matterbridge-zigbee2mqtt
-```
 
 ### If you want to contribute to the plugin 
 
