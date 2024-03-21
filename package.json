@@ -9,7 +9,7 @@
   "types": "dist/index.d.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Luligu/matterbridge-zigbee2mqtt"
+    "url": "git+https://github.com/Luligu/matterbridge-zigbee2mqtt.git"
   },
   "bugs": {
     "url": "https://github.com/Luligu/matterbridge-zigbee2mqtt/issues"
@@ -18,7 +18,9 @@
     "matterbridge",
     "homebridge",
     "matter",
-    "matter.js"
+    "matter.js",
+    "zigbee2mqtt",
+    "zigbee"
   ],
   "engines": {
     "node": "^18.19.0 || ^20.11.0"
