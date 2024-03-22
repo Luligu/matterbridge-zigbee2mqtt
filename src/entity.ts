@@ -564,4 +564,11 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     this.addDeviceType(deviceType);
     this.addDeviceClusterServer(serverList);
   }
+
+  configure() {
+    if (this.getClusterServerById(WindowCovering.Cluster.id)) {
+      console.log(`Configuring ${this.deviceName}`);
+      this.setWindowCoveringTargetAsCurrentAndStopped();
+    }
+  }
 }

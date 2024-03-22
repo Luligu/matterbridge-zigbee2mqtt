@@ -41,6 +41,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (this.config.host) this.z2m.mqttHost = this.config.host as string;
     if (this.config.port) this.z2m.mqttPort = this.config.port as number;
     if (this.config.topic) this.z2m.mqttTopic = this.config.topic as string;
+    if (this.config.whiteList) this.whiteList = this.config.whiteList as string[];
+    if (this.config.blackList) this.blackList = this.config.blackList as string[];
     this.config.host = this.z2m.mqttHost;
     this.config.port = this.z2m.mqttPort;
     this.config.topic = this.z2m.mqttTopic;
@@ -100,17 +102,25 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onConfigure() {
-    this.log.debug('Configuring zigbee2mqtt platform');
-    if (this.z2mBridgeDevices) {
-      for (const device of this.z2mBridgeDevices) {
-        await this.requestDeviceUpdate(device);
+    this.log.info('Configuring zigbee2mqtt platform: setting timeout for device configuration');
+    setTimeout(async () => {
+      if (this.z2mBridgeDevices) {
+        this.log.info(`Configuring ${this.z2mBridgeDevices.length} zigbee devices`);
+        for (const device of this.z2mBridgeDevices) {
+          await this.requestDeviceUpdate(device);
+        }
       }
-    }
-    if (this.z2mBridgeGroups) {
-      for (const group of this.z2mBridgeGroups) {
-        await this.requestGroupUpdate(group);
+      if (this.z2mBridgeGroups) {
+        this.log.info(`Configuring ${this.z2mBridgeGroups.length} zigbee groups`);
+        for (const group of this.z2mBridgeGroups) {
+          await this.requestGroupUpdate(group);
+        }
       }
-    }
+      this.log.info(`Configuring ${this.bridgedDevices.length} matter devices`);
+      for (const device of this.bridgedDevices) {
+        device.configure();
+      }
+    }, 10000);
   }
 
   override async onShutdown(reason?: string) {
