@@ -39,15 +39,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onStart(reason?: string) {
     this.log.debug('Starting zigbee2mqtt dynamic platform: ' + reason);
 
-    const config = await this.getConfig();
-    if (config) {
-      //if (config.host) this.z2m.mqttHost = config.host as string;
-      if (config.port) this.z2m.mqttPort = config.host as number;
-      if (config.topic) this.z2m.mqttTopic = config.topic as string;
-      this.log.info('Loaded config.json:\n', config);
-    } else {
-      this.log.warn('No configuration found');
-    }
+    //if (this.config.host) this.z2m.mqttHost = this.config.host as string;
+    if (this.config.port) this.z2m.mqttPort = this.config.host as number;
+    if (this.config.topic) this.z2m.mqttTopic = this.config.topic as string;
+    this.log.info('Loaded config.json:\n', this.config);
 
     this.z2m.start();
     this.z2mStarted = true;
