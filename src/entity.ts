@@ -567,6 +567,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
 
   configure() {
     if (this.getClusterServerById(WindowCovering.Cluster.id)) {
+      // eslint-disable-next-line no-console
       console.log(`Configuring ${this.deviceName}`);
       this.setWindowCoveringTargetAsCurrentAndStopped();
     }

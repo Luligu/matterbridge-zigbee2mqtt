@@ -102,21 +102,21 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onConfigure() {
-    this.log.info('Configuring zigbee2mqtt platform: setting timeout for device configuration');
+    this.log.info('Configuring zigbee2mqtt platform: setting timeout for device configuration.');
     setTimeout(async () => {
       if (this.z2mBridgeDevices) {
-        this.log.info(`Configuring ${this.z2mBridgeDevices.length} zigbee devices`);
+        this.log.info(`Configuring ${this.z2mBridgeDevices.length} zigbee devices.`);
         for (const device of this.z2mBridgeDevices) {
           await this.requestDeviceUpdate(device);
         }
       }
       if (this.z2mBridgeGroups) {
-        this.log.info(`Configuring ${this.z2mBridgeGroups.length} zigbee groups`);
+        this.log.info(`Configuring ${this.z2mBridgeGroups.length} zigbee groups.`);
         for (const group of this.z2mBridgeGroups) {
           await this.requestGroupUpdate(group);
         }
       }
-      this.log.info(`Configuring ${this.bridgedDevices.length} matter devices`);
+      this.log.info(`Configuring ${this.bridgedDevices.length} matter devices.`);
       for (const device of this.bridgedDevices) {
         device.configure();
       }

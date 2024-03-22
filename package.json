@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "1.0.10",
+  "version": "2.0.0",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "MIT",
@@ -19,6 +19,7 @@
     "homebridge",
     "matter",
     "matter.js",
+    "matter-node.js",
     "zigbee2mqtt",
     "zigbee"
   ],
