@@ -29,6 +29,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.debugEnabled = matterbridge.debugEnabled;
 
+    this.log.info('Loaded config.json:\n', this.config);
     //this.z2m = new Zigbee2MQTT('raspberrypi.local', 1883, 'zigbee2mqtt');
     this.z2m = new Zigbee2MQTT('localhost', 1883, 'zigbee2mqtt');
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
