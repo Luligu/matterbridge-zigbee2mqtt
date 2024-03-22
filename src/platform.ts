@@ -29,8 +29,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.debugEnabled = matterbridge.debugEnabled;
 
-    this.log.info('Loaded config.json:\n', this.config);
-    //this.z2m = new Zigbee2MQTT('raspberrypi.local', 1883, 'zigbee2mqtt');
     this.z2m = new Zigbee2MQTT('localhost', 1883, 'zigbee2mqtt');
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
@@ -40,10 +38,15 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onStart(reason?: string) {
     this.log.debug('Starting zigbee2mqtt dynamic platform: ' + reason);
 
-    //if (this.config.host) this.z2m.mqttHost = this.config.host as string;
-    if (this.config.port) this.z2m.mqttPort = this.config.host as number;
+    if (this.config.host) this.z2m.mqttHost = this.config.host as string;
+    if (this.config.port) this.z2m.mqttPort = this.config.port as number;
     if (this.config.topic) this.z2m.mqttTopic = this.config.topic as string;
-    this.log.info('Loaded config.json:\n', this.config);
+    this.config.host = this.z2m.mqttHost;
+    this.config.port = this.z2m.mqttPort;
+    this.config.topic = this.z2m.mqttTopic;
+    this.config.whiteList = this.whiteList;
+    this.config.blackList = this.blackList;
+    this.log.info('Loaded zigbee2mqtt parameters from config.json:\n', this.config);
 
     this.z2m.start();
     this.z2mStarted = true;
@@ -97,7 +100,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onConfigure() {
-    this.log.debug('Configuring platform');
+    this.log.debug('Configuring zigbee2mqtt platform');
     if (this.z2mBridgeDevices) {
       for (const device of this.z2mBridgeDevices) {
         await this.requestDeviceUpdate(device);
