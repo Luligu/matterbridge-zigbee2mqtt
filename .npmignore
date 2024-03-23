@@ -140,8 +140,14 @@ web_modules/
 jest.config.mjs
 __test__
 
+# git
+.gitattributes
+
 # eslint
 .eslintrc
+.eslintrc.json
 .eslintignore
 
-Screenshot.png
+# prettier
+.prettierignore
+.prettierrc.json

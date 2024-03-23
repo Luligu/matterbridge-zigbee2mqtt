@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
@@ -51,8 +51,11 @@
     "matterbridge:list": "matterbridge -list",
     "dev:link": "npm link --save-dev matterbridge",
     "dev:install": "npm install --save-dev matterbridge",
-    "dev:unlink": "npm uninstall matterbridge && npm unlink matterbridge",
-    "install": "npm run dev:unlink && node link-matterbridge-script.js && npm run build"
+    "dev:uninstall": "npm uninstall matterbridge && npm unlink matterbridge",
+    "dev:installglobally": "npm install -g ./"
+  },
+  "peerDependencies": {
+    "matterbridge": "^1.2.0"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^1.7.0",
