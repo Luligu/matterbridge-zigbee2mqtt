@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
@@ -105,7 +105,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('bridge-devices', (devices: BridgeDevice[]) => {
-      //Logger.defaultLogLevel = Level.INFO;
+      if (this.debugEnabled) Logger.defaultLogLevel = Level.INFO;
       this.z2mBridgeDevices = devices;
       this.log.debug(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
       if (this.z2mDevicesRegistered) return;
@@ -114,11 +114,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         await this.registerZigbeeDevice(device);
       });
       this.z2mDevicesRegistered = true;
-      //Logger.defaultLogLevel = Level.DEBUG;
+      if (this.debugEnabled) Logger.defaultLogLevel = Level.DEBUG;
     });
 
     this.z2m.on('bridge-groups', (groups: BridgeGroup[]) => {
-      //Logger.defaultLogLevel = Level.INFO;
+      if (this.debugEnabled) Logger.defaultLogLevel = Level.INFO;
       this.z2mBridgeGroups = groups;
       this.log.debug(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
       if (this.z2mGroupsRegistered) return;
@@ -127,7 +127,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         await this.registerZigbeeGroup(group);
       });
       this.z2mGroupsRegistered = true;
-      //Logger.defaultLogLevel = Level.DEBUG;
+      if (this.debugEnabled) Logger.defaultLogLevel = Level.DEBUG;
     });
   }
 
