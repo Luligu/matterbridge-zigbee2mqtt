@@ -1,11 +1,34 @@
+/**
+ * This file contains the class ZigbeePlatform.
+ *
+ * @file platform.ts
+ * @author Luca Liguori
+ * @date 2023-12-29
+ * @version 2.0.0
+ *
+ * Copyright 2023, 2024 Luca Liguori.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. *
+ */
+
 import { Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
-import path from 'path';
 import { Payload } from './payloadTypes.js';
+import path from 'path';
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
@@ -16,7 +39,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private mqttHost = 'localhost';
   private mqttPort = 1883;
   private mqttTopic = 'zigbee2mqtt';
-  private whiteList: string[] = []; //['At home', 'Climate sensor', 'Light sensor', 'Contact sensor', 'Motion sensor', 'Mini luminance motion sensor', 'Vibration sensor', 'Leak sensor'];
+  private whiteList: string[] = [];
   private blackList: string[] = [];
 
   // zigbee2Mqtt

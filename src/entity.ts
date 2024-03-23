@@ -1,48 +1,51 @@
-/* eslint-disable no-console */
-/* eslint-disable max-len */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/**
+ * This file contains the classes ZigbeeEntity, ZigbeeDevice and ZigbeeGroup.
+ *
+ * @file entity.ts
+ * @author Luca Liguori
+ * @date 2023-12-29
+ * @version 2.0.0
+ *
+ * Copyright 2023, 2024 Luca Liguori.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. *
+ */
 
 // matter.js imports
 import {
-  Device,
   DeviceTypes,
   DeviceTypeDefinition,
-  EndpointOptions,
-  getClusterInitialAttributeValues,
   logEndpoint,
   AirQuality,
-  AirQualityCluster,
   MatterbridgeDevice,
   airQualitySensor,
   colorTemperatureSwitch,
   dimmableSwitch,
   onOffSwitch,
-  ClusterServer,
-  AttributeInitialValues,
   BridgedDeviceBasicInformation,
-  BridgedDeviceBasicInformationCluster,
   Identify,
   Groups,
   Scenes,
   OnOff,
   LevelControl,
-  createDefaultLevelControlClusterServer,
   ColorControl,
   ColorControlCluster,
   Switch,
-  SwitchCluster,
   TemperatureMeasurement,
-  TemperatureMeasurementCluster,
   BooleanState,
-  BooleanStateCluster,
   RelativeHumidityMeasurement,
-  RelativeHumidityMeasurementCluster,
   PressureMeasurement,
-  PressureMeasurementCluster,
-  OccupancySensingCluster,
   OccupancySensing,
-  IlluminanceMeasurementCluster,
   IlluminanceMeasurement,
   PowerSource,
   ClusterId,
@@ -53,7 +56,7 @@ import {
   LevelControlCluster,
 } from 'matterbridge';
 
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, er, stringify, payloadStringify, colorStringify, debugStringify } from 'node-ansi-logger';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, stringify, debugStringify } from 'node-ansi-logger';
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
@@ -99,7 +102,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.log.setLogDebug(true);
       this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
       this.log.setLogDebug(debugEnabled);
-      Object.entries(payload).forEach(([key, value], index) => {
+      Object.entries(payload).forEach(([key, value]) => {
         if (this.bridgedDevice === undefined) return;
         if (key === 'position') {
           this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.setCurrentPositionLiftPercent100thsAttribute(10000 - value * 100);
