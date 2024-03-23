@@ -52,7 +52,7 @@
     "dev:link": "npm link --save-dev matterbridge",
     "dev:install": "npm install --save-dev matterbridge",
     "dev:unlink": "npm uninstall matterbridge && npm unlink matterbridge",
-    "install": "node link-matterbridge-script.js && npm run build"
+    "install": "npm run dev:unlink && node link-matterbridge-script.js && npm run build"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^1.7.0",
