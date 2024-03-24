@@ -68,7 +68,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.topic = this.mqttTopic;
     config.whiteList = this.whiteList;
     config.blackList = this.blackList;
-    this.log.info(`Loaded zigbee2mqtt parameters from config.json:\n${rs}`, config);
+    this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}:\n${rs}`, config);
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
