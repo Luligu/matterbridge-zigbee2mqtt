@@ -49,6 +49,7 @@ cd ~/Matterbridge
 git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
 cd matterbridge-zigbee2mqtt
 npm install
+npm run build
 matterbridge -add ./
 ```
 
@@ -58,6 +59,7 @@ cd $HOME\Matterbridge
 git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
 cd matterbridge-zigbee2mqtt
 npm install
+npm run build
 matterbridge -add .\
 ```
 
