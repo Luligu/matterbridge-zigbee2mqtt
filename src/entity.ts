@@ -143,6 +143,28 @@ export class ZigbeeEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorXY: X:${value.x} Y:${value.y}`);
         }
+        /* Switch */
+        if (key === 'action') {
+          let position = undefined;
+          if (value === 'single') {
+            position = 0;
+            //this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerInitialPressEvent({ newPosition: 0 });
+            this.log.info(`**Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentPosition: ${position}`);
+          }
+          if (value === 'double') {
+            position = 1;
+            //this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 0, totalNumberOfPressesCounted: 2 });
+            this.log.info(`**Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentPosition: ${position}`);
+          }
+          if (value === 'hold') {
+            position = 2;
+            //this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongPressEvent({ previousPosition: 0 });
+            this.log.info(`**Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentPosition: ${position}`);
+          }
+        }
         if (key === 'battery') {
           this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatPercentRemainingAttribute(Math.round(value * 2));
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batPercentRemaining: ${Math.round(value * 2)}`);
@@ -205,16 +227,20 @@ export class ZigbeeEntity extends EventEmitter {
 
     this.platform.z2m.on('ONLINE-' + this.accessoryName, () => {
       this.log.info(`ONLINE message for accessory ${this.ien}${this.accessoryName}${rs}`);
-      this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
-      this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: true });
-      this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: true`);
+      if (this.bridgedDevice?.id !== undefined) {
+        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
+        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: true });
+        this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: true`);
+      }
     });
 
     this.platform.z2m.on('OFFLINE-' + this.accessoryName, () => {
-      this.log.warn(`OFFLINE message for accessory ${this.ien}${this.accessoryName}${wr}`);
-      this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
-      this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: false });
-      this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: false`);
+      if (this.bridgedDevice?.id !== undefined) {
+        this.log.warn(`OFFLINE message for accessory ${this.ien}${this.accessoryName}${wr}`);
+        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
+        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: false });
+        this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: false`);
+      }
     });
   }
 

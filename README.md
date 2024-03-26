@@ -101,3 +101,5 @@ On linux:
 cd ~/.matterbridge
 nano matterbridge-zigbee2mqtt.config.json
 ```
+
+# Known issues
