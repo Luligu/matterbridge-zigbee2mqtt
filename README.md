@@ -74,6 +74,8 @@ If the blackList is defined the devices included will not be exposed to Matter.
 
 If any device creates issues put it in the blackList.
 
+These are the default vules:
+
 ```
 {
   "name": "matterbridge-zigbee2mqtt",
