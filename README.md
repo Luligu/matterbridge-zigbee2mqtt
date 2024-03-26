@@ -2,6 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
 [![npm downloads](https://img.shields.io/npm/dt/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
+![Node.js CI](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/build%20matterbridge%20plugin.yml/badge.svg)
 
 [![powered by](https://img.shields.io/badge/powered%20by-matterbridge-blue)](https://www.npmjs.com/package/matterbridge)
 [![powered by](https://img.shields.io/badge/powered%20by-matter--history-blue)](https://www.npmjs.com/package/matter-history)
@@ -43,16 +44,6 @@ matterbridge -add matterbridge-zigbee2mqtt
 
 ### If you want to contribute to the plugin 
 
-On linux:
-```
-cd ~/Matterbridge
-git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
-cd matterbridge-zigbee2mqtt
-npm install
-npm run build
-matterbridge -add ./
-```
-
 On windows:
 ```
 cd $HOME\Matterbridge
@@ -63,4 +54,50 @@ npm run build
 matterbridge -add .\
 ```
 
+On linux:
+```
+cd ~/Matterbridge
+git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
+cd matterbridge-zigbee2mqtt
+npm install
+npm run build
+matterbridge -add ./
+```
 
+# Config file
+
+If needed you can configure the mqtt host, port, topic, username and password.
+
+If the whiteList is defined only the devices included are exposed to Matter.
+
+If the blackList is defined the devices included will not be exposed to Matter.
+
+If any device creates issues put it in the blackList.
+
+```
+{
+  "name": "matterbridge-zigbee2mqtt",
+  "type": "DynamicPlatform",
+  "host": "localhost",
+  "port": 1883,
+  "topic": "zigbee2mqtt",
+  "username": "",
+  "password": "",
+  "whiteList": [],
+  "blackList": []
+}
+```
+
+You can edit the config file:
+
+On windows:
+```
+cd $HOME\.matterbridge
+notepad matterbridge-zigbee2mqtt.config.json
+```
+
+On linux:
+```
+cd ~/.matterbridge
+nano matterbridge-zigbee2mqtt.config.json
+```

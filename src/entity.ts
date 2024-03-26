@@ -4,7 +4,7 @@
  * @file entity.ts
  * @author Luca Liguori
  * @date 2023-12-29
- * @version 2.0.0
+ * @version 2.0.3
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -32,7 +32,6 @@ import {
   colorTemperatureSwitch,
   dimmableSwitch,
   onOffSwitch,
-  BridgedDeviceBasicInformation,
   Identify,
   Groups,
   Scenes,
@@ -54,6 +53,9 @@ import {
   WindowCoveringCluster,
   OnOffCluster,
   LevelControlCluster,
+  DoorLock,
+  DoorLockCluster,
+  BridgedDeviceBasicInformation,
 } from 'matterbridge';
 
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, stringify, debugStringify } from 'node-ansi-logger';
@@ -104,6 +106,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.log.setLogDebug(debugEnabled);
       Object.entries(payload).forEach(([key, value]) => {
         if (this.bridgedDevice === undefined) return;
+        /* WindowCovering */
         if (key === 'position') {
           this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.setCurrentPositionLiftPercent100thsAttribute(10000 - value * 100);
         }
@@ -116,19 +119,23 @@ export class ZigbeeEntity extends EventEmitter {
             this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.setCurrentPositionLiftPercent100thsAttribute(position);
           }
         }
+        /* OnOff */
         if (key === 'state') {
           this.bridgedDevice.getClusterServerById(OnOff.Cluster.id)?.setOnOffAttribute(value === 'ON' ? true : false);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} onOffAttribute: ${value === 'ON' ? true : false}`);
         }
+        /* LevelControl */
         if (key === 'brightness') {
           this.bridgedDevice.getClusterServerById(LevelControl.Cluster.id)?.setCurrentLevelAttribute(value);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentLevelAttribute: ${value}`);
         }
+        /* ColorControl ColorTemperatureMired */
         if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp') {
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorTemperatureMiredsAttribute(value);
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.ColorTemperatureMireds);
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorTemperatureMireds: ${value}`);
         }
+        /* ColorControl Hue and Saturation */
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
           const hsl = color.xyToHsl(value.x, value.y);
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentHueAttribute((hsl.h / 360) * 254);
@@ -199,12 +206,14 @@ export class ZigbeeEntity extends EventEmitter {
     this.platform.z2m.on('ONLINE-' + this.accessoryName, () => {
       this.log.info(`ONLINE message for accessory ${this.ien}${this.accessoryName}${rs}`);
       this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
+      this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: true });
       this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: true`);
     });
 
     this.platform.z2m.on('OFFLINE-' + this.accessoryName, () => {
       this.log.warn(`OFFLINE message for accessory ${this.ien}${this.accessoryName}${wr}`);
       this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
+      this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: false });
       this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: false`);
     });
   }
@@ -279,13 +288,16 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '',       name: 'air_quality',    property: 'air_quality', deviceType: airQualitySensor,          cluster: AirQuality.Cluster.id, attribute: AirQuality.Cluster.attributes.airQuality.id },
   { type: '',       name: 'voc',            property: 'voc',        deviceType: airQualitySensor,           cluster: TvocMeasurement.Cluster.id, attribute: TvocMeasurement.Cluster.attributes.measuredValue.id },
   { type: '',       name: 'action',         property: 'action',     deviceType: DeviceTypes.GENERIC_SWITCH, cluster: Switch.Cluster.id, attribute: Switch.Cluster.attributes.currentPosition.id },
+  { type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: DoorLock.Cluster.attributes.lockState.id },
 ];
 /* eslint-enable */
 
 export class ZigbeeDevice extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, device: BridgeDevice) {
     super(platform, device);
-    if (device.friendly_name === 'Coordinator') return;
+    if (device.friendly_name === 'Coordinator') {
+      this.bridgedDevice = new BridgedBaseDevice(this, DeviceTypes.DOOR_LOCK, [Identify.Cluster.id, DoorLock.Cluster.id]);
+    }
 
     // Get types and properties
     const types: string[] = [];
@@ -405,7 +417,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         lastRequestTimeout = setTimeout(() => {
           clearTimeout(lastRequestTimeout);
           const rgb = color.hslColorToRgbColor((lastRequestedHue / 254) * 360, (request.saturation / 254) * 100, 50);
-          this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+          this.publishCommand('moveToSaturation', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
         }, 500);
       });
       this.bridgedDevice.addCommandHandler('moveToHueAndSaturation', async ({ request: request, attributes: attributes }) => {
@@ -448,6 +460,18 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.publishCommand('goToLiftPercentage', device.friendly_name, { position: 100 - liftPercent100thsValue / 100 });
       });
     }
+    if (this.bridgedDevice.hasClusterServer(DoorLockCluster)) {
+      this.bridgedDevice.addCommandHandler('lockDoor', async ({ request: request, attributes: attributes }) => {
+        this.log.info(`Command lockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
+        attributes.lockState?.setLocal(DoorLock.LockState.Locked);
+        //this.publishCommand('lockDoor', device.friendly_name, { state: 'LOCK' });
+      });
+      this.bridgedDevice.addCommandHandler('unlockDoor', async ({ request: request, attributes: attributes }) => {
+        this.log.info(`Command unlockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
+        attributes.lockState?.setLocal(DoorLock.LockState.Unlocked);
+        //this.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
+      });
+    }
   }
 }
 
@@ -462,8 +486,11 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     this.addDeviceClusterServer(includeServerList);
 
     // Add BridgedDeviceBasicInformationCluster
-    if (entity.isDevice && entity.device) {
-      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, entity.device.definition.vendor, entity.device.definition.model, entity.device.ieee_address);
+    if (entity.isDevice && entity.device && entity.device.friendly_name === 'Coordinator') {
+      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, 'zigbee2MQTT', 'Coordinator', entity.device.ieee_address);
+    } else if (entity.isDevice && entity.device) {
+      //this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, entity.device.definition.vendor, entity.device.definition.model, entity.device.ieee_address);
+      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, entity.device.manufacturer, entity.device.model_id, entity.device.ieee_address);
     } else if (entity.isGroup && entity.group) {
       this.addBridgedDeviceBasicInformationCluster(entity.group.friendly_name, 'zigbee2MQTT', 'Group', `group-${entity.group.id}`);
     }
@@ -488,7 +515,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
    * @param deviceSerial Serial of the device
    */
   protected addBridgedDeviceBasicInformationCluster(deviceName: string, vendorName: string, productName: string, deviceSerial: string) {
-    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName.slice(0, 32), (deviceSerial + '_' + hostname).slice(0, 32), 0xfff1, vendorName, productName);
+    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName.slice(0, 32), (deviceSerial + '_' + hostname).slice(0, 32), 0xfff1, vendorName.slice(0, 32), productName.slice(0, 32));
   }
 
   /**
@@ -548,6 +575,9 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     if (includeServerList.includes(TvocMeasurement.Cluster.id)) {
       this.createDefaultTvocMeasurementClusterServer();
     }
+    if (includeServerList.includes(DoorLock.Cluster.id)) {
+      this.createDefaultDoorLockClusterServer();
+    }
   }
 
   /**
@@ -573,6 +603,11 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       // eslint-disable-next-line no-console
       console.log(`Configuring ${this.deviceName}`);
       this.setWindowCoveringTargetAsCurrentAndStopped();
+    }
+    if (this.getClusterServerById(DoorLock.Cluster.id)) {
+      // eslint-disable-next-line no-console
+      console.log(`Configuring ${this.deviceName}`);
+      this.getClusterServerById(DoorLock.Cluster.id)?.setLockStateAttribute(DoorLock.LockState.Locked);
     }
   }
 }

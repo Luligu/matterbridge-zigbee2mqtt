@@ -4,7 +4,7 @@
  * @file index.ts
  * @author Luca Liguori
  * @date 2023-12-29
- * @version 2.0.0
+ * @version 2.0.3
  *
  * Copyright 2023, 2024 Luca Liguori.
  *

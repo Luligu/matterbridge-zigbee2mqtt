@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.12
+ * @version 2.2.14
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -239,6 +239,8 @@ export class Zigbee2MQTT extends EventEmitter {
   public mqttHost: string;
   public mqttPort: number;
   public mqttTopic: string;
+  public mqttUsername: string | undefined;
+  public mqttPassword: string | undefined;
   private mqttClient: MqttClient | undefined;
   private mqttIsConnected = false;
   private mqttIsReconnecting = false;
@@ -270,12 +272,19 @@ export class Zigbee2MQTT extends EventEmitter {
   };
 
   // Constructor
-  constructor(mqttHost: string, mqttPort: number, mqttTopic: string) {
+  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername = '', mqttPassword = '') {
     super();
 
     this.mqttHost = mqttHost;
     this.mqttPort = mqttPort;
     this.mqttTopic = mqttTopic;
+    this.mqttUsername = mqttUsername;
+    this.mqttPassword = mqttPassword;
+
+    if (mqttUsername !== '' && mqttPassword !== '') {
+      this.options.username = mqttUsername;
+      this.options.password = mqttPassword;
+    }
 
     this.z2mIsAvailabilityEnabled = false;
     this.z2mIsOnline = false;
@@ -286,7 +295,7 @@ export class Zigbee2MQTT extends EventEmitter {
     this.z2mGroups = [];
 
     this.log = new AnsiLogger({ logName: 'Zigbee2MQTT', logTimestampFormat: TimestampFormat.TIME_MILLIS });
-    this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} topic: ${mqttTopic}`);
+    this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} topic: ${mqttTopic} username: ${mqttUsername} password: ${mqttPassword !== '' ? '*****' : ''}`);
   }
 
   public async setDataPath(dataPath: string): Promise<void> {
