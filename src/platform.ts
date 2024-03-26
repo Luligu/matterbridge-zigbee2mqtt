@@ -156,10 +156,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onStart(reason?: string) {
     this.log.debug('Starting zigbee2mqtt dynamic platform: ' + reason);
 
-    if (this.shouldStart === false && (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered)) {
+    if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldStart = true;
-      this.log.warn('***Should start zigbee2mqtt dynamic platform: ', reason);
-      return;
+      this.log.warn('Setting should start zigbee2mqtt dynamic platform: ', reason);
     }
 
     if (this.debugEnabled) Logger.defaultLogLevel = Level.INFO;
@@ -179,15 +178,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
 
     if (this.debugEnabled) Logger.defaultLogLevel = Level.DEBUG;
-
-    this.shouldStart = false;
   }
 
   override async onConfigure() {
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldConfigure = true;
-      this.log.warn('***Should configure zigbee2mqtt dynamic platform: ');
-      return;
+      this.log.warn('Setting should configure zigbee2mqtt dynamic platform');
     }
 
     this.log.info(`Configuring ${this.bridgedEntities.length} zigbee entities.`);

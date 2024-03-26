@@ -103,3 +103,11 @@ nano matterbridge-zigbee2mqtt.config.json
 ```
 
 # Known issues
+
+## Conversion issues between zigbee2MQTT and Matter ecosystems
+
+### action 
+The action feature of zigbee is translated in a Matter momentary Switch but the Home app doesn't react to trigger.
+
+### multi endpoint device like double switch or double dimmer
+They are still to implement.

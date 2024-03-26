@@ -169,6 +169,14 @@ export class ZigbeeEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatPercentRemainingAttribute(Math.round(value * 2));
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batPercentRemaining: ${Math.round(value * 2)}`);
         }
+        if (key === 'battery_low') {
+          this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatChargeLevelAttribute(value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok);
+          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batChargeLevel: ${value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok}`);
+        }
+        if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') {
+          this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatVoltageAttribute(value);
+          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batVoltage: ${value}`);
+        }
         if (key === 'temperature') {
           this.bridgedDevice.getClusterServerById(TemperatureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} measuredValue: ${Math.round(value * 100)}`);
