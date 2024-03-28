@@ -219,7 +219,7 @@ export class ZigbeeEntity extends EventEmitter {
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} airQuality: ${airQuality}`);
         }
         if (key === 'voc') {
-          this.bridgedDevice.getClusterServerById(TvocMeasurement.Cluster.id)?.setMeasuredValueAttribute(value);
+          this.bridgedDevice.getClusterServerById(TvocMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.min(65535, value));
           this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} measuredValue: ${value}`);
         }
         if (key === 'occupancy') {
@@ -322,7 +322,7 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '',       name: 'air_quality',    property: 'air_quality', deviceType: airQualitySensor,          cluster: AirQuality.Cluster.id, attribute: AirQuality.Cluster.attributes.airQuality.id },
   { type: '',       name: 'voc',            property: 'voc',        deviceType: airQualitySensor,           cluster: TvocMeasurement.Cluster.id, attribute: TvocMeasurement.Cluster.attributes.measuredValue.id },
   { type: '',       name: 'action',         property: 'action',     deviceType: DeviceTypes.GENERIC_SWITCH, cluster: Switch.Cluster.id, attribute: Switch.Cluster.attributes.currentPosition.id },
-  { type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: DoorLock.Cluster.attributes.lockState.id },
+  //{ type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: DoorLock.Cluster.attributes.lockState.id },
 ];
 /* eslint-enable */
 
@@ -330,6 +330,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, device: BridgeDevice) {
     super(platform, device);
     if (device.friendly_name === 'Coordinator') {
+      this.bridgedDevice = new BridgedBaseDevice(this, DeviceTypes.DOOR_LOCK, [Identify.Cluster.id, DoorLock.Cluster.id]);
+    } else if (device.model_id === 'ti.router' && device.manufacturer === 'TexasInstruments') {
       this.bridgedDevice = new BridgedBaseDevice(this, DeviceTypes.DOOR_LOCK, [Identify.Cluster.id, DoorLock.Cluster.id]);
     }
 

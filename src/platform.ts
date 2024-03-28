@@ -208,7 +208,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private async requestDeviceUpdate(device: BridgeDevice) {
     this.log.debug(`Requesting update for ${device.friendly_name} model_id: ${device.model_id} manufacturer: ${device.manufacturer}`);
     const payload: Payload = {};
-    if (!device.definition || !device.definition.exposes) return;
+    if (device.power_source === 'Battery' || !device.definition || !device.definition.exposes) return;
     for (const feature of device.definition.exposes) {
       if (feature.features) {
         for (const subFeature of feature.features) {
