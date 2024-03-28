@@ -30,6 +30,7 @@ import { EventEmitter } from 'events';
 import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF } from 'node-ansi-logger';
 import { BridgeExtension, KeyValue, Topology } from './zigbee2mqttTypes.js';
 import { mkdir } from 'fs/promises';
+import { Payload } from './payloadTypes.js';
 
 const writeFile = util.promisify(fs.writeFile);
 
@@ -545,6 +546,7 @@ export class Zigbee2MQTT extends EventEmitter {
     try {
       return JSON.parse(text);
     } catch (error) {
+      this.log.debug(`tryJsonParse: parsing error from ${text}`);
       this.log.error('tryJsonParse: parsing error:', error);
       return {};
     }
@@ -552,7 +554,13 @@ export class Zigbee2MQTT extends EventEmitter {
 
   private messageHandler(topic: string, payload: Buffer) {
     if (topic.startsWith(this.mqttTopic + '/bridge/state')) {
-      const data = this.tryJsonParse(payload.toString());
+      const payloadString = payload.toString();
+      let data: Payload = {};
+      if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
+        data = this.tryJsonParse(payload.toString());
+      } else {
+        data = { state: payloadString };
+      }
       //this.log.debug('classZigbee2MQTT=>Message bridge/state', data);
       if (data.state === 'online') {
         this.z2mIsOnline = true;
@@ -803,7 +811,13 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.warn(`handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
-    const data = this.tryJsonParse(payload.toString()); // TODO crash on device rename
+    const payloadString = payload.toString();
+    let data: Payload = {};
+    if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
+      data = this.tryJsonParse(payload.toString());
+    } else {
+      data = { state: payloadString };
+    }
     if (service === 'availability') {
       if (data.state === 'online') {
         this.z2mDevices[deviceIndex].isAvailabilityEnabled = true;
@@ -831,7 +845,13 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.warn(`handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
-    const data = this.tryJsonParse(payload.toString());
+    const payloadString = payload.toString();
+    let data: Payload = {};
+    if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
+      data = this.tryJsonParse(payload.toString());
+    } else {
+      data = { state: payloadString };
+    }
     data['last_seen'] = new Date().toISOString();
     if (service === 'availability') {
       if (data.state === 'online') {
