@@ -58,7 +58,7 @@ import {
   BridgedDeviceBasicInformation,
 } from 'matterbridge';
 
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, stringify, debugStringify } from 'node-ansi-logger';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, stringify, debugStringify, hk } from 'node-ansi-logger';
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
@@ -103,37 +103,38 @@ export class ZigbeeEntity extends EventEmitter {
       const debugEnabled = this.platform.debugEnabled;
       this.log.setLogDebug(true);
       this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
-      this.log.setLogDebug(debugEnabled);
       Object.entries(payload).forEach(([key, value]) => {
         if (this.bridgedDevice === undefined) return;
         /* WindowCovering */
         if (key === 'position') {
           this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.setCurrentPositionLiftPercent100thsAttribute(10000 - value * 100);
+          this.log.debug(`Set accessory ${hk}WindowCovering.currentPositionLiftPercent100ths: ${10000 - value * 100}`);
         }
         if (key === 'moving') {
           const status = value === 'UP' ? WindowCovering.MovementStatus.Opening : value === 'DOWN' ? WindowCovering.MovementStatus.Closing : WindowCovering.MovementStatus.Stopped;
           this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.setOperationalStatusAttribute({ global: status, lift: status, tilt: status });
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} operationalStatus: ${status}`);
+          this.log.debug(`Set accessory ${hk}WindowCovering.operationalStatus: ${status}`);
           if (value === 'STOP') {
             const position = this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.getCurrentPositionLiftPercent100thsAttribute();
             this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.setCurrentPositionLiftPercent100thsAttribute(position);
+            this.log.debug(`Set accessory ${hk}WindowCovering.currentPositionLiftPercent100ths: ${position}`);
           }
         }
         /* OnOff */
         if (key === 'state') {
           this.bridgedDevice.getClusterServerById(OnOff.Cluster.id)?.setOnOffAttribute(value === 'ON' ? true : false);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} onOffAttribute: ${value === 'ON' ? true : false}`);
+          this.log.debug(`Set accessory ${hk}OnOff.onOffAttribute: ${value === 'ON' ? true : false}`);
         }
         /* LevelControl */
         if (key === 'brightness') {
           this.bridgedDevice.getClusterServerById(LevelControl.Cluster.id)?.setCurrentLevelAttribute(value);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentLevelAttribute: ${value}`);
+          this.log.debug(`Set accessory ${hk}LevelControl.currentLevelAttribute: ${value}`);
         }
         /* ColorControl ColorTemperatureMired */
         if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp') {
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorTemperatureMiredsAttribute(value);
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.ColorTemperatureMireds);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorTemperatureMireds: ${value}`);
+          this.log.debug(`Set accessory ${hk}ColorControl.colorTemperatureMireds: ${value}`);
         }
         /* ColorControl Hue and Saturation */
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
@@ -141,65 +142,65 @@ export class ZigbeeEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentHueAttribute((hsl.h / 360) * 254);
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentSaturationAttribute((hsl.s / 100) * 254);
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} colorXY: X:${value.x} Y:${value.y}`);
+          this.log.debug(`Set accessory ${hk}ColorControl.color: X:${value.x} Y:${value.y} => H:${(hsl.h / 360) * 254} S:${(hsl.s / 100) * 254}`);
         }
         /* Switch */
         if (key === 'action') {
           let position = undefined;
           if (value === 'single') {
             position = 0;
-            //this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerInitialPressEvent({ newPosition: 0 });
-            this.log.info(`**Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentPosition: ${position}`);
+            this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
           }
           if (value === 'double') {
             position = 1;
-            //this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 0, totalNumberOfPressesCounted: 2 });
-            this.log.info(`**Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentPosition: ${position}`);
+            this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
           }
           if (value === 'hold') {
             position = 2;
-            //this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongPressEvent({ previousPosition: 0 });
-            this.log.info(`**Setting accessory ${this.ien}${this.accessoryName}${rs}${db} currentPosition: ${position}`);
+            this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
           }
         }
         if (key === 'battery') {
           this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatPercentRemainingAttribute(Math.round(value * 2));
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batPercentRemaining: ${Math.round(value * 2)}`);
+          this.log.debug(`Set accessory ${hk}PowerSource.batPercentRemaining: ${Math.round(value * 2)}`);
         }
         if (key === 'battery_low') {
           this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatChargeLevelAttribute(value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batChargeLevel: ${value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok}`);
+          this.log.debug(`Set accessory ${hk}PowerSource.batChargeLevel: ${value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok}`);
         }
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') {
           this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatVoltageAttribute(value);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} batVoltage: ${value}`);
+          this.log.debug(`Set accessory ${hk}PowerSource.batVoltage: ${value}`);
         }
         if (key === 'temperature') {
           this.bridgedDevice.getClusterServerById(TemperatureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} measuredValue: ${Math.round(value * 100)}`);
+          this.log.debug(`Set accessory ${hk}TemperatureMeasurement.measuredValue: ${Math.round(value * 100)}`);
         }
         if (key === 'humidity') {
           this.bridgedDevice.getClusterServerById(RelativeHumidityMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value * 100));
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} measuredValue: ${Math.round(value * 100)}`);
+          this.log.debug(`Set accessory ${hk}RelativeHumidityMeasurement.measuredValue: ${Math.round(value * 100)}`);
         }
         if (key === 'pressure') {
           this.bridgedDevice.getClusterServerById(PressureMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(value));
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} measuredValue: ${Math.round(value)}`);
+          this.log.debug(`Set accessory ${hk}PressureMeasurement.measuredValue: ${Math.round(value)}`);
         }
         if (key === 'contact') {
           this.bridgedDevice.getClusterServerById(BooleanState.Cluster.id)?.setStateValueAttribute(value);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} stateValue: ${Math.round(value)}`);
+          this.log.debug(`Set accessory ${hk}BooleanState.stateValue: ${Math.round(value)}`);
         }
         if (key === 'water_leak') {
           this.bridgedDevice.getClusterServerById(BooleanState.Cluster.id)?.setStateValueAttribute(value);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} stateValue: ${Math.round(value)}`);
+          this.log.debug(`Set accessory ${hk}BooleanState.stateValue: ${Math.round(value)}`);
         }
         if (key === 'carbon_monoxide') {
           this.bridgedDevice.getClusterServerById(BooleanState.Cluster.id)?.setStateValueAttribute(value);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} stateValue: ${Math.round(value)}`);
+          this.log.debug(`Set accessory ${hk}BooleanState.stateValue: ${Math.round(value)}`);
         }
         if (key === 'air_quality') {
           // excellent, good, moderate, poor, unhealthy, out_of_range unknown
@@ -216,21 +217,22 @@ export class ZigbeeEntity extends EventEmitter {
                       ? AirQuality.AirQualityType.Good
                       : AirQuality.AirQualityType.Unknown;
           this.bridgedDevice.getClusterServerById(AirQuality.Cluster.id)?.setAirQualityAttribute(airQuality);
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} airQuality: ${airQuality}`);
+          this.log.debug(`Set accessory ${hk}AirQuality.airQuality: ${airQuality}`);
         }
         if (key === 'voc') {
           this.bridgedDevice.getClusterServerById(TvocMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.min(65535, value));
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} measuredValue: ${value}`);
+          this.log.debug(`Set accessory ${hk}TvocMeasurement.measuredValue: ${value}`);
         }
         if (key === 'occupancy') {
           this.bridgedDevice.getClusterServerById(OccupancySensing.Cluster.id)?.setOccupancyAttribute({ occupied: value as boolean });
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} occupancy: ${value}`);
+          this.log.debug(`Set accessory ${hk}OccupancySensing.occupancy: ${value}`);
         }
         if (key === 'illuminance_lux' || (key === 'illuminance' && !('illuminance_lux' in payload))) {
           this.bridgedDevice.getClusterServerById(IlluminanceMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0)));
-          this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} measuredValue: ${Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0))}`);
+          this.log.debug(`Set accessory ${hk}IlluminanceMeasurement.measuredValue: ${Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0))}`);
         }
       });
+      this.log.setLogDebug(debugEnabled);
     });
 
     this.platform.z2m.on('ONLINE-' + this.accessoryName, () => {
@@ -238,16 +240,16 @@ export class ZigbeeEntity extends EventEmitter {
       if (this.bridgedDevice?.id !== undefined) {
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: true });
-        this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: true`);
+        this.log.info(`${db}Set accessory ${hk}BridgedDeviceBasicInformation.reachable: true`);
       }
     });
 
     this.platform.z2m.on('OFFLINE-' + this.accessoryName, () => {
+      this.log.warn(`OFFLINE message for accessory ${this.ien}${this.accessoryName}${wr}`);
       if (this.bridgedDevice?.id !== undefined) {
-        this.log.warn(`OFFLINE message for accessory ${this.ien}${this.accessoryName}${wr}`);
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: false });
-        this.log.debug(`Setting accessory ${this.ien}${this.accessoryName}${rs}${db} reachable: false`);
+        this.log.info(`${db}Set accessory ${hk}BridgedDeviceBasicInformation.reachable: false`);
       }
     });
   }
