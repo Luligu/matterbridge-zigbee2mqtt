@@ -15,6 +15,10 @@
   "bugs": {
     "url": "https://github.com/Luligu/matterbridge-zigbee2mqtt/issues"
   },
+  "funding": {
+    "type": "buymeacoffee",
+    "url": "https://www.buymeacoffee.com/luligugithub"
+  },
   "keywords": [
     "matterbridge",
     "homebridge",
