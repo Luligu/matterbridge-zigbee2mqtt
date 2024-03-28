@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.14
+ * @version 2.2.15
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -511,7 +511,7 @@ export class Zigbee2MQTT extends EventEmitter {
 
     // Parse the buffer to JSON
     try {
-      jsonData = JSON.parse(buffer.toString());
+      jsonData = this.tryJsonParse(buffer.toString());
     } catch (error) {
       this.log.error('writeBufferJSON: parsing error:', error);
       return; // Stop execution if parsing fails
@@ -540,9 +540,19 @@ export class Zigbee2MQTT extends EventEmitter {
       });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private tryJsonParse(text: string): any {
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      this.log.error('tryJsonParse: parsing error:', error);
+      return {};
+    }
+  }
+
   private messageHandler(topic: string, payload: Buffer) {
     if (topic.startsWith(this.mqttTopic + '/bridge/state')) {
-      const data = JSON.parse(payload.toString());
+      const data = this.tryJsonParse(payload.toString());
       //this.log.debug('classZigbee2MQTT=>Message bridge/state', data);
       if (data.state === 'online') {
         this.z2mIsOnline = true;
@@ -553,7 +563,7 @@ export class Zigbee2MQTT extends EventEmitter {
       }
       this.log.debug(`Message bridge/state online => ${this.z2mIsOnline}`);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/info')) {
-      const data = JSON.parse(payload.toString());
+      const data = this.tryJsonParse(payload.toString());
       //this.log.debug('classZigbee2MQTT=>Message bridge/info', data);
       this.z2mPermitJoin = data.permit_join ? data.permit_join : false;
       this.z2mPermitJoinTimeout = data.permit_join_timeout ? data.permit_join_timeout : 0;
@@ -567,8 +577,8 @@ export class Zigbee2MQTT extends EventEmitter {
       this.emit('bridge-info', data);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/devices')) {
       this.z2mDevices.splice(0, this.z2mDevices.length);
-      const devices: Device[] = JSON.parse(payload.toString());
-      const data = JSON.parse(payload.toString());
+      const devices: Device[] = this.tryJsonParse(payload.toString());
+      const data = this.tryJsonParse(payload.toString());
       this.writeBufferJSON('bridge-devices', payload);
       this.emit('bridge-devices', data);
       let index = 1;
@@ -666,8 +676,8 @@ export class Zigbee2MQTT extends EventEmitter {
       //this.printDevices();
     } else if (topic.startsWith(this.mqttTopic + '/bridge/groups')) {
       this.z2mGroups.splice(0, this.z2mGroups.length);
-      const groups: Group[] = JSON.parse(payload.toString());
-      const data = JSON.parse(payload.toString());
+      const groups: Group[] = this.tryJsonParse(payload.toString());
+      const data = this.tryJsonParse(payload.toString());
       this.writeBufferJSON('bridge-groups', payload);
       this.emit('bridge-groups', data);
       let index = 1;
@@ -695,14 +705,14 @@ export class Zigbee2MQTT extends EventEmitter {
       this.emit('groups');
       //this.printGroups();
     } else if (topic.startsWith(this.mqttTopic + '/bridge/extensions')) {
-      const extensions = JSON.parse(payload.toString()) as BridgeExtension[];
+      const extensions = this.tryJsonParse(payload.toString()) as BridgeExtension[];
       for (const extension of extensions) {
         this.log.warn(`Message topic: ${topic} extension: ${extension.name}`);
       }
     } else if (topic.startsWith(this.mqttTopic + '/bridge/event')) {
       this.handleEvent(payload);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/request')) {
-      const data = JSON.parse(payload.toString());
+      const data = this.tryJsonParse(payload.toString());
       this.log.warn(`Message topic: ${topic} payload:${rs}`, data);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/response')) {
       if (topic.startsWith(this.mqttTopic + '/bridge/response/networkmap')) {
@@ -717,7 +727,7 @@ export class Zigbee2MQTT extends EventEmitter {
         this.handleResponseDeviceRename(payload);
         return;
       }
-      const data = JSON.parse(payload.toString());
+      const data = this.tryJsonParse(payload.toString());
       this.log.warn(`Message topic: ${topic} payload:${rs}`, data);
       /*
       [05/09/2023, 20:35:26] [z2m] classZigbee2MQTT=>Message bridge/response zigbee2mqtt/bridge/response/group/add {
@@ -745,7 +755,7 @@ export class Zigbee2MQTT extends EventEmitter {
         service = parts[1];
       }
       if (entity === 'Coordinator') {
-        const data = JSON.parse(payload.toString()); // TODO crash on device rename
+        const data = this.tryJsonParse(payload.toString()); // TODO crash on device rename
         if (service === 'availability') {
           if (data.state === 'online') {
             this.log.debug(`Received ONLINE for ${id}Coordinator${rs}`, data);
@@ -769,7 +779,7 @@ export class Zigbee2MQTT extends EventEmitter {
           this.handleGroupMessage(foundGroup, entity, service, payload);
         } else {
           try {
-            const data = JSON.parse(payload.toString());
+            const data = this.tryJsonParse(payload.toString());
             this.log.warn('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', data);
           } catch {
             this.log.error('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
@@ -793,7 +803,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.warn(`handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
-    const data = JSON.parse(payload.toString()); // TODO crash on device rename
+    const data = this.tryJsonParse(payload.toString()); // TODO crash on device rename
     if (service === 'availability') {
       if (data.state === 'online') {
         this.z2mDevices[deviceIndex].isAvailabilityEnabled = true;
@@ -821,7 +831,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.warn(`handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
-    const data = JSON.parse(payload.toString());
+    const data = this.tryJsonParse(payload.toString());
     data['last_seen'] = new Date().toISOString();
     if (service === 'availability') {
       if (data.state === 'online') {
@@ -852,7 +862,7 @@ export class Zigbee2MQTT extends EventEmitter {
             }
           ],
         */
-    const data = JSON.parse(payload.toString());
+    const data = this.tryJsonParse(payload.toString());
 
     const topology: Topology = data.data.value;
     const lqi = (lqi: number) => {
@@ -975,7 +985,7 @@ export class Zigbee2MQTT extends EventEmitter {
       transaction: 'smeo0-8'
     }
     */
-    const json = JSON.parse(payload.toString());
+    const json = this.tryJsonParse(payload.toString());
     this.log.warn(`handleResponseDeviceRename from ${json.data.from} to ${json.data.to} status ${json.status}`);
     const device = this.z2mDevices.find((device) => device.friendly_name === json.data.to);
     if (device && json.status === 'ok') {
@@ -991,7 +1001,7 @@ export class Zigbee2MQTT extends EventEmitter {
       transaction: 'adeis-5'
     }
     */
-    const json = JSON.parse(payload.toString());
+    const json = this.tryJsonParse(payload.toString());
     this.log.warn(`handleResponsePermitJoin() device: ${json.data.device ? json.data.device : 'All'} time: ${json.data.time} value: ${json.data.value} status: ${json.status}`);
     if (json.status === 'ok') {
       this.emit('permit_join', json.data.device, json.data.time, json.data.value);
@@ -1044,7 +1054,7 @@ export class Zigbee2MQTT extends EventEmitter {
       type: 'device_interview'
     }
     */
-    const json = JSON.parse(payload.toString());
+    const json = this.tryJsonParse(payload.toString());
     switch (json.type) {
       case undefined:
         this.log.error('handleEvent() undefined type', json);
@@ -1068,7 +1078,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private readConfig(filename: string) {
     try {
       const rawdata = fs.readFileSync(filename, 'utf-8');
-      const data = JSON.parse(rawdata);
+      const data = this.tryJsonParse(rawdata);
       return data;
     } catch (err) {
       this.log.error('readConfig error', err);
