@@ -139,30 +139,38 @@ export class ZigbeeEntity extends EventEmitter {
         /* ColorControl Hue and Saturation */
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
           const hsl = color.xyToHsl(value.x, value.y);
-          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentHueAttribute((hsl.h / 360) * 254);
-          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentSaturationAttribute((hsl.s / 100) * 254);
+          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentHueAttribute(Math.round((hsl.h / 360) * 254));
+          this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setCurrentSaturationAttribute(Math.round((hsl.s / 100) * 254));
           this.bridgedDevice.getClusterServerById(ColorControl.Cluster.id)?.setColorModeAttribute(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-          this.log.debug(`Set accessory ${hk}ColorControl.color: X:${value.x} Y:${value.y} => H:${(hsl.h / 360) * 254} S:${(hsl.s / 100) * 254}`);
+          this.log.debug(`Set accessory ${hk}ColorControl: X:${value.x} Y:${value.y} => currentHue: ${Math.round((hsl.h / 360) * 254)} currentSaturation: ${Math.round((hsl.s / 100) * 254)}`);
         }
         /* Switch */
         if (key === 'action') {
           let position = undefined;
           if (value === 'single') {
-            position = 0;
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerInitialPressEvent({ newPosition: 0 });
+            position = 1;
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(1);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerInitialPressEvent({ newPosition: 1 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerShortReleaseEvent({ previousPosition: 1 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 1 });
             this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
           }
           if (value === 'double') {
-            position = 1;
+            position = 2;
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 0, totalNumberOfPressesCounted: 2 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 2 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
             this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
           }
           if (value === 'hold') {
-            position = 2;
+            position = 1;
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongPressEvent({ previousPosition: 0 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerInitialPressEvent({ newPosition: 1 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongPressEvent({ newPosition: 1 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongReleaseEvent({ previousPosition: 1 });
+            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
             this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
           }
         }
@@ -239,7 +247,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.log.info(`ONLINE message for accessory ${this.ien}${this.accessoryName}${rs}`);
       if (this.bridgedDevice?.id !== undefined) {
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
-        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: true });
+        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
         this.log.info(`${db}Set accessory ${hk}BridgedDeviceBasicInformation.reachable: true`);
       }
     });
@@ -248,7 +256,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.log.warn(`OFFLINE message for accessory ${this.ien}${this.accessoryName}${wr}`);
       if (this.bridgedDevice?.id !== undefined) {
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
-        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachable: false });
+        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: false });
         this.log.info(`${db}Set accessory ${hk}BridgedDeviceBasicInformation.reachable: false`);
       }
     });
@@ -646,6 +654,11 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       // eslint-disable-next-line no-console
       console.log(`Configuring ${this.deviceName}`);
       this.getClusterServerById(DoorLock.Cluster.id)?.setLockStateAttribute(DoorLock.LockState.Locked);
+    }
+    if (this.getClusterServerById(Switch.Cluster.id)) {
+      // eslint-disable-next-line no-console
+      console.log(`Configuring ${this.deviceName}`);
+      this.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
     }
   }
 }
