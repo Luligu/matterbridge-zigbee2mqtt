@@ -4,9 +4,6 @@
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.js",
   "homepage": "https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/README.md",
   "repository": {
     "type": "git",
@@ -31,6 +28,9 @@
     "zigbee2mqtt",
     "zigbee"
   ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.js",
   "engines": {
     "node": "^18.19.0 || ^20.11.0"
   },
