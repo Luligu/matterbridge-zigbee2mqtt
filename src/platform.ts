@@ -107,7 +107,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
-      this.z2mBridgeDevices = devices;
+      if (config.injectDevices) {
+        const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
+        this.log.warn(`***Injecting ${data.devices.length} devices from ${config.injectDevices}`);
+        this.z2mBridgeDevices = [devices, data.devices].flat();
+      } else this.z2mBridgeDevices = devices;
+
       if (this.shouldStart) {
         if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
           for (const device of this.z2mBridgeDevices) {
@@ -196,12 +201,22 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     for (const device of this.bridgedDevices) {
       device.configure();
     }
+
+    if (this.config.injectPayloads) {
+      setInterval(() => {
+        const data = this.z2m.readConfig(path.join(this.matterbridge.matterbridgeDirectory, this.config.injectPayloads as string));
+        this.log.warn(`***Injecting ${data.payloads.length} payloads from ${this.config.injectPayloads}`);
+        for (const payload of data.payloads) {
+          this.z2m.emitPayload(payload.topic, payload.payload);
+        }
+      }, 30 * 1000);
+    }
   }
 
   override async onShutdown(reason?: string) {
     this.log.debug('Shutting down zigbee2mqtt platform: ' + reason);
     //this.updateAvailability(false);
-    //await this.unregisterAllDevices();
+    if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
     this.z2m.stop();
   }
 

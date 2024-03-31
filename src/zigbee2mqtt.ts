@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.15
+ * @version 2.2.17
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -1095,7 +1095,8 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   // Function to read JSON config from a file
-  private readConfig(filename: string) {
+  public readConfig(filename: string) {
+    this.log.debug(`Reading config from ${filename}`);
     try {
       const rawdata = fs.readFileSync(filename, 'utf-8');
       const data = this.tryJsonParse(rawdata);
@@ -1108,7 +1109,8 @@ export class Zigbee2MQTT extends EventEmitter {
 
   // Function to write JSON config to a file
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private writeConfig(filename: string, data: any): boolean {
+  public writeConfig(filename: string, data: any): boolean {
+    this.log.debug(`Writing config to ${filename}`);
     try {
       const jsonString = JSON.stringify(data, null, 2);
       fs.writeFileSync(filename, jsonString);
@@ -1117,6 +1119,10 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.error('writeConfig error', err);
       return true;
     }
+  }
+
+  public emitPayload(entity: string, data: Payload) {
+    this.emit('MESSAGE-' + entity, data);
   }
 
   private printDevice(device: z2mDevice) {
