@@ -80,6 +80,7 @@ These are the default vules:
 {
   "name": "matterbridge-zigbee2mqtt",
   "type": "DynamicPlatform",
+  "unregisterOnShutdown": false,
   "host": "localhost",
   "port": 1883,
   "topic": "zigbee2mqtt",
@@ -109,7 +110,5 @@ nano matterbridge-zigbee2mqtt.config.json
 ## Conversion issues between zigbee2MQTT and Matter ecosystems
 
 ### action 
-The action feature of zigbee is translated in a Matter momentary Switch but the Home app doesn't react to trigger.
+The action feature of zigbee is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller.
 
-### multi endpoint device like double switch or double dimmer
-They are still to implement.

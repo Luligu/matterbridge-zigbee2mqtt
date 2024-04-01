@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
@@ -99,6 +99,17 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.warn('zigbee2MQTT is offline');
       // TODO check single availability
       //this.updateAvailability(false);
+    });
+
+    this.z2m.on('permit_join', async (device: string, time: number, status: boolean) => {
+      this.log.info(`*zigbee2MQTT sent permit_join device: ${device} time: ${time} status: ${status}`);
+      for (const bridgedEntity of this.bridgedEntities) {
+        if (bridgedEntity.bridgedDevice?.isRouter && (device === undefined || device === bridgedEntity.bridgedDevice.deviceName)) {
+          this.log.warn(`- ${bridgedEntity.bridgedDevice.deviceName} ${bridgedEntity.bridgedDevice.number} (${bridgedEntity.bridgedDevice.name})`);
+          if (bridgedEntity.device && status) bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Unlocked);
+          if (bridgedEntity.device && !status) bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Locked);
+        }
+      }
     });
 
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {

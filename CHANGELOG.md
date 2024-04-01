@@ -5,8 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [2.0.5] - 2024-03-30
 
 ### Added
-- [thermostat]: Added the Thermostat cluster.
-- [multiendpoint]: Added the support for OnOff cluster with child enpoints and discovery.
+- [Coordinator and routers]: Coordinator and TexasInstruments routers are exposed like DoorLock. They change state when permitJoin is changed and turn on or off the permitJoin when they are opened or closed from the controller.
+- [thermostat]: Added the Thermostat cluster (thanks https://github.com/khaidakin).
+- [multiendpoint]: Added the support for OnOff cluster with child enpoints (thanks https://github.com/khaidakin).
 
 <!-- Commented out section
 ## [1.1.2] - 2024-03-08
