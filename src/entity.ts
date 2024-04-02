@@ -65,6 +65,7 @@ import {
   FixedLabelCluster,
   EndpointNumber,
   SwitchCluster,
+  ElectricalMeasurement,
 } from 'matterbridge';
 
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, nf, wr, debugStringify, hk, zb } from 'node-ansi-logger';
@@ -112,6 +113,7 @@ export class ZigbeeEntity extends EventEmitter {
       const debugEnabled = this.platform.debugEnabled;
       this.log.setLogDebug(true);
       this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
+      /* Multi endpoint section */
       if (this.bridgedDevice.hasEndpoints && !this.bridgedDevice.noUpdate) {
         const childs = this.bridgedDevice.getChildEndpoints();
         childs.forEach((child) => {
@@ -128,8 +130,17 @@ export class ZigbeeEntity extends EventEmitter {
           }
         });
       }
+      /* Normal z2m features section */
       Object.entries(payload).forEach(([key, value]) => {
         if (this.bridgedDevice === undefined || this.bridgedDevice.noUpdate) return;
+
+        /* try to use the table */
+        /*
+        const z2m = z2ms.find((z2m) => z2m.property === key);
+        if (z2m) {
+        }
+        */
+
         /* WindowCovering */
         if (key === 'position') {
           this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.setCurrentPositionLiftPercent100thsAttribute(10000 - value * 100);
@@ -203,6 +214,41 @@ export class ZigbeeEntity extends EventEmitter {
             this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
           }
         }
+        /* Thermostat */
+        if (key === 'local_temperature') {
+          const local_temperature = this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getLocalTemperatureAttribute() / 100;
+          if (local_temperature !== value) {
+            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setLocalTemperatureAttribute(Math.max(-5000, Math.min(5000, value * 100)));
+            this.log.debug(`Set accessory ${hk}Thermostat.localTemperature: ${Math.max(-5000, Math.min(5000, value * 100))}`);
+          }
+        }
+        if (key === 'current_heating_setpoint') {
+          const current_heating_setpoint = this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getOccupiedHeatingSetpointAttribute() / 100;
+          if (current_heating_setpoint !== value && value !== 0) {
+            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setOccupiedHeatingSetpointAttribute(Math.max(-5000, Math.min(5000, value * 100)));
+            this.log.debug(`Set accessory ${hk}Thermostat.occupiedHeatingSetpoint: ${Math.max(-5000, Math.min(5000, value * 100))}`);
+          }
+        }
+        if (key === 'current_cooling_setpoint') {
+          const current_cooling_setpoint = this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getOccupiedCoolingSetpointAttribute() / 100;
+          if (current_cooling_setpoint !== value && value !== 0) {
+            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setOccupiedCoolingSetpointAttribute(Math.max(-5000, Math.min(5000, value * 100)));
+            this.log.debug(`Set accessory ${hk}Thermostat.occupiedCoolingSetpoint: ${Math.max(-5000, Math.min(5000, value * 100))}`);
+          }
+        }
+        if (key === 'running_state') {
+          //const state = value === 'idle' ? Thermostat.ThermostatRunningMode.Off : value === 'heat' ? Thermostat.ThermostatRunningMode.Heat : Thermostat.ThermostatRunningMode.Cool;
+          //this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setThermostatRunningModeAttribute(state);
+          //this.log.debug(`Get accessory ${hk}Thermostat.thermostatRunningMode: ${state} (${value})`);
+        }
+        if (key === 'system_mode') {
+          const state = value === 'off' ? Thermostat.SystemMode.Off : value === 'heat' ? Thermostat.SystemMode.Heat : Thermostat.SystemMode.Cool;
+          if (state !== this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getSystemModeAttribute()) {
+            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setSystemModeAttribute(state);
+            this.log.debug(`Set accessory ${hk}Thermostat.systemMode: ${state} (${value})`);
+          }
+        }
+        /* Generic features */
         if (key === 'battery') {
           this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatPercentRemainingAttribute(Math.round(value * 2));
           this.log.debug(`Set accessory ${hk}PowerSource.batPercentRemaining: ${Math.round(value * 2)}`);
@@ -212,6 +258,7 @@ export class ZigbeeEntity extends EventEmitter {
           this.log.debug(`Set accessory ${hk}PowerSource.batChargeLevel: ${value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok}`);
         }
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') {
+          /* Voltage for battery powered devices */
           this.bridgedDevice.getClusterServerById(PowerSource.Cluster.id)?.setBatVoltageAttribute(value);
           this.log.debug(`Set accessory ${hk}PowerSource.batVoltage: ${value}`);
         }
@@ -268,38 +315,22 @@ export class ZigbeeEntity extends EventEmitter {
           this.bridgedDevice.getClusterServerById(IlluminanceMeasurement.Cluster.id)?.setMeasuredValueAttribute(Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0)));
           this.log.debug(`Set accessory ${hk}IlluminanceMeasurement.measuredValue: ${Math.round(Math.max(Math.min(10000 * Math.log10(value) + 1, 0xfffe), 0))}`);
         }
-        if (key === 'local_temperature') {
-          const local_temperature = this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getLocalTemperatureAttribute() / 100;
-          if (local_temperature !== value) {
-            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setLocalTemperatureAttribute(value * 100);
-            this.log.debug(`Set accessory ${hk}Thermostat.localTemperature: ${value * 100}`);
-          }
+        /* ElectricalMeasurement */
+        if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Mains (single phase)') {
+          this.bridgedDevice.getClusterServerById(ElectricalMeasurement.Cluster.id)?.setRmsVoltageAttribute(value);
+          this.log.debug(`Set accessory ${hk}ElectricalMeasurement.rmsVoltage: ${value}`);
         }
-        if (key === 'current_heating_setpoint') {
-          const current_heating_setpoint = this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getOccupiedHeatingSetpointAttribute() / 100;
-          if (current_heating_setpoint !== value && value !== 0) {
-            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setOccupiedHeatingSetpointAttribute(Math.max(-5000, Math.min(5000, value * 100)));
-            this.log.debug(`Set accessory ${hk}Thermostat.occupiedHeatingSetpoint: ${Math.max(-5000, Math.min(5000, value * 100))}`);
-          }
+        if (key === 'current' && this.isDevice && this.device?.power_source === 'Mains (single phase)') {
+          this.bridgedDevice.getClusterServerById(ElectricalMeasurement.Cluster.id)?.setRmsCurrentAttribute(value);
+          this.log.debug(`Set accessory ${hk}ElectricalMeasurement.rmsCurrent: ${value}`);
         }
-        if (key === 'current_cooling_setpoint') {
-          const current_cooling_setpoint = this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getOccupiedCoolingSetpointAttribute() / 100;
-          if (current_cooling_setpoint !== value && value !== 0) {
-            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setOccupiedCoolingSetpointAttribute(Math.max(-5000, Math.min(5000, value * 100)));
-            this.log.debug(`Set accessory ${hk}Thermostat.occupiedCoolingSetpoint: ${Math.max(-5000, Math.min(5000, value * 100))}`);
-          }
+        if (key === 'power' && this.isDevice && this.device?.power_source === 'Mains (single phase)') {
+          this.bridgedDevice.getClusterServerById(ElectricalMeasurement.Cluster.id)?.setActivePowerAttribute(value);
+          this.log.debug(`Set accessory ${hk}ElectricalMeasurement.activePower: ${value}`);
         }
-        if (key === 'running_state') {
-          //const state = value === 'idle' ? Thermostat.ThermostatRunningMode.Off : value === 'heat' ? Thermostat.ThermostatRunningMode.Heat : Thermostat.ThermostatRunningMode.Cool;
-          //this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setThermostatRunningModeAttribute(state);
-          //this.log.debug(`Get accessory ${hk}Thermostat.thermostatRunningMode: ${state} (${value})`);
-        }
-        if (key === 'system_mode') {
-          const state = value === 'off' ? Thermostat.SystemMode.Off : value === 'heat' ? Thermostat.SystemMode.Heat : Thermostat.SystemMode.Cool;
-          if (state !== this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.getSystemModeAttribute()) {
-            this.bridgedDevice.getClusterServerById(Thermostat.Cluster.id)?.setSystemModeAttribute(state);
-            this.log.debug(`Set accessory ${hk}Thermostat.systemMode: ${state} (${value})`);
-          }
+        if (key === 'energy' && this.isDevice && this.device?.power_source === 'Mains (single phase)') {
+          this.bridgedDevice.getClusterServerById(ElectricalMeasurement.Cluster.id)?.setTotalActivePowerAttribute(value);
+          this.log.debug(`Set accessory ${hk}ElectricalMeasurement.totalActivePower: ${value}`);
         }
       });
       this.log.setLogDebug(debugEnabled);
@@ -395,6 +426,10 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '',       name: 'air_quality',    property: 'air_quality', deviceType: airQualitySensor,          cluster: AirQuality.Cluster.id, attribute: AirQuality.CompleteInstance.attributes.airQuality.id },
   { type: '',       name: 'voc',            property: 'voc',        deviceType: airQualitySensor,           cluster: TvocMeasurement.Cluster.id, attribute: TvocMeasurement.CompleteInstance.attributes.measuredValue.id },
   { type: '',       name: 'action',         property: 'action',     deviceType: DeviceTypes.GENERIC_SWITCH, cluster: Switch.Cluster.id, attribute: Switch.CompleteInstance.attributes.currentPosition.id },
+  { type: '',       name: 'energy',         property: 'energy',     deviceType: DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO, cluster: ElectricalMeasurement.Cluster.id, attribute: ElectricalMeasurement.Cluster.attributes.totalActivePower.id },
+  { type: '',       name: 'power',          property: 'power',      deviceType: DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO, cluster: ElectricalMeasurement.Cluster.id, attribute: ElectricalMeasurement.Cluster.attributes.activePower.id },
+  { type: '',       name: 'voltage',        property: 'voltage',    deviceType: DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO, cluster: ElectricalMeasurement.Cluster.id, attribute: ElectricalMeasurement.Cluster.attributes.rmsVoltage.id },
+  { type: '',       name: 'current',        property: 'current',    deviceType: DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO, cluster: ElectricalMeasurement.Cluster.id, attribute: ElectricalMeasurement.Cluster.attributes.rmsCurrent.id },
   //{ type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: DoorLock.CompleteInstance.attributes.lockState.id },
 ];
 /* eslint-enable */
@@ -455,7 +490,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       [...names].forEach((name, index) => {
         const z2m = z2ms.find((z2m) => z2m.type === type && z2m.property === name);
         if (z2m) {
-          this.log.debug(`***Device ${this.ien}${device.friendly_name}${rs}${nf} endpoint: ${zb}${endpoints[index]}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
+          this.log.info(`***Device ${this.ien}${device.friendly_name}${rs}${nf} endpoint: ${zb}${endpoints[index]}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
           const requiredServerClusters: ClusterId[] = [];
           if (z2m.deviceType.requiredServerClusters.includes(Identify.Cluster.id)) requiredServerClusters.push(Identify.Cluster.id);
           if (z2m.deviceType.requiredServerClusters.includes(Groups.Cluster.id)) requiredServerClusters.push(Groups.Cluster.id);
@@ -463,7 +498,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (z2m.deviceType.requiredServerClusters.includes(TimeSync.Cluster.id)) requiredServerClusters.push(TimeSync.Cluster.id);
           if (endpoints.length === 0) {
             if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [z2m.deviceType], [...requiredServerClusters, ClusterId(z2m.cluster)]);
-            else this.bridgedDevice.addDeviceTypeAndClusterServer(z2m.deviceType, [ClusterId(z2m.cluster)]);
+            else this.bridgedDevice.addDeviceTypeAndClusterServer(z2m.deviceType, [...requiredServerClusters, ClusterId(z2m.cluster)]);
           } else {
             if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO]);
             this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoints[index], z2m.name + '_' + endpoints[index], z2m.deviceType, [...requiredServerClusters, ClusterId(z2m.cluster)]);
@@ -653,9 +688,13 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     super(definition[0]);
     definition.forEach((deviceType) => {
       this.addDeviceType(deviceType);
+      console.log(`BridgedBaseDevice ${entity.isDevice ? entity.device?.friendly_name : entity.group?.friendly_name} deviceType: ${deviceType.name}`);
     });
     this.addDeviceType(DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO);
 
+    includeServerList.forEach((clusterId) => {
+      console.log('BridgedBaseDevice cluster: ', clusterId);
+    });
     // Add all other server clusters in the includelist
     this.addDeviceClusterServer(includeServerList);
 
@@ -724,6 +763,9 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     }
     if (includeServerList.includes(Switch.Cluster.id)) {
       this.createDefaultSwitchClusterServer();
+    }
+    if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Cluster)) {
+      this.createDefaultElectricalMeasurementClusterServer();
     }
     if (includeServerList.includes(TemperatureMeasurement.Cluster.id)) {
       this.createDefaultTemperatureMeasurementClusterServer();
