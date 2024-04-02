@@ -105,10 +105,20 @@ cd ~/.matterbridge
 nano matterbridge-zigbee2mqtt.config.json
 ```
 
+# Frequently Asked Questions
+
+## What is supported?
+
+Out of the box, this plugin supports all possible conversion from zigbee2mqtt to Matter 1.1.
+
+Since the Matter support in the available ecosystems (controllers) is very limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
+
+I have been informed that Matter support in Home Assistant is instead very advanced and includes some clusters not supported by other ecosystems. These clusters will be added in the next releases of this plugin and in Matterbridge API.
+
 # Known issues
 
 ## Conversion issues between zigbee2MQTT and Matter ecosystems
 
-### action 
-The action feature of zigbee is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller.
+### action (scene buttons)
+The action feature of z2m is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller. These devices (like the Aqara WXKG11LM) show up, but they cannot send the actions (events) to the controller. 
 
