@@ -113,7 +113,6 @@ export class ZigbeeEntity extends EventEmitter {
       this.log.setLogDebug(true);
       this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
       if (this.bridgedDevice.hasEndpoints && !this.bridgedDevice.noUpdate) {
-        this.log.debug('*Checking child enpoints...');
         const childs = this.bridgedDevice.getChildEndpoints();
         childs.forEach((child) => {
           const labelList = child.getClusterServer(FixedLabelCluster)?.getLabelListAttribute();
@@ -121,7 +120,7 @@ export class ZigbeeEntity extends EventEmitter {
           //this.log.info('***getChildStatePayload labelList:', labelList);
           const state = labelList.find((entry) => entry.label === 'state');
           if (!state) return;
-          this.log.debug(`*Checking child enpoint ${zb}${child.number}${db} payload for ${zb}${state.value}${db}`);
+          this.log.debug(`*Checking payload of child enpoint ${zb}${child.number}${db} for ${zb}${state.value}${db}`);
           if ((payload as Payload)[state.value] !== undefined) {
             this.log.debug(`*Found state ${zb}${state.value}${db} in payload value: ${(payload as Payload)[state.value]}`);
             child.getClusterServerById(OnOff.Cluster.id)?.setOnOffAttribute((payload as Payload)[state.value] === 'ON' ? true : false);
