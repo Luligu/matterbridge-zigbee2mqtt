@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.17
+ * @version 2.2.18
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -456,7 +456,7 @@ export class Zigbee2MQTT extends EventEmitter {
           try {
             this.mqttPublishInflights++;
             await this.mqttClient.publishAsync(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message, { qos: 2 });
-            this.log.debug(`***Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`);
+            this.log.debug(`**Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`);
             this.emit('mqtt_published');
             this.mqttPublishInflights--;
           } catch (error) {
@@ -490,11 +490,11 @@ export class Zigbee2MQTT extends EventEmitter {
         return;
       }
 
-      this.log.debug(`**Publishing ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} topic: ${topic} message: ${message}`);
+      this.log.debug(`Publishing ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} topic: ${topic} message: ${message}`);
       try {
         this.mqttPublishInflights++;
         await this.mqttClient.publishAsync(topic, message, { qos: 2 });
-        this.log.debug(`***Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message}`);
+        this.log.debug(`Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message}`);
         this.emit('mqtt_published');
         this.mqttPublishInflights--;
       } catch (error) {

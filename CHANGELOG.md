@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.6] - 2024-04-04
+
+### Added
+- [electrical] Added support for voltage current power energy (right now they show up only in Homeassistant)
+- [multiendpoint]: Added the support for electrical measurements and temperature (thanks https://github.com/khaidakin).
+
+### Changed
+
+- [discovery]: Refactored the zigbee2mqtt discovery: now multi endpoints devices (mostly DIY devices) are supported.
+
 ## [2.0.5] - 2024-04-01
 
 ### Added
