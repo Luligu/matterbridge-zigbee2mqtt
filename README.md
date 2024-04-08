@@ -41,7 +41,6 @@ sudo npm install -g matterbridge-zigbee2mqtt
 matterbridge -add matterbridge-zigbee2mqtt
 ```
 
-
 ### If you want to contribute to the plugin 
 
 On windows:
@@ -113,7 +112,11 @@ Out of the box, this plugin supports all possible conversion from zigbee2mqtt to
 
 Since the Matter support in the available ecosystems (controllers) is very limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
-I have been informed that Matter support in Home Assistant is instead very advanced and includes some clusters not supported by other ecosystems. These clusters will be added in the next releases of this plugin and in Matterbridge API.
+We discoverd that Matter support in Home Assistant is instead advanced and includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption.
+
+## Unsupported devices
+
+If one of your devices is not supported out of the box, open an issue and we will try to support it if possible.
 
 # Known issues
 
