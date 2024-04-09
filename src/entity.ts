@@ -812,10 +812,10 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     if (includeServerList.includes(IlluminanceMeasurement.Cluster.id) && !this.hasClusterServer(IlluminanceMeasurement.Cluster)) {
       this.createDefaultIlluminanceMeasurementClusterServer();
     }
-    if (includeServerList.includes(AirQuality.Cluster.id) && !this.hasClusterServer(AirQuality.Cluster)) {
+    if (includeServerList.includes(AirQuality.Cluster.id) && !this.hasClusterServer(AirQuality.Complete)) {
       this.createDefaultAirQualityClusterServer();
     }
-    if (includeServerList.includes(TvocMeasurement.Cluster.id) && !this.hasClusterServer(TvocMeasurement.Cluster)) {
+    if (includeServerList.includes(TvocMeasurement.Cluster.id) && !this.hasClusterServer(TvocMeasurement.Complete)) {
       this.createDefaultTvocMeasurementClusterServer();
     }
     if (includeServerList.includes(DoorLock.Cluster.id) && !this.hasClusterServer(DoorLock.Cluster)) {
