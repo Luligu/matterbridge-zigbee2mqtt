@@ -151,3 +151,7 @@ If one of your devices is not supported out of the box, open an issue and we wil
 ### action (scene buttons)
 The action feature of z2m is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller. These devices (like the Aqara WXKG11LM) show up, but they cannot always send the actions (events) to the controller. The fix has already been merged to matter.js.
 
+## Apple Home issues
+
+### DoorLock
+The DoorLock cluster in the Home app takes a while to get online. The Home app shows no response for 1 or 2 seconds but then the accessory goes online.
