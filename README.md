@@ -35,6 +35,8 @@ See the complete guidelines on [Matterbridge](https://github.com/Luligu/matterbr
 
 ### Zigbee2mqtt
 
+A fully working installation of zigbee2MQTT is required.
+
 See the guidelines on [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) for more information.
 
 ## How to install
