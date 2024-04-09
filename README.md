@@ -136,6 +136,8 @@ nano matterbridge-zigbee2mqtt.config.json
 
 Out of the box, this plugin supports all possible conversion from zigbee2mqtt to Matter 1.1.
 
+The latest release also supports all clusters in the multi endpoints devices (e.g. DIY devices or the double channel switches/dimmers).
+
 Since the Matter support in the available ecosystems (controllers) is very limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
 We discoverd that Matter support in Home Assistant is instead advanced and includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption.
