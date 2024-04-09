@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.6] - 2024-04-04
+## [2.0.6] - 2024-04-09
 
 ### Added
 - [electrical] Added support for voltage current power energy (right now they show up only in Homeassistant)
