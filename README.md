@@ -149,5 +149,5 @@ If one of your devices is not supported out of the box, open an issue and we wil
 ## Conversion issues between zigbee2MQTT and Matter ecosystems
 
 ### action (scene buttons)
-The action feature of z2m is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller. These devices (like the Aqara WXKG11LM) show up, but they cannot send the actions (events) to the controller. 
+The action feature of z2m is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller. These devices (like the Aqara WXKG11LM) show up, but they cannot always send the actions (events) to the controller. The fix has already been merged to matter.js.
 
