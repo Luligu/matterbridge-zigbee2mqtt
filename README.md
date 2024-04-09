@@ -11,13 +11,27 @@
 
 ---
 
-Matterbridge zigbee2mqtt is production-level plugin that expose all zigbee2mqtt devices and groups to Matter.
+Matterbridge zigbee2mqtt is a matterbridge production-level plugin that expose all zigbee2mqtt devices and groups to Matter.
+
+No hub or dedicated hardware needed.
 
 ## Prerequisites
 
 ### Matterbridge
 
-See the installation guidelines on [Matterbridge](https://github.com/Luligu/matterbridge/blob/main/README.md) for more information.
+Follow these steps to install or update Matterbridge if it is not already installed and up to date:
+
+on Windows:
+```
+npm install -g matterbridge
+```
+
+on Linux (you need the necessary permissions):
+```
+sudo npm install -g matterbridge
+```
+
+See the complete guidelines on [Matterbridge](https://github.com/Luligu/matterbridge/blob/main/README.md) for more information.
 
 ### Zigbee2mqtt
 
@@ -41,6 +55,11 @@ sudo npm install -g matterbridge-zigbee2mqtt
 matterbridge -add matterbridge-zigbee2mqtt
 ```
 
+Then start Matterbridge
+```
+matterbridge -bridge
+```
+
 ### If you want to contribute to the plugin 
 
 On windows:
@@ -61,6 +80,11 @@ cd matterbridge-zigbee2mqtt
 npm install
 npm run build
 matterbridge -add ./
+```
+
+Then start Matterbridge
+```
+matterbridge -bridge
 ```
 
 # Config file
