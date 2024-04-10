@@ -445,8 +445,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
     const endpoints: string[] = [];
     const names: string[] = [];
     const properties: string[] = [];
-    const forceLight = ['Aqara switch T1'];
-    const forceOutlet = ['Aqara switch no neutral'];
     device.definition?.exposes.forEach((expose) => {
       if (expose.features) {
         //Specific features with type
@@ -480,16 +478,22 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if (option.endpoint) endpoints.push(option.endpoint);
       else endpoints.push('');
     });
-    if (forceLight.includes(device.friendly_name)) {
+    if (platform.switchList.includes(device.friendly_name)) {
+      this.log.debug(`Changed ${device.friendly_name} to switch`);
+      types.forEach((type, index) => {
+        types[index] = type === 'light' ? 'switch' : type;
+      });
+    }
+    if (platform.lightList.includes(device.friendly_name)) {
       this.log.debug(`Changed ${device.friendly_name} to light`);
       types.forEach((type, index) => {
         types[index] = type === 'switch' ? 'light' : type;
       });
     }
-    if (forceOutlet.includes(device.friendly_name)) {
+    if (platform.outletList.includes(device.friendly_name)) {
       this.log.debug(`Changed ${device.friendly_name} to outlet`);
       types.forEach((type, index) => {
-        types[index] = type === 'switch' ? 'outlet' : type;
+        types[index] = type === 'switch' || type === 'light' ? 'outlet' : type;
       });
     }
 
@@ -498,6 +502,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
     this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
     names.forEach((name, index) => {
+      if (platform.featureBlackList.includes(name)) return;
       const type = types[index];
       const endpoint = endpoints[index];
       const z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);

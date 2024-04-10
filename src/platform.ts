@@ -44,6 +44,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private mqttPassword = '';
   private whiteList: string[] = [];
   private blackList: string[] = [];
+  public lightList: string[] = [];
+  public outletList: string[] = [];
+  public switchList: string[] = [];
+  public featureBlackList: string[] = [];
 
   // zigbee2Mqtt
   public debugEnabled: boolean;
@@ -70,6 +74,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.password) this.mqttPassword = config.password as string;
     if (config.whiteList) this.whiteList = config.whiteList as string[];
     if (config.blackList) this.blackList = config.blackList as string[];
+    if (config.switchList) this.switchList = config.switchList as string[];
+    if (config.lightList) this.lightList = config.lightList as string[];
+    if (config.outletList) this.outletList = config.outletList as string[];
+    if (config.featureBlackList) this.featureBlackList = config.featureBlackList as string[];
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
     config.port = this.mqttPort;

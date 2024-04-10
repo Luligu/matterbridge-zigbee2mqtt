@@ -112,7 +112,11 @@ These are the default vules:
   "username": "",
   "password": "",
   "whiteList": [],
-  "blackList": []
+  "blackList": [],
+  "switchList": [],
+  "lightList": [],
+  "outletList": [],
+  "featureBlackList": []
 }
 ```
 
