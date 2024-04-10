@@ -140,8 +140,7 @@ The latest release also supports all clusters in the multi endpoints devices (e.
 
 Since the Matter support in the available ecosystems (controllers) is very limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
-We discoverd that Matter support in Home Assistant is instead advanced and includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption.
-
+We discoverd that Matter support in Home Assistant is instead advanced and includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption <img src="https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png" alt="HA Electrical" width="64px" height="64px">.
 ## Unsupported devices
 
 If one of your devices is not supported out of the box, open an issue and we will try to support it if possible.
@@ -151,9 +150,12 @@ If one of your devices is not supported out of the box, open an issue and we wil
 ## Conversion issues between zigbee2MQTT and Matter ecosystems
 
 ### action (scene buttons)
-The action feature of z2m is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller. These devices (like the Aqara WXKG11LM) show up, but they cannot always send the actions (events) to the controller. The fix has already been merged to matter.js.
+The action feature of z2m is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller. These devices (like the Aqara WXKG11LM) show up, but they cannot always send the actions (events) to the controller. The fix has already been merged to matter.js. It will be available in the next matter.js release.
 
 ## Apple Home issues
 
 ### DoorLock
 The DoorLock cluster in the Home app takes a while to get online. The Home app shows no response for 1 or 2 seconds but then the accessory goes online.
+
+## Home Assistant issues (Matter Server for HA is still in Beta)
+

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.7] - 2024-04-10
+
+### Fixed
+
+- [payload]: Fixed the case when z2m has some issues and send null or undefined in the payload (https://github.com/khaidakin).
+
 ## [2.0.6] - 2024-04-09
 
 ### Added

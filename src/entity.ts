@@ -133,6 +133,7 @@ export class ZigbeeEntity extends EventEmitter {
           //this.log.debug('***Multi endpoint section labelList:', labelList);
 
           Object.entries(payload).forEach(([key, value]) => {
+            if (value === undefined || value === null) return; // Skip null and undefined values
             if (this.bridgedDevice === undefined || this.bridgedDevice.noUpdate) return;
             // Modify voltage to battery_voltage
             if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') key = 'battery_voltage';
@@ -158,6 +159,7 @@ export class ZigbeeEntity extends EventEmitter {
 
       /* Normal z2m features section */
       Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === null) return; // Skip null and undefined values
         if (this.bridgedDevice === undefined || this.bridgedDevice.noUpdate) return;
         // Modify voltage to battery_voltage
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') key = 'battery_voltage';
@@ -509,6 +511,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO]);
           const childEndpoint = this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoint, z2m.property, z2m.deviceType, z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
           if (type !== '') childEndpoint.addFixedLabel('type', type);
+          //childEndpoint.addClusterServer(this.bridgedDevice.getDefaultBasicInformationClusterServer(device.friendly_name + ' ' + endpoint, device.ieee_address, 0xfff1, '', 0x0001, 'sub'));
           this.bridgedDevice.addFixedLabel('composed', type);
         }
       }
