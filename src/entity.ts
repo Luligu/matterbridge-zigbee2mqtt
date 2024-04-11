@@ -72,6 +72,7 @@ import { Payload } from './payloadTypes.js';
 import * as color from './colorUtils.js';
 import EventEmitter from 'events';
 import { hostname } from 'os';
+import { deepEqual } from './utils.js';
 
 export class ZigbeeEntity extends EventEmitter {
   public log: AnsiLogger;
@@ -317,7 +318,7 @@ export class ZigbeeEntity extends EventEmitter {
   protected updateAttributeIfChanged(endpoint: Endpoint, endpointName: string | undefined, clusterId: number, attributeName: string, value: any) {
     const cluster = endpoint.getClusterServerById(ClusterId(clusterId));
     if (cluster === undefined) {
-      this.log.debug(`Update attribute endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} error cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter correct?`);
+      this.log.debug(`Update attribute endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter correct?`);
       return;
     }
     if (!cluster.isAttributeSupportedByName(attributeName)) {
@@ -325,7 +326,7 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     const localValue = cluster.attributes[attributeName].getLocal();
-    if (localValue === value) {
+    if (typeof value === 'object' ? deepEqual(value, localValue) : value === localValue) {
       this.log.debug(
         `Skip update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` + `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} already ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
       );
