@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.7] - 2024-04-10
+## [2.0.7] - 2024-04-11
 
 ### Added
 - [config.featureBlackList] z2m features with name in the list will be ignored (e.g. device_temperature) (https://github.com/nitaybz).
