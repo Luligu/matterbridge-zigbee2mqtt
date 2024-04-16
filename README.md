@@ -99,9 +99,11 @@ If the blackList is defined the devices included will not be exposed to Matter.
 
 If any device creates issues put it in the blackList.
 
-The 3 switchList, lightList and outletList are used if you want to expose the z2m device like switch, light or outlet.
+The switchList, lightList and outletList are used if you want to expose the z2m device like switch, light or outlet.
 
 The featureBlackList allows to blacklist a z2m feature if you don't want to expose it (e.g. device_temperature).
+
+The unregisterOnShutdown option allows to remove from the bridge all z2m devices when you shut down Matterbridge.
 
 These are the default vules:
 
