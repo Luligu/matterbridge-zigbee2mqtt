@@ -99,6 +99,10 @@ If the blackList is defined the devices included will not be exposed to Matter.
 
 If any device creates issues put it in the blackList.
 
+The 3 switchList, lightList and outletList are used if you want to expose the z2m device like switch, light or outlet.
+
+The featureBlackList allows to blacklist a z2m feature if you don't want to expose it (e.g. device_temperature).
+
 These are the default vules:
 
 ```
@@ -152,9 +156,6 @@ If one of your devices is not supported out of the box, open an issue and we wil
 # Known issues
 
 ## Conversion issues between zigbee2MQTT and Matter ecosystems
-
-### action (scene buttons)
-The action feature of z2m is translated in a Matter momentary Switch but due to a bug in matter.js the events are not trasmitted to the controller. These devices (like the Aqara WXKG11LM) show up, but they cannot always send the actions (events) to the controller. The fix has already been merged to matter.js. It will be available in the next matter.js release.
 
 ## Apple Home issues
 
