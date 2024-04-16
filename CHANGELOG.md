@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.8] - 2024-04-16
+
+### Added
+
+- [extension]: Started implementation of zigbee2MQTT internal extension.
+- [presence]: Added feature presence (https://github.com/nitaybz).
+- [FlowMeasurement]: Added FlowMeasurement cluster.
+
 ## [2.0.7] - 2024-04-11
 
 ### Added

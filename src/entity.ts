@@ -21,7 +21,6 @@
  * limitations under the License. *
  */
 
-// matter.js imports
 import {
   DeviceTypes,
   DeviceTypeDefinition,
@@ -63,6 +62,7 @@ import {
   ElectricalMeasurement,
   EveHistory,
   getClusterNameById,
+  FlowMeasurement,
 } from 'matterbridge';
 
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or } from 'node-ansi-logger';
@@ -144,9 +144,8 @@ export class ZigbeeEntity extends EventEmitter {
             if (z2m) {
               //this.log.debug(`****Endpoint ${this.eidn}${child.number}${db} type ${zb}${endpointType?.value}${db} found converter for type ${z2m.type} property ${key} => ${z2m.type}-${z2m.name}-${z2m.property} ${hk}${getClusterNameById(ClusterId(z2m.cluster))}${db}.${hk}${z2m.attribute}${db}`);
             } else {
-              z2m = z2ms.find((z2m) => z2m.property === key);
+              z2m = z2ms.find((z2m) => z2m.property + '_' + endpointName.value === key);
             }
-            z2m = z2ms.find((z2m) => z2m.property + '_' + endpointName.value === key);
             if (z2m) {
               if (z2m.converter) {
                 //this.log.debug(`*Endpoint ${this.eidn}${child.number}${db} type ${zb}${endpointType?.value}${db} found converter for ${key} => ${z2m.type}-${z2m.name}-${z2m.property} ${hk}${getClusterNameById(ClusterId(z2m.cluster))}${db}.${hk}${z2m.attribute}${db}`);
@@ -318,7 +317,7 @@ export class ZigbeeEntity extends EventEmitter {
   protected updateAttributeIfChanged(endpoint: Endpoint, endpointName: string | undefined, clusterId: number, attributeName: string, value: any) {
     const cluster = endpoint.getClusterServerById(ClusterId(clusterId));
     if (cluster === undefined) {
-      this.log.debug(`Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter correct?`);
+      this.log.debug(`Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter exposing all features?`);
       return;
     }
     if (!cluster.isAttributeSupportedByName(attributeName)) {
@@ -376,8 +375,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
   }
 }
 
-interface ZigbeeToMatter {
-  //[key: string]: string;
+export interface ZigbeeToMatter {
   type: string;
   name: string;
   property: string;
@@ -390,7 +388,7 @@ interface ZigbeeToMatter {
 
 /* eslint-disable */
 // prettier-ignore
-const z2ms: ZigbeeToMatter[] = [
+export const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state',          property: 'state',      deviceType: onOffSwitch,                cluster: OnOff.Cluster.id,        attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'switch', name: 'brightness',     property: 'brightness', deviceType: dimmableSwitch,             cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
   { type: 'switch', name: 'color_xy',       property: 'color_xy',   deviceType: colorTemperatureSwitch,     cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
@@ -772,22 +770,22 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
    */
   // attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> }
   protected addDeviceClusterServer(includeServerList: ClusterId[] = []) {
-    if (includeServerList.includes(Identify.Cluster.id) && !this.hasClusterServer(Identify.Cluster)) {
+    if (includeServerList.includes(Identify.Cluster.id) && !this.hasClusterServer(Identify.Complete)) {
       this.createDefaultIdentifyClusterServer();
     }
-    if (includeServerList.includes(Groups.Cluster.id) && !this.hasClusterServer(Groups.Cluster)) {
+    if (includeServerList.includes(Groups.Cluster.id) && !this.hasClusterServer(Groups.Complete)) {
       this.createDefaultGroupsClusterServer();
     }
-    if (includeServerList.includes(Scenes.Cluster.id) && !this.hasClusterServer(Scenes.Cluster)) {
+    if (includeServerList.includes(Scenes.Cluster.id) && !this.hasClusterServer(Scenes.Complete)) {
       this.createDefaultScenesClusterServer();
     }
-    if (includeServerList.includes(OnOff.Cluster.id) && !this.hasClusterServer(OnOff.Cluster)) {
+    if (includeServerList.includes(OnOff.Cluster.id) && !this.hasClusterServer(OnOff.Complete)) {
       this.createDefaultOnOffClusterServer();
     }
-    if (includeServerList.includes(LevelControl.Cluster.id) && !this.hasClusterServer(LevelControl.Cluster)) {
+    if (includeServerList.includes(LevelControl.Cluster.id) && !this.hasClusterServer(LevelControl.Complete)) {
       this.createDefaultLevelControlClusterServer();
     }
-    if (includeServerList.includes(ColorControl.Cluster.id) && !this.hasClusterServer(ColorControl.Cluster)) {
+    if (includeServerList.includes(ColorControl.Cluster.id) && !this.hasClusterServer(ColorControl.Complete)) {
       this.createDefaultColorControlClusterServer();
     }
     if (includeServerList.includes(WindowCovering.Cluster.id) && !this.hasClusterServer(WindowCovering.Complete)) {
@@ -800,28 +798,31 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.addFixedLabel('orientation', 'North');
       this.addFixedLabel('direction', 'up');
     }
-    if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Cluster)) {
+    if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Complete)) {
       this.createDefaultElectricalMeasurementClusterServer();
     }
-    if (includeServerList.includes(EveHistory.Cluster.id) && !this.hasClusterServer(EveHistory.Cluster)) {
+    if (includeServerList.includes(EveHistory.Cluster.id) && !this.hasClusterServer(EveHistory.Complete)) {
       this.addClusterServer(this.getDefaultStaticEveHistoryClusterServer());
     }
-    if (includeServerList.includes(TemperatureMeasurement.Cluster.id) && !this.hasClusterServer(TemperatureMeasurement.Cluster)) {
+    if (includeServerList.includes(TemperatureMeasurement.Cluster.id) && !this.hasClusterServer(TemperatureMeasurement.Complete)) {
       this.createDefaultTemperatureMeasurementClusterServer();
     }
-    if (includeServerList.includes(RelativeHumidityMeasurement.Cluster.id) && !this.hasClusterServer(RelativeHumidityMeasurement.Cluster)) {
+    if (includeServerList.includes(RelativeHumidityMeasurement.Cluster.id) && !this.hasClusterServer(RelativeHumidityMeasurement.Complete)) {
       this.createDefaultRelativeHumidityMeasurementClusterServer();
     }
-    if (includeServerList.includes(PressureMeasurement.Cluster.id) && !this.hasClusterServer(PressureMeasurement.Cluster)) {
+    if (includeServerList.includes(PressureMeasurement.Cluster.id) && !this.hasClusterServer(PressureMeasurement.Complete)) {
       this.createDefaultPressureMeasurementClusterServer();
     }
-    if (includeServerList.includes(BooleanState.Cluster.id) && !this.hasClusterServer(BooleanState.Cluster)) {
+    if (includeServerList.includes(FlowMeasurement.Cluster.id) && !this.hasClusterServer(FlowMeasurement.Complete)) {
+      this.createDefaultFlowMeasurementClusterServer();
+    }
+    if (includeServerList.includes(BooleanState.Cluster.id) && !this.hasClusterServer(BooleanState.Complete)) {
       this.createDefaultBooleanStateClusterServer(true);
     }
-    if (includeServerList.includes(OccupancySensing.Cluster.id) && !this.hasClusterServer(OccupancySensing.Cluster)) {
+    if (includeServerList.includes(OccupancySensing.Cluster.id) && !this.hasClusterServer(OccupancySensing.Complete)) {
       this.createDefaultOccupancySensingClusterServer(false);
     }
-    if (includeServerList.includes(IlluminanceMeasurement.Cluster.id) && !this.hasClusterServer(IlluminanceMeasurement.Cluster)) {
+    if (includeServerList.includes(IlluminanceMeasurement.Cluster.id) && !this.hasClusterServer(IlluminanceMeasurement.Complete)) {
       this.createDefaultIlluminanceMeasurementClusterServer();
     }
     if (includeServerList.includes(AirQuality.Cluster.id) && !this.hasClusterServer(AirQuality.Complete)) {
@@ -830,13 +831,13 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     if (includeServerList.includes(TvocMeasurement.Cluster.id) && !this.hasClusterServer(TvocMeasurement.Complete)) {
       this.createDefaultTvocMeasurementClusterServer();
     }
-    if (includeServerList.includes(DoorLock.Cluster.id) && !this.hasClusterServer(DoorLock.Cluster)) {
+    if (includeServerList.includes(DoorLock.Cluster.id) && !this.hasClusterServer(DoorLock.Complete)) {
       this.createDefaultDoorLockClusterServer();
     }
     if (includeServerList.includes(Thermostat.Cluster.id) && !this.hasClusterServer(Thermostat.Complete)) {
       this.createDefaultThermostatClusterServer();
     }
-    if (includeServerList.includes(TimeSync.Cluster.id) && !this.hasClusterServer(TimeSync.Cluster)) {
+    if (includeServerList.includes(TimeSync.Cluster.id) && !this.hasClusterServer(TimeSync.Complete)) {
       this.createDefaultTimeSyncClusterServer();
     }
   }
@@ -922,6 +923,9 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     if (includeServerList.includes(PressureMeasurement.Cluster.id)) {
       child.addClusterServer(this.getDefaultPressureMeasurementClusterServer());
     }
+    if (includeServerList.includes(FlowMeasurement.Cluster.id)) {
+      child.addClusterServer(this.getDefaultFlowMeasurementClusterServer());
+    }
     if (includeServerList.includes(BooleanState.Cluster.id)) {
       child.addClusterServer(this.getDefaultBooleanStateClusterServer());
     }
@@ -931,10 +935,10 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     if (includeServerList.includes(IlluminanceMeasurement.Cluster.id)) {
       child.addClusterServer(this.getDefaultIlluminanceMeasurementClusterServer());
     }
-    if (includeServerList.includes(EveHistory.Cluster.id) && !this.hasClusterServer(EveHistory.Cluster)) {
+    if (includeServerList.includes(EveHistory.Cluster.id) && !this.hasClusterServer(EveHistory.Complete)) {
       child.addClusterServer(this.getDefaultStaticEveHistoryClusterServer());
     }
-    if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Cluster)) {
+    if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Complete)) {
       child.addClusterServer(this.getDefaultElectricalMeasurementClusterServer());
     }
     return child;
@@ -976,6 +980,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.log.debug(`Configuring ${this.deviceName}`);
       this.setWindowCoveringTargetAsCurrentAndStopped();
     }
+    /*
     if (this.getClusterServerById(DoorLock.Cluster.id)) {
       this.log.debug(`Configuring ${this.deviceName}`);
       this.getClusterServerById(DoorLock.Cluster.id)?.setLockStateAttribute(DoorLock.LockState.Locked);
@@ -984,5 +989,6 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.log.debug(`Configuring ${this.deviceName}`);
       this.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
     }
+    */
   }
 }

@@ -37,7 +37,6 @@ import { ZigbeePlatform } from './platform.js';
  * @param {PlatformConfig} config - The platform configuration.
  * @returns {ZigbeePlatform} The initialized Zigbee platform.
  */
-export default function initializePlugin(matterbridge: Matterbridge, log: AnsiLogger, config: PlatformConfig): ZigbeePlatform | undefined {
-  //return undefined;
+export default function initializePlugin(matterbridge: Matterbridge, log: AnsiLogger, config: PlatformConfig): ZigbeePlatform {
   return new ZigbeePlatform(matterbridge, log, config);
 }

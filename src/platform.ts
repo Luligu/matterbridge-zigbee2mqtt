@@ -53,7 +53,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public debugEnabled: boolean;
   public shouldStart: boolean;
   public shouldConfigure: boolean;
-  public z2m: Zigbee2MQTT;
+  public z2m!: Zigbee2MQTT;
   public z2mDevicesRegistered = false;
   public z2mGroupsRegistered = false;
   private z2mBridgeInfo: BridgeInfo | undefined;
@@ -86,6 +86,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.password = this.mqttPassword;
     config.whiteList = this.whiteList;
     config.blackList = this.blackList;
+    if (config.type === 'MatterbridgeExtension') {
+      this.log.debug('Created ZigbeePlatform as Matterbridge extension');
+      return;
+    }
     this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}` /*, config*/);
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
