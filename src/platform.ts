@@ -87,6 +87,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.whiteList = this.whiteList;
     config.blackList = this.blackList;
     if (config.type === 'MatterbridgeExtension') {
+      this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
       this.log.debug('Created ZigbeePlatform as Matterbridge extension');
       return;
     }
