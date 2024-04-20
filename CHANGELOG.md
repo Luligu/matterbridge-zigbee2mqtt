@@ -2,8 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.10] - 2024-04-21
+
+### Added
+
+- [z2m]: Added a check for duplicated mqtt messages.
+
 ## [2.0.9] - 2024-04-19
 
+### Added
+ 
 - [extension]: Implementation of zigbee2MQTT internal extension.
 
 ## [2.0.8] - 2024-04-16

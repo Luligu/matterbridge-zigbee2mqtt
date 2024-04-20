@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-export type PayloadValue = string | number | boolean | bigint | object | undefined | null;
+export type PayloadValue = string | number | boolean | bigint | object | undefined;
 
 export type Payload = {
   [key: string]: PayloadValue; // This allows any string as a key, and the value can be PayloadValue.
