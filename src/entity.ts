@@ -347,8 +347,10 @@ export class ZigbeeEntity extends EventEmitter {
   protected publishCommand(command: string, entityName: string, payload: Payload) {
     this.log.debug(`executeCommand ${command} called for ${this.ien}${entityName}${rs}${db} payload: ${debugStringify(payload)}`);
     const topic = entityName.includes('bridge/request') ? entityName : this.platform.z2m.mqttTopic + '/' + entityName + '/set';
-    this.platform.z2m.publish(topic, JSON.stringify(payload));
-    this.log.info(`MQTT publish topic: ${topic} payload: ${debugStringify(payload)} for ${this.en}${entityName}`);
+    if (this.platform.z2mDevicesRegistered && this.platform.z2mGroupsRegistered) {
+      this.platform.z2m.publish(topic, JSON.stringify(payload));
+      this.log.info(`MQTT publish topic: ${topic} payload: ${debugStringify(payload)} for ${this.en}${entityName}`);
+    }
   }
 }
 

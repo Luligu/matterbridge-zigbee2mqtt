@@ -290,9 +290,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     return true;
   }
 
-  private async registerZigbeeDevice(device: BridgeDevice) {
+  private async registerZigbeeDevice(device: BridgeDevice): Promise<ZigbeeDevice | undefined> {
     if (!this.validateWhiteBlackList(device.friendly_name)) {
-      return;
+      return undefined;
     }
     this.log.debug(`Registering device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
     const matterDevice = new ZigbeeDevice(this, device);
@@ -302,11 +302,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.bridgedEntities.push(matterDevice);
       this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
     } else this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
+    return matterDevice;
   }
 
-  public async registerZigbeeGroup(group: BridgeGroup) {
+  public async registerZigbeeGroup(group: BridgeGroup): Promise<ZigbeeGroup | undefined> {
     if (!this.validateWhiteBlackList(group.friendly_name)) {
-      return;
+      return undefined;
     }
     this.log.debug(`Registering group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
     const matterGroup = new ZigbeeGroup(this, group);
@@ -316,6 +317,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.bridgedEntities.push(matterGroup);
       this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
     } else this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
+    return matterGroup;
+  }
+
+  public emit(eventName: string, data: Payload) {
+    this.z2m.emit(eventName, data);
   }
 
   /*

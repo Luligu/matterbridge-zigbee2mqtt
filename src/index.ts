@@ -25,6 +25,8 @@ import { Matterbridge, PlatformConfig } from 'matterbridge';
 import { AnsiLogger } from 'node-ansi-logger';
 import { ZigbeePlatform } from './platform.js';
 
+export * from './entity.js';
+
 /**
  * This is the standard interface for Matterbridge plugins.
  * Each plugin should export a default function that follows this signature.
