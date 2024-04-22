@@ -24,7 +24,6 @@
 import {
   DeviceTypes,
   DeviceTypeDefinition,
-  logEndpoint,
   AirQuality,
   MatterbridgeDevice,
   airQualitySensor,
@@ -122,7 +121,7 @@ export class ZigbeeEntity extends EventEmitter {
         this.log.debug(`***Skipping (no update) MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
-      this.log.debug(`MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
+      this.log.debug(`${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for device ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
 
       /* Multi endpoint section */
       if (this.bridgedDevice.hasEndpoints && !this.bridgedDevice.noUpdate) {
@@ -255,7 +254,7 @@ export class ZigbeeEntity extends EventEmitter {
             this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
           }
           if (value === 'release') {
-            this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
+            // this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
           }
         }
       });
@@ -263,7 +262,7 @@ export class ZigbeeEntity extends EventEmitter {
     });
 
     this.platform.z2m.on('ONLINE-' + this.accessoryName, () => {
-      this.log.info(`ONLINE message for accessory ${this.ien}${this.accessoryName}${rs}`);
+      this.log.info(`ONLINE message for device ${this.ien}${this.accessoryName}${rs}`);
       if (this.bridgedDevice?.number !== undefined) {
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
@@ -273,7 +272,7 @@ export class ZigbeeEntity extends EventEmitter {
     });
 
     this.platform.z2m.on('OFFLINE-' + this.accessoryName, () => {
-      this.log.warn(`OFFLINE message for accessory ${this.ien}${this.accessoryName}${wr}`);
+      this.log.warn(`OFFLINE message for device ${this.ien}${this.accessoryName}${wr}`);
       if (this.bridgedDevice?.number !== undefined) {
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
         this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: false });
@@ -306,9 +305,9 @@ export class ZigbeeEntity extends EventEmitter {
     }
     const localValue = cluster.attributes[attributeName].getLocal();
     if (typeof value === 'object' ? deepEqual(value, localValue) : value === localValue) {
-      this.log.debug(
-        `Skip update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` + `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} already ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
-      );
+      //this.log.debug(
+      //`Skip update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` + `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} already ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
+      //);
       return;
     }
     this.log.debug(
@@ -322,12 +321,13 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
+  // this.publishCommand('permit_join: false', 'bridge/request/permit_join', { value: false });
   protected publishCommand(command: string, entityName: string, payload: Payload) {
     this.log.debug(`executeCommand ${command} called for ${this.ien}${entityName}${rs}${db} payload: ${debugStringify(payload)}`);
-    const topic = entityName.includes('bridge/request') ? entityName : this.platform.z2m.mqttTopic + '/' + entityName + '/set';
-    if (this.platform.z2mDevicesRegistered && this.platform.z2mGroupsRegistered) {
-      this.platform.z2m.publish(topic, JSON.stringify(payload));
-      this.log.info(`MQTT publish topic: ${topic} payload: ${debugStringify(payload)} for ${this.en}${entityName}`);
+    if (entityName.startsWith('bridge/request')) {
+      this.platform.publish(entityName, '', JSON.stringify(payload));
+    } else {
+      this.platform.publish(entityName, 'set', JSON.stringify(payload));
     }
   }
 }
@@ -342,7 +342,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
     // Command handlers
     this.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
       this.log.warn(`Command identify called for ${this.ien}${group.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
-      logEndpoint(this.bridgedDevice!);
+      // logEndpoint(this.bridgedDevice!);
     });
     this.bridgedDevice.addCommandHandler('on', async ({ attributes: { onOff } }) => {
       this.log.debug(`Command on called for ${this.ien}${group.friendly_name}${rs}${db} attribute: ${onOff.getLocal()}`);
@@ -431,7 +431,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     const debugEnabled = this.platform.debugEnabled;
-    this.log.setLogDebug(true);
+    // this.log.setLogDebug(true);
 
     // Get types and properties
     const types: string[] = [];
@@ -500,7 +500,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const endpoint = endpoints[index];
       const z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);
       if (z2m) {
-        this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
+        this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
         if (endpoint === '') {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [z2m.deviceType ?? DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO], z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
           else this.bridgedDevice.addDeviceTypeAndClusterServer(z2m.deviceType, z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
@@ -640,13 +640,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.info(`Command lockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
         attributes.lockState?.setLocal(DoorLock.LockState.Locked);
         if (!this.bridgedDevice?.isRouter) this.publishCommand('lockDoor', device.friendly_name, { state: 'LOCK' });
-        else this.publishCommand('permit_join: false', 'zigbee2mqtt/bridge/request/permit_join', { value: false });
+        else this.publishCommand('permit_join: false', 'bridge/request/permit_join', { value: false });
       });
       this.bridgedDevice.addCommandHandler('unlockDoor', async ({ request: request, attributes: attributes }) => {
         this.log.info(`Command unlockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
         attributes.lockState?.setLocal(DoorLock.LockState.Unlocked);
         if (!this.bridgedDevice?.isRouter) this.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
-        else this.publishCommand('permit_join: true', 'zigbee2mqtt/bridge/request/permit_join', { value: true });
+        else this.publishCommand('permit_join: true', 'bridge/request/permit_join', { value: true });
       });
     }
     if (this.bridgedDevice.hasClusterServer(Thermostat.Complete)) {
@@ -711,15 +711,18 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.addDeviceType(deviceType);
       this.log.debug(`new BridgedBaseDevice ${entity.isDevice ? entity.device?.friendly_name : entity.group?.friendly_name} deviceType: ${hk}${deviceType.name}${db}`);
     });
-    this.addDeviceType(DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO);
 
+    // Log all server clusters in the includelist
     includeServerList.forEach((clusterId) => {
       this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
     });
-    // Add all other server clusters in the includelist
+    // Add all server clusters in the includelist
     this.addDeviceClusterServer(includeServerList);
 
-    // Add BridgedDeviceBasicInformationCluster
+    // Add BridgedDevice with PowerSourceInformation device type
+    this.addDeviceType(DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO);
+
+    // Add BridgedDeviceBasicInformation cluster
     if (entity.isDevice && entity.device && entity.device.friendly_name === 'Coordinator') {
       this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, 'zigbee2MQTT', 'Coordinator', entity.device.ieee_address);
     } else if (entity.isDevice && entity.device) {
@@ -847,8 +850,12 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
   }
 
   public addDeviceTypeAndClusterServer(deviceType: DeviceTypeDefinition | undefined, serverList: ClusterId[]) {
-    this.log.debug(`addDeviceTypeAndClusterServer deviceType: ${deviceType?.name} serverList: ${serverList}`);
+    this.log.debug(`addDeviceTypeAndClusterServer ${deviceType ? 'deviceType: ' + hk + deviceType.name + db : ''}`);
     if (deviceType) this.addDeviceType(deviceType);
+    // Log all server clusters in the serverList
+    serverList.forEach((clusterId) => {
+      this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
+    });
     this.addDeviceClusterServer(serverList);
   }
 

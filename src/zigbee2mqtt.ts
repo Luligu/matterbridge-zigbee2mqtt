@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.18
+ * @version 2.2.19
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -297,6 +297,10 @@ export class Zigbee2MQTT extends EventEmitter {
 
     this.log = new AnsiLogger({ logName: 'Zigbee2MQTT', logTimestampFormat: TimestampFormat.TIME_MILLIS });
     this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} topic: ${mqttTopic} username: ${mqttUsername} password: ${mqttPassword !== '' ? '*****' : ''}`);
+  }
+
+  public setLogDebug(logDebug: boolean): void {
+    this.log.setLogDebug(logDebug);
   }
 
   public async setDataPath(dataPath: string): Promise<void> {

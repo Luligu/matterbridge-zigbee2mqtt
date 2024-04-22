@@ -31,6 +31,9 @@ import { Payload } from './payloadTypes.js';
 import path from 'path';
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
+  // extension
+  private publishCallBack: ((entityName: string, topic: string, message: string) => Promise<void>) | undefined = undefined;
+  private permitJoinCallBack: ((entityName: string, permit: boolean) => Promise<void>) | undefined = undefined;
   // platform
   private bridgedDevices: BridgedBaseDevice[] = [];
   private bridgedEntities: ZigbeeEntity[] = [];
@@ -86,14 +89,17 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.password = this.mqttPassword;
     config.whiteList = this.whiteList;
     config.blackList = this.blackList;
+
     if (config.type === 'MatterbridgeExtension') {
       this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
+      this.z2m.setLogDebug(this.debugEnabled);
       this.log.debug('Created ZigbeePlatform as Matterbridge extension');
       return;
     }
     this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}` /*, config*/);
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
+    this.z2m.setLogDebug(this.debugEnabled);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
     this.z2m.start();
@@ -244,6 +250,29 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     //this.updateAvailability(false);
     if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
     this.z2m.stop();
+    this.publishCallBack = undefined;
+  }
+
+  public setPublishCallBack(onPublish: (entityName: string, topic: string, message: string) => Promise<void>): void {
+    this.publishCallBack = onPublish;
+  }
+
+  public setPermitJoinCallBack(onPermitJoin: (entityName: string, permit: boolean) => Promise<void>): void {
+    this.permitJoinCallBack = onPermitJoin;
+  }
+
+  public async publish(topic: string, subTopic: string, message: string) {
+    if (this.config.type === 'MatterbridgeExtension') {
+      if (this.publishCallBack && !topic.startsWith('bridge/request')) await this.publishCallBack(topic, subTopic, message);
+      if (this.permitJoinCallBack && topic.startsWith('bridge/request')) await this.permitJoinCallBack('', message === '{"value":true}');
+    } else {
+      await this.z2m.publish(this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic), message);
+    }
+    this.log.info(`MQTT publish topic: ${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)} message: ${message}`);
+  }
+
+  public emit(eventName: string, data: Payload) {
+    this.z2m.emit(eventName, data);
   }
 
   private async requestDeviceUpdate(device: BridgeDevice) {
@@ -318,10 +347,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
     } else this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
     return matterGroup;
-  }
-
-  public emit(eventName: string, data: Payload) {
-    this.z2m.emit(eventName, data);
   }
 
   /*

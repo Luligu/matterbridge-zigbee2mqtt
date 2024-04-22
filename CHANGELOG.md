@@ -2,11 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.10] - 2024-04-21
+## [2.0.10] - 2024-04-22
 
 ### Added
 
-- [z2m]: Added a check for duplicated mqtt messages.
+- [z2m]: Added a check for not changed mqtt messages.
+- [extension]: Finalized implementation of zigbee2MQTT internal extension v. 1.0.0.
+
+### Changed
+
+- [z2m]: Changed vendorName and productName with the values from device definition if present.
 
 ## [2.0.9] - 2024-04-19
 
