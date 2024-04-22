@@ -112,20 +112,20 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.on('online', () => {
       this.log.info('zigbee2MQTT is online');
       // TODO check single availability
-      //this.updateAvailability(true);
+      // this.updateAvailability(true);
     });
 
     this.z2m.on('offline', () => {
       this.log.warn('zigbee2MQTT is offline');
       // TODO check single availability
-      //this.updateAvailability(false);
+      // this.updateAvailability(false);
     });
 
     this.z2m.on('permit_join', async (device: string, time: number, status: boolean) => {
       this.log.info(`*zigbee2MQTT sent permit_join device: ${device} time: ${time} status: ${status}`);
       for (const bridgedEntity of this.bridgedEntities) {
         if (bridgedEntity.bridgedDevice?.isRouter && (device === undefined || device === bridgedEntity.bridgedDevice.deviceName)) {
-          this.log.warn(`- ${bridgedEntity.bridgedDevice.deviceName} ${bridgedEntity.bridgedDevice.number} (${bridgedEntity.bridgedDevice.name})`);
+          this.log.info(`*- ${bridgedEntity.bridgedDevice.deviceName} ${bridgedEntity.bridgedDevice.number} (${bridgedEntity.bridgedDevice.name})`);
           if (bridgedEntity.device && status) bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Unlocked);
           if (bridgedEntity.device && !status) bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Locked);
         }
@@ -267,8 +267,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (this.permitJoinCallBack && topic.startsWith('bridge/request')) await this.permitJoinCallBack('', message === '{"value":true}');
     } else {
       await this.z2m.publish(this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic), message);
+      this.log.info(`MQTT publish topic: ${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)} message: ${message}`);
     }
-    this.log.info(`MQTT publish topic: ${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)} message: ${message}`);
   }
 
   public emit(eventName: string, data: Payload) {

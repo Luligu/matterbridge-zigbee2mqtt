@@ -114,11 +114,11 @@ export class ZigbeeEntity extends EventEmitter {
       const debugEnabled = this.platform.debugEnabled;
       this.log.setLogDebug(true);
       if (this.bridgedDevice === undefined) {
-        this.log.debug(`***Skipping (no device) MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`*Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
       if (this.bridgedDevice.noUpdate) {
-        this.log.debug(`***Skipping (no update) MQTT message for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`*Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
       this.log.debug(`${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for device ${this.ien}${this.accessoryName}${rs}${db} payload: ${debugStringify(payload)}`);
@@ -424,9 +424,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
     super(platform, device);
     if (device.friendly_name === 'Coordinator') {
       this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.DOOR_LOCK], [Identify.Cluster.id, DoorLock.Cluster.id]);
+      this.bridgedDevice.addFixedLabel('type', 'lock');
       this.bridgedDevice.isRouter = true;
     } else if (device.model_id === 'ti.router' && device.manufacturer === 'TexasInstruments') {
       this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.DOOR_LOCK], [Identify.Cluster.id, DoorLock.Cluster.id]);
+      this.bridgedDevice.addFixedLabel('type', 'lock');
       this.bridgedDevice.isRouter = true;
     }
 
