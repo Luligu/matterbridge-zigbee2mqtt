@@ -25,6 +25,10 @@
     "matter",
     "matter.js",
     "matter-node.js",
+    "matterprotocol",
+    "iot",
+    "smarthome",
+    "connectedthings",
     "zigbee2mqtt",
     "zigbee"
   ],
