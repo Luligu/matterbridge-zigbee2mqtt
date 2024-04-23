@@ -509,7 +509,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (type !== '') this.bridgedDevice.addFixedLabel('type', type);
         } else {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO]);
-          const childEndpoint = this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoint, z2m.property, z2m.deviceType, z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
+          const childEndpoint = this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoint, z2m.deviceType, z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
           if (type !== '') childEndpoint.addFixedLabel('type', type);
           //childEndpoint.addClusterServer(this.bridgedDevice.getDefaultBasicInformationClusterServer(device.friendly_name + ' ' + endpoint, device.ieee_address, 0xfff1, '', 0x0001, 'sub'));
           this.bridgedDevice.addFixedLabel('composed', type);
@@ -861,7 +861,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     this.addDeviceClusterServer(serverList);
   }
 
-  public addChildDeviceTypeAndClusterServer(endpointName: string, state: string, deviceType: DeviceTypeDefinition | undefined, includeServerList: ClusterId[]) {
+  public addChildDeviceTypeAndClusterServer(endpointName: string, deviceType: DeviceTypeDefinition | undefined, includeServerList: ClusterId[]) {
     this.hasEndpoints = true;
 
     /* Look for existing child endpoint */
