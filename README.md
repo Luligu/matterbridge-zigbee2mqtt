@@ -101,7 +101,9 @@ If any device creates issues put it in the blackList.
 
 The switchList, lightList and outletList are used if you want to expose the z2m device like switch, light or outlet.
 
-The featureBlackList allows to blacklist a z2m feature if you don't want to expose it (e.g. device_temperature).
+The featureBlackList allows to globally (for all devices) blacklist a z2m feature if you don't want to expose it (e.g. device_temperature).
+
+The deviceFeatureBlackList allows to blacklist a z2m feature for a single device if you don't want to expose it (e.g. temperature for a motion sensor).
 
 The unregisterOnShutdown option allows to remove from the bridge all z2m devices when you shut down Matterbridge.
 
@@ -122,11 +124,35 @@ These are the default vules:
   "switchList": [],
   "lightList": [],
   "outletList": [],
-  "featureBlackList": []
+  "featureBlackList": [],
+  "deviceFeatureBlackList": {}
 }
 ```
 
-You can edit the config file:
+If you want to exclude "device_temperature" for all the devices, add to the config
+```
+{
+  ...
+  "featureBlackList": ["device_temperature"]
+  ...
+}
+```
+
+If you want to exclude "temperature" and "humidity" for the device "My motion sensor" and 
+"device_temperature" only for the device "My climate sensor", add to the config
+```
+{
+  ...
+  "deviceFeatureBlackList": {
+    "My motion sensor": ["temperature", "humidity"],
+    "My climate sensor": ["device_temperature"]
+  }
+  ...
+}
+```
+
+
+You can edit the config file (shutdown Matterbridge before):
 
 On windows:
 ```

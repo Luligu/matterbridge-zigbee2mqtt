@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.11] - 2024-04-26
+
+### Added
+
+- [mqtt]: Added handles for device_joined, device_announce, device_leave, device_remove, device_interview, device_rename.
+- [exposes]: Added deviceFeatureBlackList to the config to exclude a feature on a device level.
+- [mqtt]: Incoming messages are filtered by featureBlackList and deviceFeatureBlackList (if only blacklisted features change, the message is not processed). If present, the features included in featureBlackList and deviceFeatureBlackList are also removed from the payload.
+
 ## [2.0.10] - 2024-04-22
 
 ### Added

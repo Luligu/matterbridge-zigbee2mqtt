@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
@@ -30,13 +30,18 @@ import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
 import path from 'path';
 
+type DeviceFeatureBlackList = {
+  [key: string]: string[];
+};
+
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // extension
   private publishCallBack: ((entityName: string, topic: string, message: string) => Promise<void>) | undefined = undefined;
   private permitJoinCallBack: ((entityName: string, permit: boolean) => Promise<void>) | undefined = undefined;
+
   // platform
   private bridgedDevices: BridgedBaseDevice[] = [];
-  private bridgedEntities: ZigbeeEntity[] = [];
+  private zigbeeEntities: ZigbeeEntity[] = [];
   private injectTimer: NodeJS.Timeout | undefined;
 
   // z2m
@@ -51,6 +56,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public outletList: string[] = [];
   public switchList: string[] = [];
   public featureBlackList: string[] = [];
+  public deviceFeatureBlackList: DeviceFeatureBlackList = {};
 
   // zigbee2Mqtt
   public debugEnabled: boolean;
@@ -81,6 +87,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.lightList) this.lightList = config.lightList as string[];
     if (config.outletList) this.outletList = config.outletList as string[];
     if (config.featureBlackList) this.featureBlackList = config.featureBlackList as string[];
+    if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList as DeviceFeatureBlackList;
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
     config.port = this.mqttPort;
@@ -110,31 +117,76 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('online', () => {
-      this.log.info('zigbee2MQTT is online');
+      this.log.info('*zigbee2MQTT is online');
       // TODO check single availability
-      // this.updateAvailability(true);
+      this.updateAvailability(true);
     });
 
     this.z2m.on('offline', () => {
-      this.log.warn('zigbee2MQTT is offline');
+      this.log.warn('*zigbee2MQTT is offline');
       // TODO check single availability
-      // this.updateAvailability(false);
+      this.updateAvailability(false);
     });
 
     this.z2m.on('permit_join', async (device: string, time: number, status: boolean) => {
       this.log.info(`*zigbee2MQTT sent permit_join device: ${device} time: ${time} status: ${status}`);
-      for (const bridgedEntity of this.bridgedEntities) {
-        if (bridgedEntity.bridgedDevice?.isRouter && (device === undefined || device === bridgedEntity.bridgedDevice.deviceName)) {
-          this.log.info(`*- ${bridgedEntity.bridgedDevice.deviceName} ${bridgedEntity.bridgedDevice.number} (${bridgedEntity.bridgedDevice.name})`);
-          if (bridgedEntity.device && status) bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Unlocked);
-          if (bridgedEntity.device && !status) bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Locked);
+      for (const zigbeeEntity of this.zigbeeEntities) {
+        if (zigbeeEntity.bridgedDevice?.isRouter && (device === undefined || device === zigbeeEntity.bridgedDevice.deviceName)) {
+          this.log.info(`*- ${zigbeeEntity.bridgedDevice.deviceName} ${zigbeeEntity.bridgedDevice.number} (${zigbeeEntity.bridgedDevice.name})`);
+          if (zigbeeEntity.device && status) {
+            zigbeeEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Unlocked);
+            zigbeeEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+            this.log.info(`Device ${zigbeeEntity.entityName} unlocked`);
+          }
+          if (zigbeeEntity.device && !status) {
+            zigbeeEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Locked);
+            zigbeeEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+            this.log.info(`Device ${zigbeeEntity.entityName} locked`);
+          }
         }
       }
     });
 
+    this.z2m.on('device_joined', async (friendly_name: string, ieee_address: string) => {
+      this.log.info(`*zigbee2MQTT sent device_joined device: ${friendly_name} ieee_address: ${ieee_address}`);
+      // Here nothing to do, we wait eventually device_interview
+    });
+
+    this.z2m.on('device_announce', async (friendly_name: string, ieee_address: string) => {
+      this.log.info(`*zigbee2MQTT sent device_announce device: ${friendly_name} ieee_address: ${ieee_address}`);
+      // Here nothing to do, we wait device_interview
+    });
+
+    this.z2m.on('device_leave', async (friendly_name: string, ieee_address: string) => {
+      this.log.info(`*zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
+      await this.unregisterZigbeeDevice(friendly_name);
+    });
+
+    this.z2m.on('device_remove', async (friendly_name: string, status: string, block: boolean, force: boolean) => {
+      this.log.info(`*zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
+      if (status === 'ok') await this.unregisterZigbeeDevice(friendly_name);
+    });
+
+    this.z2m.on('device_interview', async (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
+      this.log.info(`*zigbee2MQTT sent device_interview device: ${friendly_name} ieee_address: ${ieee_address} status: ${status} supported: ${supported}`);
+      if (status === 'successful' && supported) {
+        if (!this.validateWhiteBlackList(friendly_name)) return;
+        this.log.info(`*Registering device: ${friendly_name}`);
+        const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.friendly_name === friendly_name);
+        if (bridgedDevice) await this.registerZigbeeDevice(bridgedDevice);
+      }
+    });
+
+    this.z2m.on('device_rename', async (ieee_address: string, from: string, to: string) => {
+      this.log.info(`*zigbee2MQTT sent device_rename ieee_address: ${ieee_address} from: ${from} to: ${to}`);
+      await this.unregisterZigbeeDevice(from);
+      const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.ieee_address === ieee_address);
+      if (bridgedDevice) await this.registerZigbeeDevice(bridgedDevice);
+    });
+
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
-      this.log.debug(`zigbee2MQTT sent bridge-info version: ${this.z2mBridgeInfo.version}`);
+      this.log.debug(`*zigbee2MQTT sent bridge-info version: ${this.z2mBridgeInfo.version}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
@@ -153,15 +205,15 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         }
       }
       if (this.shouldConfigure) {
-        this.log.info(`Configuring ${this.bridgedEntities.length} zigbee entities.`);
-        for (const bridgedEntity of this.bridgedEntities) {
+        this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
+        for (const bridgedEntity of this.zigbeeEntities) {
           if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
         }
         for (const device of this.bridgedDevices) {
           device.configure();
         }
       }
-      this.log.debug(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
+      this.log.info(`*zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
     });
 
     this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
@@ -175,15 +227,15 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         }
       }
       if (this.shouldConfigure) {
-        this.log.info(`Configuring ${this.bridgedEntities.length} zigbee entities.`);
-        for (const bridgedEntity of this.bridgedEntities) {
+        this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
+        for (const bridgedEntity of this.zigbeeEntities) {
           if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);
         }
         for (const device of this.bridgedDevices) {
           device.configure();
         }
       }
-      this.log.debug(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
+      this.log.info(`*zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
     });
 
     this.log.debug('Created zigbee2mqtt dynamic platform');
@@ -222,14 +274,25 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.debug('Setting flag to configure when zigbee2mqtt sent devices');
     }
 
-    this.log.info(`Configuring ${this.bridgedEntities.length} zigbee entities.`);
-    for (const bridgedEntity of this.bridgedEntities) {
+    this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
+    for (const bridgedEntity of this.zigbeeEntities) {
       if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
       if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);
     }
 
     this.log.info(`Configuring ${this.bridgedDevices.length} matter devices.`);
     for (const device of this.bridgedDevices) {
+      device.configure();
+    }
+    for (const device of this.bridgedDevices.filter((device) => device.isRouter)) {
+      this.log.info(`Configuring router ${device.deviceName}.`);
+      if (this.z2mBridgeInfo?.permit_join) {
+        device.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Unlocked);
+        device.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+      } else {
+        device.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Locked);
+        device.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+      }
       device.configure();
     }
 
@@ -328,7 +391,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (matterDevice.bridgedDevice) {
       await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
       this.bridgedDevices.push(matterDevice.bridgedDevice);
-      this.bridgedEntities.push(matterDevice);
+      this.zigbeeEntities.push(matterDevice);
       this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
     } else this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
     return matterDevice;
@@ -343,7 +406,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (matterGroup.bridgedDevice) {
       await this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
       this.bridgedDevices.push(matterGroup.bridgedDevice);
-      this.bridgedEntities.push(matterGroup);
+      this.zigbeeEntities.push(matterGroup);
       this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
     } else this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
     return matterGroup;
@@ -366,11 +429,33 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.bridgedEntities.splice(0);
   }
   */
+  private async unregisterZigbeeDevice(friendly_name: string) {
+    /*
+    for (const zigbeeEntity of this.zigbeeEntities) {
+      if (zigbeeEntity.entityName === friendly_name) this.log.warn(`***Found device: ${friendly_name}`);
+      else this.log.info(`**Device: ${zigbeeEntity.entityName}`);
+    }
+    */
+    const entity = this.zigbeeEntities.find((entity) => entity.entityName === friendly_name);
+    if (entity) {
+      this.log.info(`*Removing device: ${friendly_name}`);
+      await this.unregisterDevice(entity.bridgedDevice as unknown as MatterbridgeDevice);
+      this.zigbeeEntities = this.zigbeeEntities.filter((entity) => entity.entityName !== friendly_name);
+      this.bridgedDevices = this.bridgedDevices.filter((device) => device.deviceName !== friendly_name);
+    }
+    /*
+    for (const zigbeeEntity of this.zigbeeEntities) {
+      if (zigbeeEntity.entityName === friendly_name) this.log.warn(`***Found device: ${friendly_name}`);
+      else this.log.info(`**Device: ${zigbeeEntity.entityName}`);
+    }
+    */
+  }
 
-  public updateAvailability(available: boolean) {
-    this.log.debug(`Setting availability for ${this.bridgedDevices.length} accessories`);
+  private updateAvailability(available: boolean) {
+    this.log.info(`Setting availability for ${this.bridgedDevices.length} devices to ${available}`);
     for (const bridgedDevice of this.bridgedDevices) {
-      bridgedDevice.setBridgedDeviceReachability(available);
+      bridgedDevice.getClusterServer(BridgedDeviceBasicInformationCluster)?.setReachableAttribute(available);
+      bridgedDevice.getClusterServer(BridgedDeviceBasicInformationCluster)?.triggerReachableChangedEvent({ reachableNewValue: available });
     }
   }
 }

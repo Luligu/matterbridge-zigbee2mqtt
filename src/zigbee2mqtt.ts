@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.19
+ * @version 2.2.20
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -739,6 +739,10 @@ export class Zigbee2MQTT extends EventEmitter {
         this.handleResponseDeviceRename(payload);
         return;
       }
+      if (topic.startsWith(this.mqttTopic + '/bridge/response/device/remove')) {
+        this.handleResponseDeviceRemove(payload);
+        return;
+      }
       const data = this.tryJsonParse(payload.toString());
       this.log.warn(`Message topic: ${topic} payload:${rs}`, data);
       /*
@@ -1010,11 +1014,22 @@ export class Zigbee2MQTT extends EventEmitter {
     }
     */
     const json = this.tryJsonParse(payload.toString());
-    this.log.warn(`handleResponseDeviceRename from ${json.data.from} to ${json.data.to} status ${json.status}`);
+    this.log.debug(`handleResponseDeviceRename from ${json.data.from} to ${json.data.to} status ${json.status}`);
     const device = this.z2mDevices.find((device) => device.friendly_name === json.data.to);
-    if (device && json.status === 'ok') {
-      this.emit('rename', device.ieee_address, json.data.from, json.data.to);
-    }
+    this.emit('device_rename', device?.ieee_address, json.data.from, json.data.to);
+  }
+
+  private handleResponseDeviceRemove(payload: Buffer) {
+    /*
+    {
+      data: { block: false, force: false, id: 'Presence sensor' },
+      status: 'ok',
+      transaction: 'bet01-20'
+    }    
+    */
+    const json = this.tryJsonParse(payload.toString());
+    this.log.debug(`handleResponseDeviceRemove name ${json.data.id} status ${json.status} block ${json.data.block} force ${json.data.force}`);
+    this.emit('device_remove', json.data.id, json.status, json.data.block, json.data.force);
   }
 
   private handleResponsePermitJoin(payload: Buffer) {
@@ -1026,7 +1041,7 @@ export class Zigbee2MQTT extends EventEmitter {
     }
     */
     const json = this.tryJsonParse(payload.toString());
-    this.log.warn(`handleResponsePermitJoin() device: ${json.data.device ? json.data.device : 'All'} time: ${json.data.time} value: ${json.data.value} status: ${json.status}`);
+    this.log.debug(`handleResponsePermitJoin() device: ${json.data.device ? json.data.device : 'All'} time: ${json.data.time} value: ${json.data.value} status: ${json.status}`);
     if (json.status === 'ok') {
       this.emit('permit_join', json.data.device, json.data.time, json.data.value);
     }
@@ -1084,16 +1099,20 @@ export class Zigbee2MQTT extends EventEmitter {
         this.log.error('handleEvent() undefined type', json);
         break;
       case 'device_leave':
-        this.log.warn(`handleEvent() type: device_leave name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        this.log.debug(`handleEvent() type: device_leave name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        this.emit('device_leave', json.data.friendly_name, json.data.ieee_address);
         break;
       case 'device_joined':
-        this.log.warn(`handleEvent() type: device_joined name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
-        break;
-      case 'device_interview':
-        this.log.warn(`handleEvent() type: device_interview name: ${json.data.friendly_name} address: ${json.data.ieee_address} status: ${json.data.status} supported: ${json.data.supported}`);
+        this.log.debug(`handleEvent() type: device_joined name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        this.emit('device_joined', json.data.friendly_name, json.data.ieee_address);
         break;
       case 'device_announce':
-        this.log.warn(`handleEvent() type: device_announce name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        this.log.debug(`handleEvent() type: device_announce name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
+        this.emit('device_announce', json.data.friendly_name, json.data.ieee_address);
+        break;
+      case 'device_interview':
+        this.log.debug(`handleEvent() type: device_interview name: ${json.data.friendly_name} address: ${json.data.ieee_address} status: ${json.data.status} supported: ${json.data.supported}`);
+        this.emit('device_interview', json.data.friendly_name, json.data.ieee_address, json.data.status, json.data.supported);
         break;
     }
   }
