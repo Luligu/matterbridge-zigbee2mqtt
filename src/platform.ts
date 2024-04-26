@@ -190,6 +190,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('group_add', async (friendly_name: string, id: number, status: string) => {
       this.log.info(`zigbee2MQTT sent group_add friendly_name: ${friendly_name} id ${id} status ${status}`);
+      if (!this.validateWhiteBlackList(friendly_name)) return;
+      this.log.info(`Registering group: ${friendly_name}`);
+      const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === friendly_name);
+      if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
     });
 
     this.z2m.on('group_remove', async (friendly_name: string, status: string) => {
