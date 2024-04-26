@@ -358,14 +358,15 @@ export class ZigbeeGroup extends ZigbeeEntity {
     super(platform, group);
 
     // TODO Add the group scanning for real groups. This cover only automations
-    this.bridgedDevice = new BridgedBaseDevice(this, [onOffSwitch], [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id]);
     let useState = false;
     let useBrightness = false;
     let useColor = false;
     let useColorTemperature = false;
     let minColorTemperature = 140;
     let maxColorTemperature = 500;
-    if (group.members.length > 0) {
+    if (group.members.length === 0) {
+      this.bridgedDevice = new BridgedBaseDevice(this, [onOffSwitch], [...onOffSwitch.requiredServerClusters]);
+    } else {
       group.members.forEach((member) => {
         const device = this.platform.z2m.getDevice(member.ieee_address)!;
         useState = useState === true || device.exposes.find((feature) => feature.name === 'state') !== undefined ? true : false;
@@ -379,6 +380,10 @@ export class ZigbeeGroup extends ZigbeeEntity {
         }
       });
       this.log.info(`Group: ${gn}${group.friendly_name}${rs} state: ${useState} brightness: ${useBrightness} color: ${useColor} color_temp: ${useColorTemperature}-${minColorTemperature}-${maxColorTemperature}`);
+      let deviceType = DeviceTypes.ON_OFF_LIGHT;
+      if (useBrightness) deviceType = DeviceTypes.ON_OFF_LIGHT;
+      if (useColorTemperature || useColor) deviceType = DeviceTypes.COLOR_TEMPERATURE_LIGHT;
+      this.bridgedDevice = new BridgedBaseDevice(this, [deviceType], [...deviceType.requiredServerClusters]);
     }
 
     // Command handlers
@@ -398,6 +403,16 @@ export class ZigbeeGroup extends ZigbeeEntity {
       this.log.debug(`Command toggle called for ${this.ien}${group.friendly_name}${rs}${db} attribute: ${onOff.getLocal()}`);
       this.publishCommand('toggle', group.friendly_name, { state: 'TOGGLE' });
     });
+    if (this.bridgedDevice.hasClusterServer(LevelControl.Complete)) {
+      this.bridgedDevice.addCommandHandler('moveToLevel', async ({ request: { level }, attributes: { currentLevel } }) => {
+        this.log.debug(`Command moveToLevel called for ${this.ien}${group.friendly_name}${rs}${db} request: ${level} attributes: ${currentLevel}`);
+        this.publishCommand('moveToLevel', group.friendly_name, { brightness: level });
+      });
+      this.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level }, attributes: { currentLevel } }) => {
+        this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${group.friendly_name}${rs}${db} request: ${level} attributes: ${currentLevel}`);
+        this.publishCommand('moveToLevelWithOnOff', group.friendly_name, { brightness: level });
+      });
+    }
   }
 }
 
