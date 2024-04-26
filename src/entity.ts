@@ -359,13 +359,13 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     // TODO Add the group scanning for real groups. This cover only automations
     this.bridgedDevice = new BridgedBaseDevice(this, [onOffSwitch], [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id]);
+    let useState = false;
+    let useBrightness = false;
+    let useColor = false;
+    let useColorTemperature = false;
+    let minColorTemperature = 140;
+    let maxColorTemperature = 500;
     if (group.members.length > 0) {
-      let useState = false;
-      let useBrightness = false;
-      let useColor = false;
-      let useColorTemperature = false;
-      let minColorTemperature = 140;
-      let maxColorTemperature = 500;
       group.members.forEach((member) => {
         const device = this.platform.z2m.getDevice(member.ieee_address)!;
         useState = useState === true || device.exposes.find((feature) => feature.name === 'state') !== undefined ? true : false;
