@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- [mqtt]: Added handles for group_add, group_remove and group_rename.
+
 
 ## [2.0.11] - 2024-04-26
 
