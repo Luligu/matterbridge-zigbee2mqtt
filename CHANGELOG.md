@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - [mqtt]: Added handles for device_joined, device_announce, device_leave, device_remove, device_interview, device_rename.
 - [exposes]: Added deviceFeatureBlackList to the config to exclude a feature on a device level.
 - [mqtt]: Incoming messages are filtered by featureBlackList and deviceFeatureBlackList (if only blacklisted features change, the message is not processed). If present, the features included in featureBlackList and deviceFeatureBlackList are also removed from the payload.
+- [routers] Added the SMLIGHT routers (with router firmware) to the router list. They are exposed like DoorLock so it is possible, like for the Coordinator and the Texas instruments router, to ask Siri to turn on/off permit join.
 
 ## [2.0.10] - 2024-04-22
 

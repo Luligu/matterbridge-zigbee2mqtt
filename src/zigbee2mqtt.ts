@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.20
+ * @version 2.2.21
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -719,13 +719,13 @@ export class Zigbee2MQTT extends EventEmitter {
     } else if (topic.startsWith(this.mqttTopic + '/bridge/extensions')) {
       const extensions = this.tryJsonParse(payload.toString()) as BridgeExtension[];
       for (const extension of extensions) {
-        this.log.warn(`Message topic: ${topic} extension: ${extension.name}`);
+        this.log.debug(`Message topic: ${topic} extension: ${extension.name}`);
       }
     } else if (topic.startsWith(this.mqttTopic + '/bridge/event')) {
       this.handleEvent(payload);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/request')) {
       const data = this.tryJsonParse(payload.toString());
-      this.log.warn(`Message topic: ${topic} payload:${rs}`, data);
+      this.log.info(`Message topic: ${topic} payload:${rs}`, data);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/response')) {
       if (topic.startsWith(this.mqttTopic + '/bridge/response/networkmap')) {
         this.handleResponseNetworkmap(payload);
@@ -743,8 +743,32 @@ export class Zigbee2MQTT extends EventEmitter {
         this.handleResponseDeviceRemove(payload);
         return;
       }
+      if (topic.startsWith(this.mqttTopic + '/bridge/response/device/options')) {
+        this.handleResponseDeviceOptions(payload);
+        return;
+      }
+      if (topic.startsWith(this.mqttTopic + '/bridge/response/group/add')) {
+        this.handleResponseGroupAdd(payload);
+        return;
+      }
+      if (topic.startsWith(this.mqttTopic + '/bridge/response/group/remove')) {
+        this.handleResponseGroupRemove(payload);
+        return;
+      }
+      if (topic.startsWith(this.mqttTopic + '/bridge/response/group/rename')) {
+        this.handleResponseGroupRename(payload);
+        return;
+      }
+      if (topic.startsWith(this.mqttTopic + '/bridge/response/group/members/add')) {
+        this.handleResponseGroupAddMember(payload);
+        return;
+      }
+      if (topic.startsWith(this.mqttTopic + '/bridge/response/group/members/remove')) {
+        this.handleResponseGroupRemoveMember(payload);
+        return;
+      }
       const data = this.tryJsonParse(payload.toString());
-      this.log.warn(`Message topic: ${topic} payload:${rs}`, data);
+      this.log.info(`Message topic: ${topic} payload:${rs}`, data);
       /*
       [05/09/2023, 20:35:26] [z2m] classZigbee2MQTT=>Message bridge/response zigbee2mqtt/bridge/response/group/add {
         data: { friendly_name: 'Guest', id: 1 },
@@ -781,11 +805,13 @@ export class Zigbee2MQTT extends EventEmitter {
         }
         return;
       }
+      /*
       if (entity.includes('_-_')) {
         // Eve app test mode!
         const foundDevice = this.z2mDevices.find((device) => device.friendly_name.includes(entity));
         entity = foundDevice ? foundDevice.friendly_name : entity;
       }
+      */
       const foundDevice = this.z2mDevices.findIndex((device) => device.ieee_address === entity || device.friendly_name === entity);
       if (foundDevice !== -1) {
         this.handleDeviceMessage(foundDevice, entity, service, payload);
@@ -1030,6 +1056,109 @@ export class Zigbee2MQTT extends EventEmitter {
     const json = this.tryJsonParse(payload.toString());
     this.log.debug(`handleResponseDeviceRemove name ${json.data.id} status ${json.status} block ${json.data.block} force ${json.data.force}`);
     this.emit('device_remove', json.data.id, json.status, json.data.block, json.data.force);
+  }
+
+  private handleResponseDeviceOptions(payload: Buffer) {
+    /*
+    {
+      data: {
+        from: {
+          color_sync: false,
+          legacy: false,
+          state_action: false,
+          transition: 0
+        },
+        id: '0xa4c1388ad0ebb0a6',
+        restart_required: false,
+        to: {
+          color_sync: false,
+          legacy: false,
+          state_action: false,
+          transition: 0
+        }
+      },
+      status: 'ok',
+      transaction: '8j6s7-3'
+    }
+    */
+    const json = this.tryJsonParse(payload.toString());
+    this.log.debug(`handleResponseDeviceOptions ieee_address ${json.data.id} status ${json.status} from ${json.data.from} to ${json.data.to}`);
+    this.emit('device_options', json.data.id, json.status, json.data.from, json.data.to);
+  }
+
+  private handleResponseGroupAdd(payload: Buffer) {
+    /*
+    {
+      data: { friendly_name: 'Test', id: 7 },
+      status: 'ok',
+      transaction: '8j6s7-9'
+    }
+    */
+    const json = this.tryJsonParse(payload.toString());
+    this.log.debug(`handleResponseGroupAdd() friendly_name ${json.data.friendly_name} id ${json.data.id} status ${json.status}`);
+    if (json.status === 'ok') {
+      this.emit('group_add', json.data.friendly_name, json.data.id, json.status);
+    }
+  }
+
+  private handleResponseGroupRemove(payload: Buffer) {
+    /*
+    {
+      data: { force: false, id: 'Test' },
+      status: 'ok',
+      transaction: '8j6s7-10'
+    }
+    */
+    const json = this.tryJsonParse(payload.toString());
+    this.log.debug(`handleResponseGroupRemove() friendly_name ${json.data.id} status ${json.status}`);
+    if (json.status === 'ok') {
+      this.emit('group_remove', json.data.id, json.status);
+    }
+  }
+
+  private handleResponseGroupRename(payload: Buffer) {
+    /*
+    {
+      data: { from: 'Test2', homeassistant_rename: false, to: 'Test' },
+      status: 'ok',
+      transaction: '0r51l-15'
+    }
+    */
+    const json = this.tryJsonParse(payload.toString());
+    this.log.debug(`handleResponseGroupRename() from ${json.data.from} to ${json.data.to} status ${json.status}`);
+    if (json.status === 'ok') {
+      this.emit('group_rename', json.data.from, json.data.to, json.status);
+    }
+  }
+
+  private handleResponseGroupAddMember(payload: Buffer) {
+    /*
+    {
+      data: { device: '0xa4c1388ad0ebb0a6/1', group: 'Test2' },
+      status: 'ok',
+      transaction: '0r51l-7'
+    }  
+    */
+    const json = this.tryJsonParse(payload.toString());
+    this.log.debug(`handleResponseGroupAddMembers() add to group friendly_name ${json.data.group} device ieee_address ${json.data.device} status ${json.status}`);
+    if (json.status === 'ok' && json.data.device && json.data.device.includes('/')) {
+      this.emit('group_add_member', json.data.group, json.data.device.split('/')[0], json.status);
+    }
+  }
+
+  private handleResponseGroupRemoveMember(payload: Buffer) {
+    /*
+    {
+      data: { device: 'Gledopto RGBCTT light', group: 'Test2' },
+      status: 'ok',
+      transaction: '0r51l-10'
+    }    
+    */
+    const json = this.tryJsonParse(payload.toString());
+    this.log.debug(`handleResponseGroupRemoveMember() remove from group friendly_name ${json.data.group} device friendly_name ${json.data.device} status ${json.status}`);
+    if (json.status === 'ok') {
+      this.emit('group_remove_member', json.data.group, json.data.device, json.status);
+    }
   }
 
   private handleResponsePermitJoin(payload: Buffer) {

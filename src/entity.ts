@@ -65,7 +65,7 @@ import {
   DoorLockCluster,
 } from 'matterbridge';
 
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'node-ansi-logger';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or } from 'node-ansi-logger';
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
@@ -87,6 +87,7 @@ export class ZigbeeEntity extends EventEmitter {
   public bridgedDevice: BridgedBaseDevice | undefined;
   public eidn = `${or}`;
   private lastPayload: Payload = {};
+  private lastSeen: number = 0;
   protected ignoreFeatures: string[] = []; // ['last_seen', 'linkquality'];
 
   constructor(platform: ZigbeePlatform, entity: BridgeDevice | BridgeGroup) {
@@ -110,15 +111,24 @@ export class ZigbeeEntity extends EventEmitter {
     this.log.debug(`Created MatterEntity: ${this.entityName}`);
 
     this.platform.z2m.on('MESSAGE-' + this.entityName, (payload: Payload) => {
-      // this.log.warn(`Message for device ${this.ien}${this.accessoryName}${rs}${wr} ignoreFeatures: ${debugStringify(this.ignoreFeatures)}`);
+      // this.log.debug(`Message for device ${this.ien}${this.accessoryName}${rs}${db} ignoreFeatures: ${debugStringify(this.ignoreFeatures)}`);
+
+      // Check if the message is a duplicate that can be ingored cause only linkquality and last_seen have changed (action is always passed)
+      const now = Date.now();
+      if (now - this.lastSeen < 1000 * 60 && deepEqual(this.lastPayload, payload, ['linkquality', 'last_seen', ...this.ignoreFeatures]) && !Object.prototype.hasOwnProperty.call(this.lastPayload, 'action')) {
+        // this.log.debug(`Skipping linkquality MQTT message for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        return;
+      }
+      this.lastSeen = Date.now();
 
       // Check and deep copy the payload
       if (deepEqual(this.lastPayload, payload, this.ignoreFeatures)) return;
       this.lastPayload = deepCopy(payload);
+      if (Object.prototype.hasOwnProperty.call(this.lastPayload, 'action')) delete this.lastPayload['action'];
       // Remove each key in ignoreFeatures from the payload copy
       for (const key of this.ignoreFeatures) {
         if (Object.prototype.hasOwnProperty.call(payload, key)) {
-          this.log.warn(`***Removing key ${nf}${key}${wr} from payload`);
+          // this.log.debug(`Removing key ${nf}${key}${db} from payload`);
           delete payload[key];
         }
       }
@@ -247,14 +257,14 @@ export class ZigbeeEntity extends EventEmitter {
             cluster?.triggerShortReleaseEvent({ previousPosition: 1 });
             cluster?.setCurrentPositionAttribute(0);
             cluster?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 1 });
-            this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
+            this.log.info(`Trigger 'single' event for ${this.ien}${this.entityName}${rs}`);
           }
           if (value === 'double') {
             position = 2;
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 2 });
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
-            this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
+            this.log.info(`Trigger 'double' event for ${this.ien}${this.entityName}${rs}`);
           }
           if (value === 'hold') {
             position = 1;
@@ -263,7 +273,7 @@ export class ZigbeeEntity extends EventEmitter {
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongPressEvent({ newPosition: 1 });
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongReleaseEvent({ previousPosition: 1 });
             this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
-            this.log.debug(`*Set accessory ${hk}Switch.currentPosition: ${position}`);
+            this.log.info(`Trigger 'hold' event for ${this.ien}${this.entityName}${rs}`);
           }
           if (value === 'release') {
             // this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
@@ -349,6 +359,27 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     // TODO Add the group scanning for real groups. This cover only automations
     this.bridgedDevice = new BridgedBaseDevice(this, [onOffSwitch], [Identify.Cluster.id, Groups.Cluster.id, Scenes.Cluster.id, OnOff.Cluster.id]);
+    if (group.members.length > 0) {
+      let useState = false;
+      let useBrightness = false;
+      let useColor = false;
+      let useColorTemperature = false;
+      let minColorTemperature = 140;
+      let maxColorTemperature = 500;
+      group.members.forEach((member) => {
+        const device = this.platform.z2m.getDevice(member.ieee_address)!;
+        useState = useState === true || device.exposes.find((feature) => feature.name === 'state') !== undefined ? true : false;
+        useBrightness = useBrightness === true || device.exposes.find((feature) => feature.name === 'brightness') !== undefined ? true : false;
+        useColor = useColor === true || device.exposes.find((feature) => feature.property === 'color') !== undefined ? true : false;
+        useColorTemperature = useColorTemperature === true || device.exposes.find((feature) => feature.name === 'color_temp') !== undefined ? true : false;
+        const feature = device.exposes.find((feature) => feature.name === 'color_temp');
+        if (feature) {
+          minColorTemperature = Math.min(minColorTemperature, feature.value_min);
+          maxColorTemperature = Math.max(maxColorTemperature, feature.value_max);
+        }
+      });
+      this.log.info(`Group: ${gn}${group.friendly_name}${rs} state: ${useState} brightness: ${useBrightness} color: ${useColor} color_temp: ${useColorTemperature}-${minColorTemperature}-${maxColorTemperature}`);
+    }
 
     // Command handlers
     this.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
@@ -508,13 +539,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
     names.forEach((name, index) => {
       if (platform.featureBlackList.includes(name)) {
-        this.log.info(`Device ${this.en}${device.friendly_name}${nf} feature ${name} is globally blacklisted`);
-        // this.ignoreFeatures.push(name);
+        this.log.debug(`Device ${this.en}${device.friendly_name}${db} feature ${name} is globally blacklisted`);
         return;
       }
       if (platform.deviceFeatureBlackList[device.friendly_name]?.includes(name)) {
-        this.log.info(`Device ${this.en}${device.friendly_name}${nf} feature ${name} is blacklisted`);
-        // this.ignoreFeatures.push(name);
+        this.log.debug(`Device ${this.en}${device.friendly_name}${db} feature ${name} is blacklisted`);
         return;
       }
       const type = types[index];

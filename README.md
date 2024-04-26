@@ -177,6 +177,7 @@ The latest release also supports all clusters in the multi endpoints devices (e.
 Since the Matter support in the available ecosystems (controllers) is very limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
 We discoverd that Matter support in Home Assistant is instead advanced and includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
+
 ## Unsupported devices
 
 If one of your devices is not supported out of the box, open an issue and we will try to support it if possible.
@@ -185,10 +186,15 @@ If one of your devices is not supported out of the box, open an issue and we wil
 
 ## Conversion issues between zigbee2MQTT and Matter ecosystems
 
+- Scene buttons are exposed correctly only when they send "single", "double" and "hold" actions (this is due to the Home app supporting only these 3 events.) In the next releases the scene buttons with more actions will be mapped to different endpoints like in my plugin homebridge-mqtt-accessories.
+
 ## Apple Home issues
 
+The HomePods, being a WiFi devices, create some message trasmission errors sometimes. The Apple TV with network cable is more reliable (but also more expensive).
+
 ### DoorLock
-The DoorLock cluster in the Home app takes a while to get online. The Home app shows no response for 1 or 2 seconds but then the accessory goes online.
+
+The DoorLock cluster in the Home app takes a while to get online. The Home app shows no response for 1 or 2 seconds but then the accessory goes online. With the Eve app or the Controller app this issue is not present.
 
 ## Home Assistant issues (Matter Server for HA is still in Beta)
 

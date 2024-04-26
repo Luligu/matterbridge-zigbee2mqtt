@@ -22,7 +22,7 @@
  */
 
 import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs } from 'node-ansi-logger';
+import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
@@ -117,19 +117,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('online', () => {
-      this.log.info('*zigbee2MQTT is online');
+      this.log.info('zigbee2MQTT is online');
       // TODO check single availability
       this.updateAvailability(true);
     });
 
     this.z2m.on('offline', () => {
-      this.log.warn('*zigbee2MQTT is offline');
+      this.log.warn('zigbee2MQTT is offline');
       // TODO check single availability
       this.updateAvailability(false);
     });
 
     this.z2m.on('permit_join', async (device: string, time: number, status: boolean) => {
-      this.log.info(`*zigbee2MQTT sent permit_join device: ${device} time: ${time} status: ${status}`);
+      this.log.info(`zigbee2MQTT sent permit_join device: ${device} time: ${time} status: ${status}`);
       for (const zigbeeEntity of this.zigbeeEntities) {
         if (zigbeeEntity.bridgedDevice?.isRouter && (device === undefined || device === zigbeeEntity.bridgedDevice.deviceName)) {
           this.log.info(`*- ${zigbeeEntity.bridgedDevice.deviceName} ${zigbeeEntity.bridgedDevice.number} (${zigbeeEntity.bridgedDevice.name})`);
@@ -148,45 +148,49 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('device_joined', async (friendly_name: string, ieee_address: string) => {
-      this.log.info(`*zigbee2MQTT sent device_joined device: ${friendly_name} ieee_address: ${ieee_address}`);
+      this.log.info(`zigbee2MQTT sent device_joined device: ${friendly_name} ieee_address: ${ieee_address}`);
       // Here nothing to do, we wait eventually device_interview
     });
 
     this.z2m.on('device_announce', async (friendly_name: string, ieee_address: string) => {
-      this.log.info(`*zigbee2MQTT sent device_announce device: ${friendly_name} ieee_address: ${ieee_address}`);
+      this.log.info(`zigbee2MQTT sent device_announce device: ${friendly_name} ieee_address: ${ieee_address}`);
       // Here nothing to do, we wait device_interview
     });
 
     this.z2m.on('device_leave', async (friendly_name: string, ieee_address: string) => {
-      this.log.info(`*zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
+      this.log.info(`zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
       await this.unregisterZigbeeDevice(friendly_name);
     });
 
     this.z2m.on('device_remove', async (friendly_name: string, status: string, block: boolean, force: boolean) => {
-      this.log.info(`*zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
+      this.log.info(`zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
       if (status === 'ok') await this.unregisterZigbeeDevice(friendly_name);
     });
 
     this.z2m.on('device_interview', async (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
-      this.log.info(`*zigbee2MQTT sent device_interview device: ${friendly_name} ieee_address: ${ieee_address} status: ${status} supported: ${supported}`);
+      this.log.info(`zigbee2MQTT sent device_interview device: ${friendly_name} ieee_address: ${ieee_address} status: ${status} supported: ${supported}`);
       if (status === 'successful' && supported) {
         if (!this.validateWhiteBlackList(friendly_name)) return;
-        this.log.info(`*Registering device: ${friendly_name}`);
+        this.log.info(`Registering device: ${friendly_name}`);
         const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.friendly_name === friendly_name);
         if (bridgedDevice) await this.registerZigbeeDevice(bridgedDevice);
       }
     });
 
     this.z2m.on('device_rename', async (ieee_address: string, from: string, to: string) => {
-      this.log.info(`*zigbee2MQTT sent device_rename ieee_address: ${ieee_address} from: ${from} to: ${to}`);
+      this.log.info(`zigbee2MQTT sent device_rename ieee_address: ${ieee_address} from: ${from} to: ${to}`);
       await this.unregisterZigbeeDevice(from);
       const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.ieee_address === ieee_address);
       if (bridgedDevice) await this.registerZigbeeDevice(bridgedDevice);
     });
 
+    this.z2m.on('device_options', async (ieee_address: string, status: string, from: object, to: object) => {
+      this.log.info(`zigbee2MQTT sent device_options ieee_address: ${ieee_address} status ${status} from: ${debugStringify(from)} to: ${debugStringify(to)}`);
+    });
+
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
-      this.log.debug(`*zigbee2MQTT sent bridge-info version: ${this.z2mBridgeInfo.version}`);
+      this.log.debug(`zigbee2MQTT sent bridge-info version: ${this.z2mBridgeInfo.version}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
@@ -213,7 +217,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           device.configure();
         }
       }
-      this.log.info(`*zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
+      this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
     });
 
     this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
@@ -235,7 +239,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           device.configure();
         }
       }
-      this.log.info(`*zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
+      this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
     });
 
     this.log.debug('Created zigbee2mqtt dynamic platform');
@@ -246,7 +250,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldStart = true;
-      this.log.debug('Setting flag to start when zigbee2mqtt sent devices: ', reason);
+      this.log.debug('Setting flag to start when zigbee2mqtt sends devices: ', reason);
     }
 
     if (this.debugEnabled) Logger.defaultLogLevel = Level.INFO;
@@ -271,7 +275,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onConfigure() {
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldConfigure = true;
-      this.log.debug('Setting flag to configure when zigbee2mqtt sent devices');
+      this.log.debug('Setting flag to configure when zigbee2mqtt sends devices');
     }
 
     this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
@@ -438,7 +442,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     */
     const entity = this.zigbeeEntities.find((entity) => entity.entityName === friendly_name);
     if (entity) {
-      this.log.info(`*Removing device: ${friendly_name}`);
+      this.log.info(`Removing device: ${friendly_name}`);
       await this.unregisterDevice(entity.bridgedDevice as unknown as MatterbridgeDevice);
       this.zigbeeEntities = this.zigbeeEntities.filter((entity) => entity.entityName !== friendly_name);
       this.bridgedDevices = this.bridgedDevices.filter((device) => device.deviceName !== friendly_name);
@@ -452,6 +456,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   private updateAvailability(available: boolean) {
+    if (this.bridgedDevices.length === 0) return;
     this.log.info(`Setting availability for ${this.bridgedDevices.length} devices to ${available}`);
     for (const bridgedDevice of this.bridgedDevices) {
       bridgedDevice.getClusterServer(BridgedDeviceBasicInformationCluster)?.setReachableAttribute(available);
