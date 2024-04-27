@@ -594,7 +594,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
     }
     if (!this.bridgedDevice) return;
-    //if (device.friendly_name === 'power-meter') logEndpoint(this.bridgedDevice);
 
     // Command handlers
     this.bridgedDevice.addCommandHandler('identify', async (data) => {
