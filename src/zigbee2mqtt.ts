@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.21
+ * @version 2.2.22
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -822,9 +822,9 @@ export class Zigbee2MQTT extends EventEmitter {
         } else {
           try {
             const data = this.tryJsonParse(payload.toString());
-            this.log.warn('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', data);
+            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', data);
           } catch {
-            this.log.error('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
+            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
           }
         }
       }

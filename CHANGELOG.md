@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- [action]: Added support for devices with more then 3 events. All SwitchCluster actions are mapped in groups of 3 on sub endpoints. The mapping schema is shown in log. 
 - [mqtt]: Added handles for group_add, group_remove and group_rename.
 
 
