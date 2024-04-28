@@ -174,7 +174,7 @@ Out of the box, this plugin supports all possible conversion from zigbee2mqtt to
 
 The latest release also supports all clusters in the multi endpoints devices (e.g. DIY devices or the double channel switches/dimmers).
 
-Since the Matter support in the available ecosystems (controllers) is very limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
+Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
 We discoverd that Matter support in Home Assistant is instead advanced and includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
 
@@ -184,17 +184,34 @@ If one of your devices is not supported out of the box, open an issue and we wil
 
 # Known issues
 
-## Conversion issues between zigbee2MQTT and Matter ecosystems
+## Conversion strategies between zigbee2MQTT and Matter ecosystems
 
-- Scene buttons are exposed correctly only when they send "single", "double" and "hold" actions (this is due to the Home app supporting only these 3 events.) In the next releases the scene buttons with more actions will be mapped to different endpoints like in my plugin homebridge-mqtt-accessories.
+- Scene buttons are now exposed correctly. The actions are mapped in groups of 3, with each group on a sub endpoint. This is because the controllers expose event in group of single, double, long press.
+In the log you will find the mapping schema like this one:
+```
+[16:25:14.321] [Smart button] Device Smart button has actions mapped to these switches on sub endpoints:
+[16:25:14.321] [Smart button]    controller events      <=> zigbee2mqtt actions
+[16:25:14.322] [Smart button] -- Button 1: Single Press <=> single
+[16:25:14.323] [Smart button] -- Button 1: Double Press <=> double
+[16:25:14.323] [Smart button] -- Button 1: Long Press   <=> hold
+[16:25:14.323] [Smart button] -- Button 2: Single Press <=> brightness_move_to_level
+[16:25:14.324] [Smart button] -- Button 2: Double Press <=> color_temperature_move
+[16:25:14.324] [Smart button] -- Button 2: Long Press   <=> brightness_step_up
+[16:25:14.324] [Smart button] -- Button 3: Single Press <=> brightness_step_down
+[16:25:14.324] [Smart button] -- Button 3: Double Press <=> on
+[16:25:14.325] [Smart button] -- Button 3: Long Press   <=> off
+```
+(screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20actions.png)
 
 ## Apple Home issues
 
-The HomePods, being a WiFi devices, create some message trasmission errors sometimes. The Apple TV with network cable is more reliable (but also more expensive).
+The HomePods, being a WiFi devices, sometimes pruduce message trasmission errors. The Apple TV with network cable is more reliable (but also more expensive).
 
 ### DoorLock
 
 The DoorLock cluster in the Home app takes a while to get online. The Home app shows no response for 1 or 2 seconds but then the accessory goes online. With the Eve app or the Controller app this issue is not present.
 
 ## Home Assistant issues (Matter Server for HA is still in Beta)
+
+Sometimes you need to do a full restart of HA.
 
