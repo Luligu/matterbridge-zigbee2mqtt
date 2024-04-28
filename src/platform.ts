@@ -210,6 +210,24 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     });
 
+    this.z2m.on('group_add_member', async (group_friendly_name: string, device_ieee_address: string, status: string) => {
+      this.log.info(`zigbee2MQTT sent group_add_member group ${group_friendly_name} add device ieee_address ${device_ieee_address} status ${status}`);
+      if (status === 'ok') {
+        await this.unregisterZigbeeEntity(group_friendly_name);
+        const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === group_friendly_name);
+        if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
+      }
+    });
+
+    this.z2m.on('group_remove_member', async (group_friendly_name: string, device_friendly_name: string, status: string) => {
+      this.log.info(`zigbee2MQTT sent group_remove_member group ${group_friendly_name} remove device friendly_name ${device_friendly_name} status ${status}`);
+      if (status === 'ok') {
+        await this.unregisterZigbeeEntity(group_friendly_name);
+        const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === group_friendly_name);
+        if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
+      }
+    });
+
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
       this.log.debug(`zigbee2MQTT sent bridge-info version: ${this.z2mBridgeInfo.version}`);

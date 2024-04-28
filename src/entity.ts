@@ -708,7 +708,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (this.bridgedDevice.hasClusterServer(ColorControl.Complete) && this.bridgedDevice.getClusterServer(ColorControlCluster)?.isAttributeSupportedByName('colorTemperatureMireds')) {
       this.bridgedDevice.addCommandHandler('moveToColorTemperature', async ({ request: request, attributes: attributes }) => {
         this.log.debug(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds} attributes: ${attributes.colorTemperatureMireds?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
-        this.log.warn(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
+        this.log.debug(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
         attributes.colorMode.setLocal(ColorControl.ColorMode.ColorTemperatureMireds);
         this.publishCommand('moveToColorTemperature', device.friendly_name, { color_temp: request.colorTemperatureMireds });
       });
@@ -748,19 +748,19 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
     if (this.bridgedDevice.hasClusterServer(WindowCovering.Complete)) {
       this.bridgedDevice.addCommandHandler('upOrOpen', async (data) => {
-        this.log.info(`Command upOrOpen called for ${this.ien}${device.friendly_name}${rs}${db} attribute: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()}`);
+        this.log.debug(`Command upOrOpen called for ${this.ien}${device.friendly_name}${rs}${db} attribute: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()}`);
         data.attributes.currentPositionLiftPercent100ths?.setLocal(0);
         data.attributes.targetPositionLiftPercent100ths?.setLocal(0);
         this.publishCommand('upOrOpen', device.friendly_name, { state: 'OPEN' });
       });
       this.bridgedDevice.addCommandHandler('downOrClose', async (data) => {
-        this.log.info(`Command downOrClose called for ${this.ien}${device.friendly_name}${rs}${db} attribute: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()}`);
+        this.log.debug(`Command downOrClose called for ${this.ien}${device.friendly_name}${rs}${db} attribute: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()}`);
         data.attributes.currentPositionLiftPercent100ths?.setLocal(10000);
         data.attributes.targetPositionLiftPercent100ths?.setLocal(10000);
         this.publishCommand('downOrClose', device.friendly_name, { state: 'CLOSE' });
       });
       this.bridgedDevice.addCommandHandler('stopMotion', async (data) => {
-        this.log.info(`Command stopMotion called for ${this.ien}${device.friendly_name}${rs}${db} attribute: ${data.attributes.operationalStatus?.getLocal()}`);
+        this.log.debug(`Command stopMotion called for ${this.ien}${device.friendly_name}${rs}${db} attribute: ${data.attributes.operationalStatus?.getLocal()}`);
         const liftPercent100thsValue = data.attributes.currentPositionLiftPercent100ths?.getLocal();
         if (liftPercent100thsValue) {
           data.attributes.currentPositionLiftPercent100ths?.setLocal(liftPercent100thsValue);
@@ -770,8 +770,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
       this.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue }, attributes }) => {
-        this.log.info(`Command goToLiftPercentage called  for ${this.ien}${device.friendly_name}${rs}${db} liftPercent100thsValue: ${liftPercent100thsValue}`);
-        this.log.info(`Command goToLiftPercentage current: ${attributes.currentPositionLiftPercent100ths?.getLocal()} target: ${attributes.targetPositionLiftPercent100ths?.getLocal()}`);
+        this.log.debug(`Command goToLiftPercentage called for ${this.ien}${device.friendly_name}${rs}${db} liftPercent100thsValue: ${liftPercent100thsValue}`);
+        this.log.debug(`Command goToLiftPercentage current: ${attributes.currentPositionLiftPercent100ths?.getLocal()} target: ${attributes.targetPositionLiftPercent100ths?.getLocal()}`);
         //attributes.currentPositionLiftPercent100ths?.setLocal(liftPercent100thsValue);
         attributes.targetPositionLiftPercent100ths?.setLocal(liftPercent100thsValue);
         this.publishCommand('goToLiftPercentage', device.friendly_name, { position: 100 - liftPercent100thsValue / 100 });
@@ -779,13 +779,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
     if (this.bridgedDevice.hasClusterServer(DoorLock.Complete)) {
       this.bridgedDevice.addCommandHandler('lockDoor', async ({ request: request, attributes: attributes }) => {
-        this.log.info(`Command lockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
+        this.log.debug(`Command lockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
         attributes.lockState?.setLocal(DoorLock.LockState.Locked);
         if (!this.bridgedDevice?.isRouter) this.publishCommand('lockDoor', device.friendly_name, { state: 'LOCK' });
         else this.publishCommand('permit_join: false', 'bridge/request/permit_join', { value: false });
       });
       this.bridgedDevice.addCommandHandler('unlockDoor', async ({ request: request, attributes: attributes }) => {
-        this.log.info(`Command unlockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
+        this.log.debug(`Command unlockDoor called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
         attributes.lockState?.setLocal(DoorLock.LockState.Unlocked);
         if (!this.bridgedDevice?.isRouter) this.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
         else this.publishCommand('permit_join: true', 'bridge/request/permit_join', { value: true });
@@ -793,22 +793,22 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
     if (this.bridgedDevice.hasClusterServer(Thermostat.Complete)) {
       this.bridgedDevice.addCommandHandler('setpointRaiseLower', async ({ request: request, attributes: attributes }) => {
-        this.log.info(`Command setpointRaiseLower called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
+        this.log.debug(`Command setpointRaiseLower called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
         if (request.mode === Thermostat.SetpointAdjustMode.Heat && attributes.occupiedHeatingSetpoint) {
           const setpoint = Math.round(attributes.occupiedHeatingSetpoint.getLocal() / 100 + request.amount / 10);
           this.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: setpoint });
-          this.log.info('Command setpointRaiseLower sent:', debugStringify({ current_heating_setpoint: setpoint }));
+          this.log.debug('Command setpointRaiseLower sent:', debugStringify({ current_heating_setpoint: setpoint }));
         }
         if (request.mode === Thermostat.SetpointAdjustMode.Cool && attributes.occupiedCoolingSetpoint) {
           const setpoint = Math.round(attributes.occupiedCoolingSetpoint.getLocal() / 100 + request.amount / 10);
           this.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_cooling_setpoint: setpoint });
-          this.log.info('Command setpointRaiseLower sent:', debugStringify({ current_cooling_setpoint: setpoint }));
+          this.log.debug('Command setpointRaiseLower sent:', debugStringify({ current_cooling_setpoint: setpoint }));
         }
       });
       const thermostat = this.bridgedDevice.getClusterServer(ThermostatCluster.with(Thermostat.Feature.Heating, Thermostat.Feature.Cooling, Thermostat.Feature.AutoMode));
       if (thermostat) {
         thermostat.subscribeSystemModeAttribute(async (value) => {
-          this.log.info(`Subscribe systemMode called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
+          this.log.debug(`Subscribe systemMode called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
           const system_mode = value === Thermostat.SystemMode.Off ? 'off' : value === Thermostat.SystemMode.Heat ? 'heat' : 'cool';
           this.publishCommand('SystemMode', device.friendly_name, { system_mode });
           if (this.bridgedDevice) this.bridgedDevice.noUpdate = true;
@@ -817,7 +817,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           }, 10 * 1000);
         });
         thermostat.subscribeOccupiedHeatingSetpointAttribute(async (value) => {
-          this.log.info(`Subscribe occupiedHeatingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
+          this.log.debug(`Subscribe occupiedHeatingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
           this.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
           if (this.bridgedDevice) this.bridgedDevice.noUpdate = true;
           setTimeout(() => {
@@ -825,7 +825,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           }, 10 * 1000);
         });
         thermostat.subscribeOccupiedCoolingSetpointAttribute(async (value) => {
-          this.log.info(`Subscribe occupiedCoolingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
+          this.log.debug(`Subscribe occupiedCoolingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
           this.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_cooling_setpoint: Math.round(value / 100) });
           if (this.bridgedDevice) this.bridgedDevice.noUpdate = true;
           setTimeout(() => {
