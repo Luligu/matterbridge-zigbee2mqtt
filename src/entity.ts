@@ -653,7 +653,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             count++;
           }
         }
-        this.bridgedDevice.addFixedLabel('composed', type);
+        this.bridgedDevice.addFixedLabel('composed', 'button');
       }
     });
     this.log.setLogDebug(debugEnabled);
