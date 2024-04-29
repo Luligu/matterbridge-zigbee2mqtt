@@ -929,10 +929,12 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     }
     if (includeServerList.includes(Switch.Cluster.id) && !this.hasClusterServer(Switch.Complete)) {
       this.createDefaultSwitchClusterServer();
+      /*
       this.addFixedLabel('room', 'Bedroom');
       this.addFixedLabel('floor', '2');
       this.addFixedLabel('orientation', 'North');
       this.addFixedLabel('direction', 'up');
+      */
     }
     if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Complete)) {
       this.createDefaultElectricalMeasurementClusterServer();
