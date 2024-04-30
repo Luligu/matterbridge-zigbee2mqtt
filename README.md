@@ -201,7 +201,7 @@ In the log you will find the mapping schema like this one:
 [16:25:14.324] [Smart button] -- Button 3: Double Press <=> on
 [16:25:14.325] [Smart button] -- Button 3: Long Press   <=> off
 ```
-![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/screenshot/Smart%20button.png)
+![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/dev/screenshot/Smart%20button.png)
 
 ## Apple Home issues
 
