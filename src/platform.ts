@@ -159,12 +159,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('device_leave', async (friendly_name: string, ieee_address: string) => {
       this.log.info(`zigbee2MQTT sent device_leave device: ${friendly_name} ieee_address: ${ieee_address}`);
-      await this.unregisterZigbeeDevice(friendly_name);
+      await this.unregisterZigbeeEntity(friendly_name);
     });
 
     this.z2m.on('device_remove', async (friendly_name: string, status: string, block: boolean, force: boolean) => {
       this.log.info(`zigbee2MQTT sent device_remove device: ${friendly_name} status: ${status} block: ${block} force: ${force}`);
-      if (status === 'ok') await this.unregisterZigbeeDevice(friendly_name);
+      if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
     });
 
     this.z2m.on('device_interview', async (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
@@ -179,13 +179,53 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('device_rename', async (ieee_address: string, from: string, to: string) => {
       this.log.info(`zigbee2MQTT sent device_rename ieee_address: ${ieee_address} from: ${from} to: ${to}`);
-      await this.unregisterZigbeeDevice(from);
+      await this.unregisterZigbeeEntity(from);
       const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.ieee_address === ieee_address);
       if (bridgedDevice) await this.registerZigbeeDevice(bridgedDevice);
     });
 
     this.z2m.on('device_options', async (ieee_address: string, status: string, from: object, to: object) => {
       this.log.info(`zigbee2MQTT sent device_options ieee_address: ${ieee_address} status ${status} from: ${debugStringify(from)} to: ${debugStringify(to)}`);
+    });
+
+    this.z2m.on('group_add', async (friendly_name: string, id: number, status: string) => {
+      this.log.info(`zigbee2MQTT sent group_add friendly_name: ${friendly_name} id ${id} status ${status}`);
+      if (!this.validateWhiteBlackList(friendly_name)) return;
+      this.log.info(`Registering group: ${friendly_name}`);
+      const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === friendly_name);
+      if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
+    });
+
+    this.z2m.on('group_remove', async (friendly_name: string, status: string) => {
+      this.log.info(`zigbee2MQTT sent group_remove friendly_name: ${friendly_name} status ${status}`);
+      if (status === 'ok') await this.unregisterZigbeeEntity(friendly_name);
+    });
+
+    this.z2m.on('group_rename', async (from: string, to: string, status: string) => {
+      this.log.info(`zigbee2MQTT sent group_rename from: ${from} to ${to} status ${status}`);
+      if (status === 'ok') {
+        await this.unregisterZigbeeEntity(from);
+        const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === to);
+        if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
+      }
+    });
+
+    this.z2m.on('group_add_member', async (group_friendly_name: string, device_ieee_address: string, status: string) => {
+      this.log.info(`zigbee2MQTT sent group_add_member group ${group_friendly_name} add device ieee_address ${device_ieee_address} status ${status}`);
+      if (status === 'ok') {
+        await this.unregisterZigbeeEntity(group_friendly_name);
+        const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === group_friendly_name);
+        if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
+      }
+    });
+
+    this.z2m.on('group_remove_member', async (group_friendly_name: string, device_friendly_name: string, status: string) => {
+      this.log.info(`zigbee2MQTT sent group_remove_member group ${group_friendly_name} remove device friendly_name ${device_friendly_name} status ${status}`);
+      if (status === 'ok') {
+        await this.unregisterZigbeeEntity(group_friendly_name);
+        const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === group_friendly_name);
+        if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
+      }
     });
 
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
@@ -433,7 +473,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.bridgedEntities.splice(0);
   }
   */
-  private async unregisterZigbeeDevice(friendly_name: string) {
+  private async unregisterZigbeeEntity(friendly_name: string) {
     /*
     for (const zigbeeEntity of this.zigbeeEntities) {
       if (zigbeeEntity.entityName === friendly_name) this.log.warn(`***Found device: ${friendly_name}`);

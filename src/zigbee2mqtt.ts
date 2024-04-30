@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.21
+ * @version 2.2.22
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -296,7 +296,7 @@ export class Zigbee2MQTT extends EventEmitter {
     this.z2mGroups = [];
 
     this.log = new AnsiLogger({ logName: 'Zigbee2MQTT', logTimestampFormat: TimestampFormat.TIME_MILLIS });
-    this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} topic: ${mqttTopic} username: ${mqttUsername} password: ${mqttPassword !== '' ? '*****' : ''}`);
+    // this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} topic: ${mqttTopic} username: ${mqttUsername} password: ${mqttPassword !== '' ? '*****' : ''}`);
   }
 
   public setLogDebug(logDebug: boolean): void {
@@ -822,9 +822,9 @@ export class Zigbee2MQTT extends EventEmitter {
         } else {
           try {
             const data = this.tryJsonParse(payload.toString());
-            this.log.warn('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', data);
+            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', data);
           } catch {
-            this.log.error('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
+            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
           }
         }
       }
@@ -1177,69 +1177,75 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   private handleEvent(payload: Buffer) {
-    /*
-    {
-      data: { friendly_name: 'Light sensor', ieee_address: '0x54ef44100085c321' },
-      type: 'device_leave'
-    }
-    {
-      data: {
-        friendly_name: 'Kitchen Dishwasher water leak sensor',
-        ieee_address: '0x00158d0007c2b057'
-      },
-      type: 'device_joined'
-    }
-    {
-      data: {
-        friendly_name: 'Kitchen Sink water leak sensor',
-        ieee_address: '0x00158d0008f1099b',
-        status: 'started'
-      },
-      type: 'device_interview'
-    }
-    {
-      data: {
-        friendly_name: 'Kitchen Sink water leak sensor',
-        ieee_address: '0x00158d0008f1099b'
-      },
-      type: 'device_announce'
-    }
-    {
-      data: {
-        definition: {
-          description: 'Aqara water leak sensor',
-          exposes: [Array],
-          model: 'SJCGQ11LM',
-          options: [Array],
-          supports_ota: false,
-          vendor: 'Xiaomi'
-        },
-        friendly_name: 'Kitchen Sink water leak sensor',
-        ieee_address: '0x00158d0008f1099b',
-        status: 'successful',
-        supported: true
-      },
-      type: 'device_interview'
-    }
-    */
     const json = this.tryJsonParse(payload.toString());
     switch (json.type) {
       case undefined:
         this.log.error('handleEvent() undefined type', json);
         break;
       case 'device_leave':
+        /*  
+        {
+          data: { friendly_name: 'Light sensor', ieee_address: '0x54ef44100085c321' },
+          type: 'device_leave'
+        }
+        */
         this.log.debug(`handleEvent() type: device_leave name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
         this.emit('device_leave', json.data.friendly_name, json.data.ieee_address);
         break;
       case 'device_joined':
+        /*
+        {
+          data: {
+            friendly_name: 'Kitchen Dishwasher water leak sensor',
+            ieee_address: '0x00158d0007c2b057'
+          },
+          type: 'device_joined'
+        }
+        */
         this.log.debug(`handleEvent() type: device_joined name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
         this.emit('device_joined', json.data.friendly_name, json.data.ieee_address);
         break;
       case 'device_announce':
+        /*
+        {
+          data: {
+            friendly_name: 'Kitchen Sink water leak sensor',
+            ieee_address: '0x00158d0008f1099b'
+          },
+          type: 'device_announce'
+        }
+        */
         this.log.debug(`handleEvent() type: device_announce name: ${json.data.friendly_name} address: ${json.data.ieee_address}`);
         this.emit('device_announce', json.data.friendly_name, json.data.ieee_address);
         break;
       case 'device_interview':
+        /*
+        {
+          data: {
+            friendly_name: 'Kitchen Sink water leak sensor',
+            ieee_address: '0x00158d0008f1099b',
+            status: 'started'
+          },
+          type: 'device_interview'
+        }
+        {
+          data: {
+            definition: {
+              description: 'Aqara water leak sensor',
+              exposes: [Array],
+              model: 'SJCGQ11LM',
+              options: [Array],
+              supports_ota: false,
+              vendor: 'Xiaomi'
+            },
+            friendly_name: 'Kitchen Sink water leak sensor',
+            ieee_address: '0x00158d0008f1099b',
+            status: 'successful',
+            supported: true
+          },
+          type: 'device_interview'
+        }
+        */
         this.log.debug(`handleEvent() type: device_interview name: ${json.data.friendly_name} address: ${json.data.ieee_address} status: ${json.data.status} supported: ${json.data.supported}`);
         this.emit('device_interview', json.data.friendly_name, json.data.ieee_address, json.data.status, json.data.supported);
         break;

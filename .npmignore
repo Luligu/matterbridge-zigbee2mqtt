@@ -152,4 +152,7 @@ __test__
 .prettierignore
 .prettierrc.json
 
+Screenshot*.jpg
+Screenshot*.png
+
 TODO.md
