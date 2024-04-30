@@ -176,17 +176,17 @@ The latest release also supports all clusters in the multi endpoints devices (e.
 
 Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
-We discoverd that Matter support in Home Assistant is instead advanced and includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
+We discoverd that Matter support in Home Assistant is includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
 
 ## Unsupported devices
 
 If one of your devices is not supported out of the box, open an issue and we will try to support it if possible.
 
-# Known issues
-
 ## Conversion strategies between zigbee2MQTT and Matter ecosystems
 
-- Scene buttons are now exposed correctly. The actions are mapped in groups of 3, with each group on a sub endpoint. This is because the controllers expose event in group of single, double, long press.
+- The Coordinator and the dedicated routers (Texas.Instruments and SMLIGHT) are exposed like DoorLock. They change state when permitJoin is changed from z2m and turn on or off permitJoin when they are opened or closed from the controller. If you don't want to see them in the controller app just add them to the blackList.
+
+- Scene buttons are now fully exposed (all actions). The actions are mapped in groups of 3, with each group on a sub endpoint. This is because the controllers expose event in group of single, double, long press.
 In the log you will find the mapping schema like this one:
 ```
 [16:25:14.321] [Smart button] Device Smart button has actions mapped to these switches on sub endpoints:
@@ -202,6 +202,8 @@ In the log you will find the mapping schema like this one:
 [16:25:14.325] [Smart button] -- Button 3: Long Press   <=> off
 ```
 ![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/dev/screenshot/Smart%20button.png)
+
+# Known issues
 
 ## Apple Home issues
 
