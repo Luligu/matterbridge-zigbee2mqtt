@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.13] - 2024-05-02
+
+### Added
+
+- [groups]: Added ColorControl. 
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.0.12] - 2024-04-30
 
 ### Added
