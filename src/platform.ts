@@ -286,7 +286,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onStart(reason?: string) {
-    this.log.debug('Starting zigbee2mqtt dynamic platform: ' + reason);
+    this.log.debug(`Starting zigbee2mqtt dynamic platform v.${this.version}: ` + reason);
 
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldStart = true;
