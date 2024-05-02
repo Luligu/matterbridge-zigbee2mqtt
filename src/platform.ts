@@ -110,7 +110,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.setLogDebug(this.debugEnabled);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
-    this.log.info(`Connecting to MQTT broker: ${'mqtt://' + this.mqttHost + ':' + this.mqttPort.toString()}:`);
+    this.log.info(`Connecting to MQTT broker: ${'mqtt://' + this.mqttHost + ':' + this.mqttPort.toString()}`);
     this.z2m.start();
 
     this.z2m.on('mqtt_connect', () => {
