@@ -103,13 +103,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.debug('Created ZigbeePlatform as Matterbridge extension');
       return;
     }
-    this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
+    this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}:`);
     this.log.debug(`Config:')}${rs}`, config);
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
     this.z2m.setLogDebug(this.debugEnabled);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
+    this.log.info(`Connecting to MQTT broker: ${'mqtt://' + this.mqttHost + ':' + this.mqttPort.toString()}:`);
     this.z2m.start();
 
     this.z2m.on('mqtt_connect', () => {
@@ -287,7 +288,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onStart(reason?: string) {
-    this.log.debug(`Starting zigbee2mqtt dynamic platform v.${this.version}: ` + reason);
+    this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
 
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldStart = true;
