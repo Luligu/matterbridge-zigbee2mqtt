@@ -166,6 +166,7 @@ export class ZigbeeEntity extends EventEmitter {
 
             // Handle action on the endpoints
             if (key === 'action') {
+              if (value === '') return;
               const index = this.actions.indexOf(value as string);
               if (index === -1) {
                 this.log.warn(`Action "${value}" not found on actions ${debugStringify(this.actions)}`);

@@ -856,9 +856,11 @@ export class Zigbee2MQTT extends EventEmitter {
       if (data.state === 'online') {
         this.z2mDevices[deviceIndex].isAvailabilityEnabled = true;
         this.z2mDevices[deviceIndex].isOnline = true;
+        // this.log.warn('handleDeviceMessage availability payload: ', data);
         this.emit('ONLINE-' + entity);
       } else if (data.state === 'offline') {
         this.z2mDevices[deviceIndex].isOnline = false;
+        // this.log.warn('handleDeviceMessage availability payload: ', data);
         this.emit('OFFLINE-' + entity);
       }
     } else if (service === 'get') {
