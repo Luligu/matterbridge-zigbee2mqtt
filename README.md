@@ -152,7 +152,7 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 ```
 
 
-You can edit the config file (shutdown Matterbridge before):
+You can edit the config file. You have to shutdown Matterbridge before. If you use docker send docker stop matterbridge, edit and save the config then send docker start matterbridge.
 
 On windows:
 ```
@@ -215,5 +215,5 @@ The DoorLock cluster in the Home app takes a while to get online. The Home app s
 
 ## Home Assistant issues (Matter Server for HA is still in Beta)
 
-Sometimes you need to do a full restart of HA.
+If HA doesn't show all devices just reload the HA Matter Server 
 

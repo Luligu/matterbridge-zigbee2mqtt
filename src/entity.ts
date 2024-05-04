@@ -166,6 +166,7 @@ export class ZigbeeEntity extends EventEmitter {
 
             // Handle action on the endpoints
             if (key === 'action') {
+              if (value === '') return;
               const index = this.actions.indexOf(value as string);
               if (index === -1) {
                 this.log.warn(`Action "${value}" not found on actions ${debugStringify(this.actions)}`);
@@ -462,6 +463,47 @@ export class ZigbeeGroup extends ZigbeeEntity {
       this.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level }, attributes: { currentLevel } }) => {
         this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${group.friendly_name}${rs}${db} request: ${level} attributes: ${currentLevel}`);
         this.publishCommand('moveToLevelWithOnOff', group.friendly_name, { brightness: level });
+      });
+    }
+    if (this.bridgedDevice.hasClusterServer(ColorControl.Complete) && this.bridgedDevice.getClusterServer(ColorControlCluster)?.isAttributeSupportedByName('colorTemperatureMireds')) {
+      this.bridgedDevice.addCommandHandler('moveToColorTemperature', async ({ request: request, attributes: attributes }) => {
+        this.log.debug(`Command moveToColorTemperature called for ${this.ien}${group.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds} attributes: ${attributes.colorTemperatureMireds?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
+        this.log.debug(`Command moveToColorTemperature called for ${this.ien}${group.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
+        attributes.colorMode.setLocal(ColorControl.ColorMode.ColorTemperatureMireds);
+        this.publishCommand('moveToColorTemperature', group.friendly_name, { color_temp: request.colorTemperatureMireds });
+      });
+    }
+    if (this.bridgedDevice.hasClusterServer(ColorControl.Complete) && this.bridgedDevice.getClusterServer(ColorControlCluster)?.isAttributeSupportedByName('currentHue')) {
+      let lastRequestedHue = 0;
+      let lastRequestedSaturation = 0;
+      let lastRequestTimeout: NodeJS.Timeout;
+      this.bridgedDevice.addCommandHandler('moveToHue', async ({ request: request, attributes: attributes }) => {
+        this.log.debug(`Command moveToHue called for ${this.ien}${group.friendly_name}${rs}${db} request: ${request.hue} attributes: hue ${attributes.currentHue?.getLocal()} saturation ${attributes.currentSaturation?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
+        attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        lastRequestedHue = request.hue;
+        lastRequestTimeout = setTimeout(() => {
+          clearTimeout(lastRequestTimeout);
+          const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (lastRequestedSaturation / 254) * 100, 50);
+          this.publishCommand('moveToHue', group.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+        }, 500);
+      });
+      this.bridgedDevice.addCommandHandler('moveToSaturation', async ({ request: request, attributes: attributes }) => {
+        this.log.debug(`Command moveToSaturation called for ${this.ien}${group.friendly_name}${rs}${db} request: ${request.saturation} attributes: hue ${attributes.currentHue?.getLocal()} saturation ${attributes.currentSaturation?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
+        attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        lastRequestedSaturation = request.saturation;
+        lastRequestTimeout = setTimeout(() => {
+          clearTimeout(lastRequestTimeout);
+          const rgb = color.hslColorToRgbColor((lastRequestedHue / 254) * 360, (request.saturation / 254) * 100, 50);
+          this.publishCommand('moveToSaturation', group.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+        }, 500);
+      });
+      this.bridgedDevice.addCommandHandler('moveToHueAndSaturation', async ({ request: request, attributes: attributes }) => {
+        this.log.debug(
+          `Command moveToHueAndSaturation called for ${this.ien}${group.friendly_name}${rs}${db} request: ${request.hue}-${request.saturation} attributes: hue ${attributes.currentHue?.getLocal()} saturation ${attributes.currentSaturation?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`,
+        );
+        attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (request.saturation / 254) * 100, 50);
+        this.publishCommand('moveToHueAndSaturation', group.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
       });
     }
   }

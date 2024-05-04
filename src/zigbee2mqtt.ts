@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.22
+ * @version 2.2.23
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -296,7 +296,7 @@ export class Zigbee2MQTT extends EventEmitter {
     this.z2mGroups = [];
 
     this.log = new AnsiLogger({ logName: 'Zigbee2MQTT', logTimestampFormat: TimestampFormat.TIME_MILLIS });
-    // this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} topic: ${mqttTopic} username: ${mqttUsername} password: ${mqttPassword !== '' ? '*****' : ''}`);
+    this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} topic: ${mqttTopic} username: ${mqttUsername} password: ${mqttPassword !== '' ? '*****' : ''}`);
   }
 
   public setLogDebug(logDebug: boolean): void {
@@ -324,7 +324,7 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   public async start() {
-    this.log.debug('Starting...');
+    this.log.debug(`Starting connection to ${this.getUrl()}...`);
 
     connectAsync(this.getUrl(), this.options)
       .then((client) => {
@@ -856,9 +856,11 @@ export class Zigbee2MQTT extends EventEmitter {
       if (data.state === 'online') {
         this.z2mDevices[deviceIndex].isAvailabilityEnabled = true;
         this.z2mDevices[deviceIndex].isOnline = true;
+        // this.log.warn('handleDeviceMessage availability payload: ', data);
         this.emit('ONLINE-' + entity);
       } else if (data.state === 'offline') {
         this.z2mDevices[deviceIndex].isOnline = false;
+        // this.log.warn('handleDeviceMessage availability payload: ', data);
         this.emit('OFFLINE-' + entity);
       }
     } else if (service === 'get') {
