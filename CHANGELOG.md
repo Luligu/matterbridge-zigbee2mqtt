@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 - [groups]: Added ColorControl. 
 
-### Fixed
+### Fixed 
 
 - [payload]: Fixed the case when z2m sends empty action in the payload.
 
