@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.23
+ * @version 2.2.24
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -333,7 +333,7 @@ export class Zigbee2MQTT extends EventEmitter {
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('connect', (packet: IConnackPacket) => {
-          this.log.debug(`Event connect to ${this.getUrl()}${rs}` /*, connack*/);
+          this.log.debug(`MQTT client connect to ${this.getUrl()}${rs}` /*, connack*/);
           this.mqttIsConnected = true;
           this.mqttIsReconnecting = false;
           this.mqttIsEnding = false;
@@ -341,37 +341,37 @@ export class Zigbee2MQTT extends EventEmitter {
         });
 
         this.mqttClient.on('reconnect', () => {
-          this.log.debug(`Event reconnect to ${this.getUrl()}${rs}`);
+          this.log.debug(`MQTT client reconnect to ${this.getUrl()}${rs}`);
           this.mqttIsReconnecting = true;
           this.emit('mqtt_reconnect');
         });
 
         this.mqttClient.on('disconnect', (packet: IDisconnectPacket) => {
-          this.log.debug('Event diconnect', this.getUrl(), packet);
+          this.log.debug('MQTT client diconnect', this.getUrl(), packet);
           this.emit('mqtt_disconnect');
         });
 
         this.mqttClient.on('close', () => {
-          this.log.debug('Event close');
+          this.log.debug('MQTT client close');
           this.mqttIsConnected = false;
           this.mqttIsReconnecting = false;
           this.emit('mqtt_close');
         });
 
         this.mqttClient.on('end', () => {
-          this.log.debug('Event end');
+          this.log.debug('MQTT client end');
           this.mqttIsConnected = false;
           this.mqttIsReconnecting = false;
           this.emit('mqtt_end');
         });
 
         this.mqttClient.on('offline', () => {
-          this.log.error('Event offline');
+          this.log.debug('MQTT client offline');
           this.emit('mqtt_offline');
         });
 
         this.mqttClient.on('error', (error: Error | ErrorWithReasonCode) => {
-          this.log.error('Event error', error);
+          this.log.debug('MQTT client error', error);
           this.emit('mqtt_error', error);
         });
 

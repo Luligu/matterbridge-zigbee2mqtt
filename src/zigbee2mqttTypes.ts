@@ -4,7 +4,7 @@
  * @file zigbee2mqttTypes.ts
  * @author Luca Liguori
  * @date 2023-11-02
- * @version 1.1.4
+ * @version 1.1.5
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -171,8 +171,8 @@ interface ConfigSettings {
 
 export interface BridgeInfo {
   version: string;
-  zigbee_herdsman: object;
-  zigbee_herdsman_converters: object;
+  zigbee_herdsman: { version: string };
+  zigbee_herdsman_converters: { version: string };
   commit: string;
   coordinator: {
     ieee_address: string;

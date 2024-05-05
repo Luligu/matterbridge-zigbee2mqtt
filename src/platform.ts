@@ -125,6 +125,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('offline', () => {
+      if (this.z2mBridgeInfo === undefined) return;
       this.log.warn('zigbee2MQTT is offline');
       // TODO check single availability
       this.updateAvailability(false);
@@ -232,7 +233,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
-      this.log.debug(`zigbee2MQTT sent bridge-info version: ${this.z2mBridgeInfo.version}`);
+      this.log.info(`zigbee2MQTT is online version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
