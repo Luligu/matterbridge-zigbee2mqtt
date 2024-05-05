@@ -821,8 +821,7 @@ export class Zigbee2MQTT extends EventEmitter {
           this.handleGroupMessage(foundGroup, entity, service, payload);
         } else {
           try {
-            const data = this.tryJsonParse(payload.toString());
-            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', data);
+            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', payload);
           } catch {
             this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
           }
