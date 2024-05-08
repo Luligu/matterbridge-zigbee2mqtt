@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.13] - 2024-05-09
+
+### Added
+
+- [mqtt]: Added Keekalive to MQTT. 
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.0.13] - 2024-05-02
 
 ### Added

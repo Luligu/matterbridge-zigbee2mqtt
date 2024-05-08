@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.24
+ * @version 2.2.25
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -250,6 +250,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private mqttPublishQueue: PublishQueue[] = [];
   private mqttPublishQueueTimeout: NodeJS.Timeout | undefined = undefined;
   private mqttPublishInflights: number = 0;
+  private mqttKeepaliveInterval: NodeJS.Timeout | undefined = undefined;
 
   private z2mIsAvailabilityEnabled: boolean;
   private z2mIsOnline: boolean;
@@ -265,8 +266,8 @@ export class Zigbee2MQTT extends EventEmitter {
     keepalive: 60,
     protocolId: 'MQTT',
     protocolVersion: 5,
-    reconnectPeriod: 1000,
-    connectTimeout: 30 * 1000,
+    reconnectPeriod: 5000, // 1000
+    connectTimeout: 60 * 1000, // 30 * 1000
     username: '',
     password: '',
     clean: true,
@@ -397,6 +398,19 @@ export class Zigbee2MQTT extends EventEmitter {
         this.mqttIsReconnecting = false;
         this.mqttIsEnding = false;
         this.emit('mqtt_connect');
+
+        // Send a heartbeat every 60 seconds
+        this.mqttKeepaliveInterval = setInterval(
+          async () => {
+            this.log.debug('Publishing keepalive MQTT message');
+            try {
+              await this.mqttClient?.publishAsync(`clients/${this.options.clientId}/heartbeat`, 'alive', { qos: 2 });
+            } catch (error) {
+              this.log.error('Error publishing keepalive MQTT message:', error);
+            }
+          },
+          (this.options.keepalive ?? 60) * 1000,
+        );
       })
       .catch((error) => {
         this.log.error(`Error connecting to ${this.getUrl()}: ${error.message}`);
@@ -404,6 +418,10 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   public async stop() {
+    if (this.mqttKeepaliveInterval) {
+      clearInterval(this.mqttKeepaliveInterval);
+      this.mqttKeepaliveInterval = undefined;
+    }
     if (!this.mqttClient || this.mqttIsEnding) {
       this.log.debug('Already stopped!');
     } else {
