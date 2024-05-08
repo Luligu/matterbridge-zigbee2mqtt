@@ -26,11 +26,15 @@
     "matter.js",
     "matter-node.js",
     "matterprotocol",
+    "google-home",
+    "alexa",
+    "homeassistant",
     "iot",
     "smarthome",
     "connectedthings",
-    "zigbee2mqtt",
-    "zigbee"
+    "zigbee",
+    "zigbee2mqtt"
+
   ],
   "type": "module",
   "main": "dist/index.js",
