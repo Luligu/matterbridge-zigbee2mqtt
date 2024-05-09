@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
@@ -26,11 +26,15 @@
     "matter.js",
     "matter-node.js",
     "matterprotocol",
+    "google-home",
+    "alexa",
+    "homeassistant",
     "iot",
     "smarthome",
     "connectedthings",
-    "zigbee2mqtt",
-    "zigbee"
+    "zigbee",
+    "zigbee2mqtt"
+
   ],
   "type": "module",
   "main": "dist/index.js",
@@ -71,11 +75,11 @@
     "version:major": "npm version major"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^1.7.2",
+    "@stylistic/eslint-plugin": "^2.0.0",
     "@tsconfig/node-lts": "^20.1.3",
-    "@types/node": "^20.12.7",
-    "@typescript-eslint/eslint-plugin": "^7.7.1",
-    "@typescript-eslint/parser": "^7.7.1",
+    "@types/node": "^20.12.11",
+    "@typescript-eslint/eslint-plugin": "^7.8.0",
+    "@typescript-eslint/parser": "^7.8.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
     "prettier": "^3.2.5",
@@ -83,7 +87,7 @@
   },
   "dependencies": {
     "moment": "^2.30.1",
-    "mqtt": "^5.5.3",
+    "mqtt": "^5.5.5",
     "node-ansi-logger": "^1.9.5"
   }
 }

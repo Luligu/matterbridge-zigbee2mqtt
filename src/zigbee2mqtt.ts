@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.23
+ * @version 2.2.25
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -250,6 +250,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private mqttPublishQueue: PublishQueue[] = [];
   private mqttPublishQueueTimeout: NodeJS.Timeout | undefined = undefined;
   private mqttPublishInflights: number = 0;
+  private mqttKeepaliveInterval: NodeJS.Timeout | undefined = undefined;
 
   private z2mIsAvailabilityEnabled: boolean;
   private z2mIsOnline: boolean;
@@ -265,8 +266,8 @@ export class Zigbee2MQTT extends EventEmitter {
     keepalive: 60,
     protocolId: 'MQTT',
     protocolVersion: 5,
-    reconnectPeriod: 1000,
-    connectTimeout: 30 * 1000,
+    reconnectPeriod: 5000, // 1000
+    connectTimeout: 60 * 1000, // 30 * 1000
     username: '',
     password: '',
     clean: true,
@@ -333,7 +334,7 @@ export class Zigbee2MQTT extends EventEmitter {
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('connect', (packet: IConnackPacket) => {
-          this.log.debug(`Event connect to ${this.getUrl()}${rs}` /*, connack*/);
+          this.log.debug(`MQTT client connect to ${this.getUrl()}${rs}` /*, connack*/);
           this.mqttIsConnected = true;
           this.mqttIsReconnecting = false;
           this.mqttIsEnding = false;
@@ -341,37 +342,37 @@ export class Zigbee2MQTT extends EventEmitter {
         });
 
         this.mqttClient.on('reconnect', () => {
-          this.log.debug(`Event reconnect to ${this.getUrl()}${rs}`);
+          this.log.debug(`MQTT client reconnect to ${this.getUrl()}${rs}`);
           this.mqttIsReconnecting = true;
           this.emit('mqtt_reconnect');
         });
 
         this.mqttClient.on('disconnect', (packet: IDisconnectPacket) => {
-          this.log.debug('Event diconnect', this.getUrl(), packet);
+          this.log.debug('MQTT client diconnect', this.getUrl(), packet);
           this.emit('mqtt_disconnect');
         });
 
         this.mqttClient.on('close', () => {
-          this.log.debug('Event close');
+          this.log.debug('MQTT client close');
           this.mqttIsConnected = false;
           this.mqttIsReconnecting = false;
           this.emit('mqtt_close');
         });
 
         this.mqttClient.on('end', () => {
-          this.log.debug('Event end');
+          this.log.debug('MQTT client end');
           this.mqttIsConnected = false;
           this.mqttIsReconnecting = false;
           this.emit('mqtt_end');
         });
 
         this.mqttClient.on('offline', () => {
-          this.log.error('Event offline');
+          this.log.debug('MQTT client offline');
           this.emit('mqtt_offline');
         });
 
         this.mqttClient.on('error', (error: Error | ErrorWithReasonCode) => {
-          this.log.error('Event error', error);
+          this.log.debug('MQTT client error', error);
           this.emit('mqtt_error', error);
         });
 
@@ -397,6 +398,19 @@ export class Zigbee2MQTT extends EventEmitter {
         this.mqttIsReconnecting = false;
         this.mqttIsEnding = false;
         this.emit('mqtt_connect');
+
+        // Send a heartbeat every 60 seconds
+        this.mqttKeepaliveInterval = setInterval(
+          async () => {
+            this.log.debug('Publishing keepalive MQTT message');
+            try {
+              await this.mqttClient?.publishAsync(`clients/${this.options.clientId}/heartbeat`, 'alive', { qos: 2 });
+            } catch (error) {
+              this.log.error('Error publishing keepalive MQTT message:', error);
+            }
+          },
+          (this.options.keepalive ?? 60) * 1000,
+        );
       })
       .catch((error) => {
         this.log.error(`Error connecting to ${this.getUrl()}: ${error.message}`);
@@ -404,6 +418,10 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   public async stop() {
+    if (this.mqttKeepaliveInterval) {
+      clearInterval(this.mqttKeepaliveInterval);
+      this.mqttKeepaliveInterval = undefined;
+    }
     if (!this.mqttClient || this.mqttIsEnding) {
       this.log.debug('Already stopped!');
     } else {
@@ -821,8 +839,7 @@ export class Zigbee2MQTT extends EventEmitter {
           this.handleGroupMessage(foundGroup, entity, service, payload);
         } else {
           try {
-            const data = this.tryJsonParse(payload.toString());
-            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', data);
+            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', payload);
           } catch {
             this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
           }
