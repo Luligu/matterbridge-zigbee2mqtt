@@ -151,8 +151,12 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 }
 ```
 
+From the release 1.2.14 of Matterbridge you can edit the config file directly in the frontend.
 
-You can edit the config file. You have to shutdown Matterbridge before. If you use docker send docker stop matterbridge, edit and save the config then send docker start matterbridge.
+You can edit the config file manually if you prefer:
+- shutdown Matterbridge before: if you use docker send docker stop matterbridge;
+- edit and save the config;
+- start Matterbridge: if you use docker send docker start matterbridge.
 
 On windows:
 ```
