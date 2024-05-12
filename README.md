@@ -180,7 +180,7 @@ The latest release also supports all clusters in the multi endpoints devices (e.
 
 Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
-We discoverd that Matter support in Home Assistant is includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
+We discoverd that Matter support in Home Assistant includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
 
 ## Unsupported devices
 
