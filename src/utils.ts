@@ -4,7 +4,7 @@
  * @file utils.ts
  * @author Luca Liguori
  * @date 2024-02-17
- * @version 1.1.1
+ * @version 1.2.1
  *
  * Copyright 2024 Luca Liguori.
  *
@@ -20,6 +20,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. *
  */
+
+import os from 'os';
 
 /**
  * Performs a deep comparison between two values to determine if they are equivalent.
@@ -119,7 +121,7 @@ export function deepEqual(a: any, b: any, excludeProperties: string[] = []): boo
         return false;
       }
       if (!deepEqual(a[prop], b[prop], excludeProperties)) {
-        debugLog(`deepEqual false for !deepEqual(a[${prop}], b[${prop}])` /*, a[prop], b[prop]*/);
+        debugLog(`deepEqual false for !deepEqual(a[${prop}], b[${prop}])` /* , a[prop], b[prop]*/);
         return false;
       }
     }
@@ -177,4 +179,54 @@ export function deepCopy<T>(value: T): T {
     }
     return copy as T;
   }
+}
+
+/**
+ * Retrieves the IPv4 address of the first non-internal network interface.
+ * @returns {string | undefined} The IPv4 address of the selected network interface, or undefined if not found.
+ */
+export function getIpv4InterfaceAddress() {
+  let ipv4Address: string | undefined;
+  const networkInterfaces = os.networkInterfaces();
+  // console.log('Available Network Interfaces:', networkInterfaces);
+  for (const interfaceDetails of Object.values(networkInterfaces)) {
+    if (!interfaceDetails) {
+      break;
+    }
+    for (const detail of interfaceDetails) {
+      if (detail.family === 'IPv4' && !detail.internal && ipv4Address === undefined) {
+        ipv4Address = detail.address;
+      }
+    }
+    if (ipv4Address !== undefined) {
+      break;
+    }
+  }
+  // console.log('Selected Network Interfaces:', ipv4Address);
+  return ipv4Address;
+}
+
+/**
+ * Retrieves the IPv6 address of the first non-internal network interface.
+ * @returns {string | undefined} The IPv4 address of the selected network interface, or undefined if not found.
+ */
+export function getIpv6InterfaceAddress() {
+  let ipv6Address: string | undefined;
+  const networkInterfaces = os.networkInterfaces();
+  // console.log('Available Network Interfaces:', networkInterfaces);
+  for (const interfaceDetails of Object.values(networkInterfaces)) {
+    if (!interfaceDetails) {
+      break;
+    }
+    for (const detail of interfaceDetails) {
+      if (detail.family === 'IPv6' && !detail.internal && ipv6Address === undefined) {
+        ipv6Address = detail.address;
+      }
+    }
+    if (ipv6Address !== undefined) {
+      break;
+    }
+  }
+  // console.log('Selected Network Interfaces:', ipv6Address);
+  return ipv6Address;
 }
