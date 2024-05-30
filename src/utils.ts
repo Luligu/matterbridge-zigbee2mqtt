@@ -4,7 +4,7 @@
  * @file utils.ts
  * @author Luca Liguori
  * @date 2024-02-17
- * @version 1.2.1
+ * @version 1.2.3
  *
  * Copyright 2024 Luca Liguori.
  *
@@ -78,9 +78,8 @@ export function deepEqual(a: any, b: any, excludeProperties: string[] = []): boo
   }
 
   // If one of them is null (and we know they are not equal from the first check), return false
-  // eslint-disable-next-line eqeqeq
   if (a == null || b == null) {
-    debugLog('deepEqual false for ==null');
+    debugLog('deepEqual false for == null');
     return false;
   }
 
@@ -185,7 +184,7 @@ export function deepCopy<T>(value: T): T {
  * Retrieves the IPv4 address of the first non-internal network interface.
  * @returns {string | undefined} The IPv4 address of the selected network interface, or undefined if not found.
  */
-export function getIpv4InterfaceAddress() {
+export function getIpv4InterfaceAddress(): string | undefined {
   let ipv4Address: string | undefined;
   const networkInterfaces = os.networkInterfaces();
   // console.log('Available Network Interfaces:', networkInterfaces);
@@ -210,7 +209,7 @@ export function getIpv4InterfaceAddress() {
  * Retrieves the IPv6 address of the first non-internal network interface.
  * @returns {string | undefined} The IPv4 address of the selected network interface, or undefined if not found.
  */
-export function getIpv6InterfaceAddress() {
+export function getIpv6InterfaceAddress(): string | undefined {
   let ipv6Address: string | undefined;
   const networkInterfaces = os.networkInterfaces();
   // console.log('Available Network Interfaces:', networkInterfaces);

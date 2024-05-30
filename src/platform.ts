@@ -104,7 +104,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       return;
     }
     this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}:`);
-    this.log.debug(`Config:')}${rs}`, config);
+    // this.log.debug(`Config:')}${rs}`, config);
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
     this.z2m.setLogDebug(this.debugEnabled);
@@ -233,10 +233,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
-      this.log.info(`zigbee2MQTT is online version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
+      this.log.info(`zigbee2MQTT version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
+      this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
       if (config.injectDevices) {
         const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
         this.log.warn(`***Injecting ${data.devices.length} devices from ${config.injectDevices}`);
@@ -260,10 +261,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           device.configure();
         }
       }
-      this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
     });
 
     this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
+      this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
       this.z2mBridgeGroups = groups;
       if (this.shouldStart) {
         if (!this.z2mGroupsRegistered && this.z2mBridgeGroups) {
@@ -282,14 +283,46 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           device.configure();
         }
       }
-      this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
     });
 
     this.log.debug('Created zigbee2mqtt dynamic platform');
   }
 
+  async waiter(name: string, check: () => boolean, exitWithReject = false, resolveTimeout = 5000, resolveInterval = 500) {
+    this.log.debug(`**Waiter ${name} started...`);
+    return new Promise<boolean>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        this.log.debug(`****Waiter ${name} exited for timeout...`);
+        clearTimeout(timeoutId);
+        clearInterval(intervalId);
+        if (exitWithReject) reject(new Error(`Waiter ${name} exited due to timeout`));
+        else resolve(false);
+      }, resolveTimeout);
+
+      const intervalId = setInterval(() => {
+        if (check()) {
+          this.log.debug(`**Waiter ${name} exited for true condition...`);
+          clearTimeout(timeoutId);
+          clearInterval(intervalId);
+          resolve(true);
+        }
+      }, resolveInterval);
+    });
+  }
+
   override async onStart(reason?: string) {
     this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
+
+    // await this.waiter('false', () => false, true, 10 * 1000, 500);
+
+    const hasInfo = await this.waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
+
+    const hasDevices = await this.waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
+
+    if (!hasInfo || !hasDevices) {
+      this.log.error('Exiting due to missing zigbee2mqtt bridge info or devices/groups');
+      return;
+    }
 
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldStart = true;
