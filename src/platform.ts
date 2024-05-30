@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig, waiter } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
@@ -114,8 +114,20 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.start();
 
     this.z2m.on('mqtt_connect', () => {
-      this.log.debug(`zigbee2MQTT connected to MQTT server ${this.z2m.mqttHost}:${this.z2m.mqttPort}`);
+      this.log.info(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} connected`);
       this.z2m.subscribe(this.z2m.mqttTopic + '/#');
+    });
+
+    this.z2m.on('close', () => {
+      this.log.warn(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} closed the connection`);
+    });
+
+    this.z2m.on('end', () => {
+      this.log.warn(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} ended the connection`);
+    });
+
+    this.z2m.on('mqtt_error', (error) => {
+      this.log.error(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} error:`, error);
     });
 
     this.z2m.on('online', () => {
@@ -125,7 +137,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('offline', () => {
-      if (this.z2mBridgeInfo === undefined) return;
       this.log.warn('zigbee2MQTT is offline');
       // TODO check single availability
       this.updateAvailability(false);
@@ -288,36 +299,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug('Created zigbee2mqtt dynamic platform');
   }
 
-  async waiter(name: string, check: () => boolean, exitWithReject = false, resolveTimeout = 5000, resolveInterval = 500) {
-    this.log.debug(`**Waiter ${name} started...`);
-    return new Promise<boolean>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        this.log.debug(`****Waiter ${name} exited for timeout...`);
-        clearTimeout(timeoutId);
-        clearInterval(intervalId);
-        if (exitWithReject) reject(new Error(`Waiter ${name} exited due to timeout`));
-        else resolve(false);
-      }, resolveTimeout);
-
-      const intervalId = setInterval(() => {
-        if (check()) {
-          this.log.debug(`**Waiter ${name} exited for true condition...`);
-          clearTimeout(timeoutId);
-          clearInterval(intervalId);
-          resolve(true);
-        }
-      }, resolveInterval);
-    });
-  }
-
   override async onStart(reason?: string) {
     this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
 
-    // await this.waiter('false', () => false, true, 10 * 1000, 500);
+    const hasInfo = await waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
 
-    const hasInfo = await this.waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
-
-    const hasDevices = await this.waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
+    const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
 
     if (!hasInfo || !hasDevices) {
       this.log.error('Exiting due to missing zigbee2mqtt bridge info or devices/groups');
