@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.25
+ * @version 2.2.26
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -414,6 +414,7 @@ export class Zigbee2MQTT extends EventEmitter {
       })
       .catch((error) => {
         this.log.error(`Error connecting to ${this.getUrl()}: ${error.message}`);
+        this.emit('mqtt_error', error);
       });
   }
 

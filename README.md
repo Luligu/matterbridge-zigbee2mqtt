@@ -180,7 +180,7 @@ The latest release also supports all clusters in the multi endpoints devices (e.
 
 Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
-We discoverd that Matter support in Home Assistant is includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
+We discoverd that Matter support in Home Assistant includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
 
 ## Unsupported devices
 
@@ -213,9 +213,13 @@ In the log you will find the mapping schema like this one:
 
 The HomePods, being a WiFi devices, sometimes pruduce message trasmission errors. The Apple TV with network cable is more reliable (but also more expensive).
 
+Solved with the version 17.5 of the HomePod/AppleTV.
+
 ### DoorLock
 
 The DoorLock cluster in the Home app takes a while to get online. The Home app shows no response for 1 or 2 seconds but then the accessory goes online. With the Eve app or the Controller app this issue is not present.
+
+Solved with the version 17.5 of the HomePod/AppleTV.
 
 ## Home Assistant issues (Matter Server for HA is still in Beta)
 

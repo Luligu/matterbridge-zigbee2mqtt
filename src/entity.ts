@@ -72,7 +72,7 @@ import { Payload, PayloadValue } from './payloadTypes.js';
 import * as color from './colorUtils.js';
 import EventEmitter from 'events';
 import { hostname } from 'os';
-import { deepCopy, deepEqual } from './utils.js';
+import { deepCopy, deepEqual } from 'matterbridge';
 
 export class ZigbeeEntity extends EventEmitter {
   public log: AnsiLogger;

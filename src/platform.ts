@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig, waiter } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
@@ -104,7 +104,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       return;
     }
     this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}:`);
-    this.log.debug(`Config:')}${rs}`, config);
+    // this.log.debug(`Config:')}${rs}`, config);
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
     this.z2m.setLogDebug(this.debugEnabled);
@@ -114,8 +114,20 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.start();
 
     this.z2m.on('mqtt_connect', () => {
-      this.log.debug(`zigbee2MQTT connected to MQTT server ${this.z2m.mqttHost}:${this.z2m.mqttPort}`);
+      this.log.info(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} connected`);
       this.z2m.subscribe(this.z2m.mqttTopic + '/#');
+    });
+
+    this.z2m.on('close', () => {
+      this.log.warn(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} closed the connection`);
+    });
+
+    this.z2m.on('end', () => {
+      this.log.warn(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} ended the connection`);
+    });
+
+    this.z2m.on('mqtt_error', (error) => {
+      this.log.error(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} error:`, error);
     });
 
     this.z2m.on('online', () => {
@@ -125,7 +137,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('offline', () => {
-      if (this.z2mBridgeInfo === undefined) return;
       this.log.warn('zigbee2MQTT is offline');
       // TODO check single availability
       this.updateAvailability(false);
@@ -233,10 +244,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
-      this.log.info(`zigbee2MQTT is online version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
+      this.log.info(`zigbee2MQTT version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
+      this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
       if (config.injectDevices) {
         const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
         this.log.warn(`***Injecting ${data.devices.length} devices from ${config.injectDevices}`);
@@ -260,10 +272,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           device.configure();
         }
       }
-      this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
     });
 
     this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
+      this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
       this.z2mBridgeGroups = groups;
       if (this.shouldStart) {
         if (!this.z2mGroupsRegistered && this.z2mBridgeGroups) {
@@ -282,7 +294,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           device.configure();
         }
       }
-      this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
     });
 
     this.log.debug('Created zigbee2mqtt dynamic platform');
@@ -290,6 +301,15 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
   override async onStart(reason?: string) {
     this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
+
+    const hasInfo = await waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
+
+    const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
+
+    if (!hasInfo || !hasDevices) {
+      this.log.error('Exiting due to missing zigbee2mqtt bridge info or devices/groups');
+      return;
+    }
 
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldStart = true;
