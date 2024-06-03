@@ -211,7 +211,7 @@ In the log you will find the mapping schema like this one:
 
 For general controller issues check the Matterbridge Known issues section
 
-![See the known issues here](https://github.com/Luligu/matterbridge/blob/dev/README.md#known-issues)
+[See the known issues here](https://github.com/Luligu/matterbridge/blob/dev/README.md#known-issues)
 
 ## Apple Home issues
 
