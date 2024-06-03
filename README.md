@@ -209,19 +209,21 @@ In the log you will find the mapping schema like this one:
 
 # Known issues
 
+For general controller issues check the Matterbridge Known issues section
+
+![See the known issues here](https://github.com/Luligu/matterbridge/blob/dev/README.md#known-issues)
+
 ## Apple Home issues
-
-The HomePods, being a WiFi devices, sometimes pruduce message trasmission errors. The Apple TV with network cable is more reliable (but also more expensive).
-
-Solved with the version 17.5 of the HomePod/AppleTV.
-
-### DoorLock
-
-The DoorLock cluster in the Home app takes a while to get online. The Home app shows no response for 1 or 2 seconds but then the accessory goes online. With the Eve app or the Controller app this issue is not present.
-
-Solved with the version 17.5 of the HomePod/AppleTV.
 
 ## Home Assistant issues (Matter Server for HA is still in Beta)
 
-If HA doesn't show all devices just reload the HA Matter Server 
+## Google Home
+
+## Alexa
+
+## SmartThings
+
+## eWeLink
+
+## Tuya/Smart Life
 
