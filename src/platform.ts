@@ -65,6 +65,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public z2m!: Zigbee2MQTT;
   public z2mDevicesRegistered = false;
   public z2mGroupsRegistered = false;
+  private z2mBridgeOnline: boolean | undefined;
   private z2mBridgeInfo: BridgeInfo | undefined;
   private z2mBridgeDevices: BridgeDevice[] | undefined;
   private z2mBridgeGroups: BridgeGroup[] | undefined;
@@ -132,12 +133,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('online', () => {
       this.log.info('zigbee2MQTT is online');
+      this.z2mBridgeOnline = true;
       // TODO check single availability
       this.updateAvailability(true);
     });
 
     this.z2m.on('offline', () => {
       this.log.warn('zigbee2MQTT is offline');
+      this.z2mBridgeOnline = false;
       // TODO check single availability
       this.updateAvailability(false);
     });
@@ -302,12 +305,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onStart(reason?: string) {
     this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
 
+    const hasOnline = await waiter('z2mBridgeOnline', () => this.z2mBridgeOnline !== undefined);
+
     const hasInfo = await waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
 
     const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
 
-    if (!hasInfo || !hasDevices) {
-      this.log.error('Exiting due to missing zigbee2mqtt bridge info or devices/groups');
+    if (!hasOnline || !hasInfo || !hasDevices) {
+      this.log.error('Exiting due to missing zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
       return;
     }
 
