@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.16] - 2024-06-06
+
+### Added
+
+- [dependencies]: Update dependencies
+- [matterbridge]: Added bridgeOnline to the start checks. 
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.0.15] - 2024-06-01
 
 ### Added
