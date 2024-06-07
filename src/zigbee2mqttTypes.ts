@@ -4,7 +4,7 @@
  * @file zigbee2mqttTypes.ts
  * @author Luca Liguori
  * @date 2023-11-02
- * @version 1.1.5
+ * @version 1.1.6
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -21,9 +21,7 @@
  * limitations under the License. *
  */
 
-export interface KeyValue {
-  [s: string]: unknown;
-}
+export type KeyValue = Record<string, unknown>;
 
 interface DeviceOptions {
   ID?: string;
@@ -131,8 +129,8 @@ interface ConfigSettings {
     ssl_cert?: string;
     ssl_key?: string;
   };
-  devices?: { [s: string]: DeviceOptions };
-  groups?: { [s: string]: GroupOptions };
+  devices?: Record<string, DeviceOptions>;
+  groups?: Record<string, GroupOptions>;
   device_options: KeyValue;
   advanced: {
     legacy_api: boolean;
@@ -269,7 +267,7 @@ export interface BridgeDevice {
   interviewing: boolean;
   interview_completed: boolean;
   manufacturer: string;
-  endpoints: { [s: number]: DeviceEndpoint };
+  endpoints: Record<number, DeviceEndpoint>;
 }
 
 export interface BridgeGroup {

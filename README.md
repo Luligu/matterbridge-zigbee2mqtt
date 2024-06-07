@@ -22,11 +22,13 @@ No hub or dedicated hardware needed.
 Follow these steps to install or update Matterbridge if it is not already installed and up to date:
 
 on Windows:
+
 ```
 npm install -g matterbridge
 ```
 
 on Linux (you need the necessary permissions):
+
 ```
 sudo npm install -g matterbridge
 ```
@@ -41,9 +43,10 @@ See the guidelines on [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt/blob/m
 
 ## How to install
 
-### If you want to use the plugin 
+### If you want to use the plugin
 
 On windows:
+
 ```
 cd $HOME\Matterbridge
 npm install -g matterbridge-zigbee2mqtt
@@ -51,6 +54,7 @@ matterbridge -add matterbridge-zigbee2mqtt
 ```
 
 On linux:
+
 ```
 cd ~/Matterbridge
 sudo npm install -g matterbridge-zigbee2mqtt
@@ -58,13 +62,15 @@ matterbridge -add matterbridge-zigbee2mqtt
 ```
 
 Then start Matterbridge
+
 ```
 matterbridge -bridge
 ```
 
-### If you want to contribute to the plugin 
+### If you want to contribute to the plugin
 
 On windows:
+
 ```
 cd $HOME\Matterbridge
 git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
@@ -75,6 +81,7 @@ matterbridge -add .\
 ```
 
 On linux:
+
 ```
 cd ~/Matterbridge
 git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
@@ -85,6 +92,7 @@ matterbridge -add ./
 ```
 
 Then start Matterbridge
+
 ```
 matterbridge -bridge
 ```
@@ -130,6 +138,7 @@ These are the default vules:
 ```
 
 If you want to exclude "device_temperature" for all the devices, add to the config
+
 ```
 {
   ...
@@ -138,8 +147,9 @@ If you want to exclude "device_temperature" for all the devices, add to the conf
 }
 ```
 
-If you want to exclude "temperature" and "humidity" for the device "My motion sensor" and 
+If you want to exclude "temperature" and "humidity" for the device "My motion sensor" and
 "device_temperature" only for the device "My climate sensor", add to the config
+
 ```
 {
   ...
@@ -154,17 +164,20 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 From the release 1.2.14 of Matterbridge you can edit the config file directly in the frontend.
 
 You can edit the config file manually if you prefer:
+
 - shutdown Matterbridge before: if you use docker send docker stop matterbridge;
 - edit and save the config;
 - start Matterbridge: if you use docker send docker start matterbridge.
 
 On windows:
+
 ```
 cd $HOME\.matterbridge
 notepad matterbridge-zigbee2mqtt.config.json
 ```
 
 On linux:
+
 ```
 cd ~/.matterbridge
 nano matterbridge-zigbee2mqtt.config.json
@@ -191,7 +204,8 @@ If one of your devices is not supported out of the box, open an issue and we wil
 - The Coordinator and the dedicated routers (Texas.Instruments and SMLIGHT) are exposed like DoorLock. They change state when permitJoin is changed from z2m and turn on or off permitJoin when they are opened or closed from the controller. If you don't want to see them in the controller app just add them to the blackList.
 
 - Scene buttons are now fully exposed (all actions). The actions are mapped in groups of 3, with each group on a sub endpoint. This is because the controllers expose event in group of single, double, long press.
-In the log you will find the mapping schema like this one:
+  In the log you will find the mapping schema like this one:
+
 ```
 [16:25:14.321] [Smart button] Device Smart button has actions mapped to these switches on sub endpoints:
 [16:25:14.321] [Smart button]    controller events      <=> zigbee2mqtt actions
@@ -205,6 +219,7 @@ In the log you will find the mapping schema like this one:
 [16:25:14.324] [Smart button] -- Button 3: Double Press <=> on
 [16:25:14.325] [Smart button] -- Button 3: Long Press   <=> off
 ```
+
 ![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/screenshot/Smart%20button.png)
 
 # Known issues
@@ -226,4 +241,3 @@ For general controller issues check the Matterbridge Known issues section
 ## eWeLink
 
 ## Tuya/Smart Life
-

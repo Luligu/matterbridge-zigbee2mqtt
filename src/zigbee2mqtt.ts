@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.26
+ * @version 2.2.27
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -156,9 +156,7 @@ interface Device {
   date_code: string;
   definition: Definition;
   disabled: boolean;
-  endpoints: {
-    [key: number]: Endpoint;
-  };
+  endpoints: Record<number, Endpoint>;
   friendly_name: string;
   ieee_address: string;
   interview_completed: boolean;
@@ -249,7 +247,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private mqttDataPath = '';
   private mqttPublishQueue: PublishQueue[] = [];
   private mqttPublishQueueTimeout: NodeJS.Timeout | undefined = undefined;
-  private mqttPublishInflights: number = 0;
+  private mqttPublishInflights = 0;
   private mqttKeepaliveInterval: NodeJS.Timeout | undefined = undefined;
 
   private z2mIsAvailabilityEnabled: boolean;
@@ -334,7 +332,7 @@ export class Zigbee2MQTT extends EventEmitter {
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('connect', (packet: IConnackPacket) => {
-          this.log.debug(`MQTT client connect to ${this.getUrl()}${rs}` /*, connack*/);
+          this.log.debug(`MQTT client connect to ${this.getUrl()}${rs}` /* , connack*/);
           this.mqttIsConnected = true;
           this.mqttIsReconnecting = false;
           this.mqttIsEnding = false;
@@ -378,17 +376,17 @@ export class Zigbee2MQTT extends EventEmitter {
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('packetsend', (packet: Packet) => {
-          //this.log.debug('classZigbee2MQTT=>Event packetsend');
+          // this.log.debug('classZigbee2MQTT=>Event packetsend');
         });
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('packetreceive', (packet: Packet) => {
-          //this.log.debug('classZigbee2MQTT=>Event packetreceive');
+          // this.log.debug('classZigbee2MQTT=>Event packetreceive');
         });
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('message', (topic: string, payload: Buffer, packet: IPublishPacket) => {
-          //this.log.debug(`classZigbee2MQTT=>Event message topic: ${topic} payload: ${payload.toString()} packet: ${stringify(packet, true)}`);
+          // this.log.debug(`classZigbee2MQTT=>Event message topic: ${topic} payload: ${payload.toString()} packet: ${stringify(packet, true)}`);
           this.messageHandler(topic, payload);
         });
 
@@ -462,7 +460,7 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  public async publish(topic: string, message: string, queue: boolean = false) {
+  public async publish(topic: string, message: string, queue = false) {
     const startInterval = () => {
       if (this.mqttPublishQueueTimeout) {
         return;
@@ -470,11 +468,8 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`**Start publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} interval`);
       this.mqttPublishQueueTimeout = setInterval(async () => {
         if (this.mqttClient && this.mqttPublishQueue.length > 0) {
-          this.log.debug(
-            // eslint-disable-next-line max-len
-            `**Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} topic: ${this.mqttPublishQueue[0].topic} message: ${this.mqttPublishQueue[0].message}${rs}`,
-          );
-          //this.publish(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message);
+          this.log.debug(`**Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} topic: ${this.mqttPublishQueue[0].topic} message: ${this.mqttPublishQueue[0].message}${rs}`);
+          // this.publish(this.mqttPublishQueue[0].topic, this.mqttPublishQueue[0].message);
 
           try {
             this.mqttPublishInflights++;
@@ -484,10 +479,7 @@ export class Zigbee2MQTT extends EventEmitter {
             this.mqttPublishInflights--;
           } catch (error) {
             this.mqttPublishInflights--;
-            this.log.error(
-              // eslint-disable-next-line max-len
-              `****Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`,
-            );
+            this.log.error(`****Publish ${REVERSE}[${this.mqttPublishQueue.length}-${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message} inflights: ${this.mqttPublishInflights}`);
           }
 
           this.mqttPublishQueue.splice(0, 1);
@@ -584,7 +576,7 @@ export class Zigbee2MQTT extends EventEmitter {
       } else {
         data = { state: payloadString };
       }
-      //this.log.debug('classZigbee2MQTT=>Message bridge/state', data);
+      // this.log.debug('classZigbee2MQTT=>Message bridge/state', data);
       if (data.state === 'online') {
         this.z2mIsOnline = true;
         this.emit('online');
@@ -595,7 +587,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`Message bridge/state online => ${this.z2mIsOnline}`);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/info')) {
       const data = this.tryJsonParse(payload.toString());
-      //this.log.debug('classZigbee2MQTT=>Message bridge/info', data);
+      // this.log.debug('classZigbee2MQTT=>Message bridge/info', data);
       this.z2mPermitJoin = data.permit_join ? data.permit_join : false;
       this.z2mPermitJoinTimeout = data.permit_join_timeout ? data.permit_join_timeout : 0;
       this.z2mVersion = data.version ? data.version : '';
@@ -697,14 +689,14 @@ export class Zigbee2MQTT extends EventEmitter {
               endpoint: key,
             };
             z2m.endpoints.push(endpointWithKey);
-            //this.log.debug('classZigbee2MQTT=>Message bridge/devices endpoints=>', device.friendly_name, key, endpoint);
+            // this.log.debug('classZigbee2MQTT=>Message bridge/devices endpoints=>', device.friendly_name, key, endpoint);
           }
           this.z2mDevices.push(z2m);
         }
       }
       this.log.debug(`Received ${this.z2mDevices.length} devices`);
       this.emit('devices');
-      //this.printDevices();
+      // this.printDevices();
     } else if (topic.startsWith(this.mqttTopic + '/bridge/groups')) {
       this.z2mGroups.splice(0, this.z2mGroups.length);
       const groups: Group[] = this.tryJsonParse(payload.toString());
@@ -734,7 +726,7 @@ export class Zigbee2MQTT extends EventEmitter {
       }
       this.log.debug(`Received ${this.z2mGroups.length} groups`);
       this.emit('groups');
-      //this.printGroups();
+      // this.printGroups();
     } else if (topic.startsWith(this.mqttTopic + '/bridge/extensions')) {
       const extensions = this.tryJsonParse(payload.toString()) as BridgeExtension[];
       for (const extension of extensions) {
@@ -801,9 +793,8 @@ export class Zigbee2MQTT extends EventEmitter {
       }
       */
     } else if (topic.startsWith(this.mqttTopic + '/bridge/logging')) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      //const data = JSON.parse(payload.toString());
-      //this.log.debug('classZigbee2MQTT=>Message bridge/logging', data);
+      // const data = JSON.parse(payload.toString());
+      // this.log.debug('classZigbee2MQTT=>Message bridge/logging', data);
     } else {
       let entity = topic.replace(this.mqttTopic + '/', '');
       let service = '';
@@ -858,7 +849,7 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   private handleDeviceMessage(deviceIndex: number, entity: string, service: string, payload: Buffer) {
-    //this.log.debug(`classZigbee2MQTT=>handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
+    // this.log.debug(`classZigbee2MQTT=>handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
     if (payload.length === 0 || payload === null) {
       this.log.warn(`handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
@@ -883,18 +874,18 @@ export class Zigbee2MQTT extends EventEmitter {
       }
     } else if (service === 'get') {
       // Do nothing
-      //this.log.warn(`handleDeviceMessage entity ${dn}${entity}${wr} service ${service} payload ${pl}${payload}${rs}`);
+      // this.log.warn(`handleDeviceMessage entity ${dn}${entity}${wr} service ${service} payload ${pl}${payload}${rs}`);
     } else if (service === 'set') {
       // Do nothing
-      //this.log.warn(`handleDeviceMessage entity ${dn}${entity}${wr} service ${service} payload ${pl}${payload}${rs}`);
+      // this.log.warn(`handleDeviceMessage entity ${dn}${entity}${wr} service ${service} payload ${pl}${payload}${rs}`);
     } else {
-      //this.log.debug(`classZigbee2MQTT=>emitting message for device ${dn}${entity}${rs} payload ${pl}${payload}${rs}`);
+      // this.log.debug(`classZigbee2MQTT=>emitting message for device ${dn}${entity}${rs} payload ${pl}${payload}${rs}`);
       this.emit('MESSAGE-' + entity, data);
     }
   }
 
   private handleGroupMessage(groupIndex: number, entity: string, service: string, payload: Buffer) {
-    //this.log.debug(`classZigbee2MQTT=>handleGroupMessage ${id}#${groupIndex+1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
+    // this.log.debug(`classZigbee2MQTT=>handleGroupMessage ${id}#${groupIndex+1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
     if (payload.length === 0 || payload === null) {
       this.log.warn(`handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
@@ -921,7 +912,7 @@ export class Zigbee2MQTT extends EventEmitter {
     } else if (service === 'set') {
       // Do nothing
     } else {
-      //this.log.debug(`classZigbee2MQTT=>emitting message for group ${gn}${entity}${rs} payload ${pl}${payload}${rs}`);
+      // this.log.debug(`classZigbee2MQTT=>emitting message for group ${gn}${entity}${rs} payload ${pl}${payload}${rs}`);
       this.emit('MESSAGE-' + entity, data);
     }
   }
@@ -1013,21 +1004,20 @@ export class Zigbee2MQTT extends EventEmitter {
       topology.nodes.sort((a, b) => a.friendlyName.localeCompare(b.friendlyName));
       topology.nodes.forEach((node, index) => {
         this.log.debug(
-          // eslint-disable-next-line max-len
           `Node [${index.toString().padStart(3, ' ')}] ${node.type === 'EndDevice' ? ign : node.type === 'Router' ? idn : '\x1b[48;5;1m\x1b[38;5;255m'}${node.friendlyName}${rs}${db} addr: ${node.ieeeAddr}-0x${node.networkAddress.toString(16)} type: ${node.type} lastseen: ${timePassedSince(node.lastSeen)}`,
         );
         // SourceAddr
         const sourceLinks = topology.links.filter((link) => link.sourceIeeeAddr === node.ieeeAddr); // Filter
         sourceLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         sourceLinks.forEach((link, index) => {
-          //const targetNode = topology.nodes.find((node) => node.ieeeAddr === link.target.ieeeAddr);
+          // const targetNode = topology.nodes.find((node) => node.ieeeAddr === link.target.ieeeAddr);
           this.log.debug(`  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} > > > ${friendlyName(link.target.ieeeAddr)}`);
         });
         // TargetAddr
         const targetLinks = topology.links.filter((link) => link.targetIeeeAddr === node.ieeeAddr); // Filter
         targetLinks.sort((a, b) => a.lqi - b.lqi); // Sort by lqi
         targetLinks.forEach((link, index) => {
-          //const sourceNode = topology.nodes.find((node) => node.ieeeAddr === link.source.ieeeAddr);
+          // const sourceNode = topology.nodes.find((node) => node.ieeeAddr === link.source.ieeeAddr);
           this.log.debug(`  link [${index.toString().padStart(4, ' ')}] lqi: ${lqi(link.lqi)} depth: ${depth(link.depth)} relation: ${relationship(link.relationship)} < < < ${friendlyName(link.source.ieeeAddr)}`);
         });
       });
@@ -1371,7 +1361,6 @@ export class Zigbee2MQTT extends EventEmitter {
           this.log.debug(`----Clusters output: ${output}`);
         });
         endpoint.configured_reportings.forEach((reporting) => {
-          // eslint-disable-next-line max-len
           this.log.debug(`----Reportings: ${reporting.attribute} ${reporting.cluster} ${reporting.minimum_report_interval} ${reporting.maximum_report_interval}  ${reporting.reportable_change}`);
         });
         endpoint.scenes.forEach((scene) => {

@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - [dependencies]: Update dependencies
-- [matterbridge]: Added bridgeOnline to the start checks. 
+- [matterbridge]: Added bridgeOnline to the start checks.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
@@ -18,7 +18,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - [dependencies]: Update dependencies
-- [matterbridge]: Adapted the code to the new start mode of Matterbridge. 
+- [matterbridge]: Adapted the code to the new start mode of Matterbridge.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
@@ -28,7 +28,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- [mqtt]: Added Keekalive to MQTT. 
+- [mqtt]: Added Keekalive to MQTT.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
@@ -38,9 +38,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- [groups]: Added ColorControl. 
+- [groups]: Added ColorControl.
 
-### Fixed 
+### Fixed
 
 - [payload]: Fixed the case when z2m sends empty action in the payload.
 
@@ -52,7 +52,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- [action]: Added support for devices with more then 3 events/actions. All SwitchCluster actions are mapped in groups of 3 on sub endpoints. The mapping schema is shown in log. 
+- [action]: Added support for devices with more then 3 events/actions. All SwitchCluster actions are mapped in groups of 3 on sub endpoints. The mapping schema is shown in log.
 - [mqtt]: Added handles for group_add, group_remove, group_rename, group_add_member and group_remove_member
 
 <a href="https://www.buymeacoffee.com/luligugithub">
@@ -82,7 +82,7 @@ All notable changes to this project will be documented in this file.
 ## [2.0.9] - 2024-04-19
 
 ### Added
- 
+
 - [extension]: Implementation of zigbee2MQTT internal extension.
 
 ## [2.0.8] - 2024-04-16
@@ -96,6 +96,7 @@ All notable changes to this project will be documented in this file.
 ## [2.0.7] - 2024-04-11
 
 ### Added
+
 - [config.featureBlackList] z2m features with name in the list will be ignored (e.g. device_temperature) (https://github.com/nitaybz).
 - [config.switchList] Device with friendly name in the list will be exposed like switch.
 - [config.lightList] Device with friendly name in the list will be exposed like light.
@@ -108,15 +109,18 @@ All notable changes to this project will be documented in this file.
 ## [2.0.6] - 2024-04-09
 
 ### Added
+
 - [electrical] Added support for voltage current power energy (right now they show up only in Home Assistant)
 - [multiendpoint]: Added the support for electrical measurements and temperature (thanks https://github.com/khaidakin).
 
 ### Changed
+
 - [discovery]: Refactored the zigbee2mqtt discovery: now multi endpoints devices (mostly DIY devices) are supported.
 
 ## [2.0.5] - 2024-04-01
 
 ### Added
+
 - [Coordinator and routers]: Coordinator and TexasInstruments pure routers are exposed like DoorLock. They change state when permitJoin is changed and turn on or off the permitJoin when they are opened or closed from the controller.
 - [thermostat]: Added the Thermostat cluster (thanks https://github.com/khaidakin).
 - [multiendpoint]: Added the support for OnOff cluster with child enpoints (thanks https://github.com/khaidakin).
