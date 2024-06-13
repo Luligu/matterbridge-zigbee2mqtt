@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- [LevelControl]: Fixed the issue that caused th LevelControl missing in child endpoint (Thanks jpadie).
+- [LevelControl]: Fixed the issue that caused LevelControl missing in child endpoint (Thanks jpadie).
 
 ### Added
 
