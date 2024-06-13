@@ -973,12 +973,6 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     }
     if (includeServerList.includes(Switch.Cluster.id) && !this.hasClusterServer(Switch.Complete)) {
       this.createDefaultSwitchClusterServer();
-      /*
-      this.addFixedLabel('room', 'Bedroom');
-      this.addFixedLabel('floor', '2');
-      this.addFixedLabel('orientation', 'North');
-      this.addFixedLabel('direction', 'up');
-      */
     }
     if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Complete)) {
       this.createDefaultElectricalMeasurementClusterServer();
@@ -1075,12 +1069,6 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       if (!deviceType) includeServerList.push(Groups.Cluster.id);
       if (!deviceType) includeServerList.push(OnOff.Cluster.id);
       child.addFixedLabel('endpointName', endpointName);
-      /*
-      child.addFixedLabel('label', endpointName);
-      child.addUserLabel('label', endpointName);
-      child.addFixedLabel('name', endpointName);
-      child.addUserLabel('name', endpointName);
-      */
       this.addChildEndpoint(child);
     }
 
@@ -1099,6 +1087,12 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     }
     if (includeServerList.includes(OnOff.Cluster.id)) {
       child.addClusterServer(this.getDefaultOnOffClusterServer());
+    }
+    if (includeServerList.includes(LevelControl.Cluster.id)) {
+      child.addClusterServer(this.getDefaultLevelControlClusterServer());
+    }
+    if (includeServerList.includes(ColorControl.Cluster.id)) {
+      child.addClusterServer(this.getDefaultColorControlClusterServer());
     }
     if (includeServerList.includes(Switch.Cluster.id)) {
       child.addClusterServer(this.getDefaultSwitchClusterServer());
