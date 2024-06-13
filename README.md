@@ -228,15 +228,17 @@ If one of your devices is not supported out of the box, open an issue and we wil
 
 For general controller issues check the Matterbridge Known issues section
 
-[See the known issues here](https://github.com/Luligu/matterbridge/blob/dev/README.md#known-issues)
+[See the known issues here](https://github.com/Luligu/matterbridge?tab=readme-ov-file#known-issues)
 
-## Apple Home issues
+## Apple Home
 
-## Home Assistant issues (Matter Server for HA is still in Beta)
+## Home Assistant (Matter Server is still in Beta)
 
 ## Google Home
 
 ## Alexa
+
+In the plugin config add each switch device to the lightList or outletList cause they don't show up like switch (Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize).
 
 ## SmartThings
 

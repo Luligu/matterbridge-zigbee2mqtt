@@ -918,7 +918,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     }
 
     // Add PowerSource cluster
-    this.createDefaultPowerSourceConfigurationClusterServer();
+    this.createDefaultPowerSourceConfigurationClusterServer(); // TODO remove this cause is deprecated in Matter 1.3
     if (entity.isDevice) {
       if (entity.device?.power_source === 'Battery') this.createDefaultPowerSourceReplaceableBatteryClusterServer(100, PowerSource.BatChargeLevel.Ok);
       else this.createDefaultPowerSourceWiredClusterServer();
@@ -949,6 +949,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
    * @param includeServerList List of clusters to include
    */
   // attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> }
+  // TODO use the base method from MatterbridgeDevice
   protected addDeviceClusterServer(includeServerList: ClusterId[] = []) {
     if (includeServerList.includes(Identify.Cluster.id) && !this.hasClusterServer(Identify.Complete)) {
       this.createDefaultIdentifyClusterServer();
@@ -1044,7 +1045,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
   public addChildDeviceTypeAndClusterServer(endpointName: string, deviceType: DeviceTypeDefinition | undefined, includeServerList: ClusterId[]) {
     this.hasEndpoints = true;
 
-    /* Look for existing child endpoint */
+    // Look for existing child endpoint
     let child: Endpoint | undefined = undefined;
     const childEndpoints = this.getChildEndpoints();
     childEndpoints.forEach((childEndpoint) => {
@@ -1060,7 +1061,8 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
         }
       }
     });
-    /* Not found? Create a new one */
+
+    // Not found? Create a new one
     if (!child) {
       this.log.debug(`addChildDeviceTypeAndClusterServer: Child endpoint created: ${zb}${endpointName}${db}`);
       child = new Endpoint([deviceType ?? DeviceTypes.ON_OFF_PLUGIN_UNIT]);
