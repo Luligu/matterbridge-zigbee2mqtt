@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.17] - 2024-06-13
+
+### Fixed
+
+- [LevelControl]: Fixed the issue that caused th LevelControl missing in child endpoint (Thanks jpadie).
+
+### Added
+
+- [dependencies]: Update dependencies
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.0.16] - 2024-06-06
 
 ### Added
