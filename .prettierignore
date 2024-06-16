@@ -1,2 +1,10 @@
-node_modules
+# Ignore artifacts:
 dist
+node_modules
+build
+coverage
+frontend
+
+# Ignore all HTML files:
+**/*.html
+

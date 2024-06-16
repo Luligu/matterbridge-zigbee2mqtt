@@ -4,7 +4,7 @@
  * @file payloadTypes.ts
  * @author Luca Liguori
  * @date 2023-12-29
- * @version 1.0.0
+ * @version 1.0.1
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -23,6 +23,4 @@
 
 export type PayloadValue = string | number | boolean | bigint | object | undefined;
 
-export type Payload = {
-  [key: string]: PayloadValue; // This allows any string as a key, and the value can be PayloadValue.
-};
+export type Payload = Record<string, PayloadValue>;

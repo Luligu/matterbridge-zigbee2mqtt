@@ -4,7 +4,7 @@
  * @file platform.ts
  * @author Luca Liguori
  * @date 2023-12-29
- * @version 2.0.3
+ * @version 2.0.4
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -30,9 +30,7 @@ import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
 import path from 'path';
 
-type DeviceFeatureBlackList = {
-  [key: string]: string[];
-};
+type DeviceFeatureBlackList = Record<string, string[]>;
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // extension
@@ -382,7 +380,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onShutdown(reason?: string) {
     this.log.debug('Shutting down zigbee2mqtt platform: ' + reason);
     if (this.injectTimer) clearInterval(this.injectTimer);
-    //this.updateAvailability(false);
+    // this.updateAvailability(false);
     if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
     this.z2m.stop();
     this.publishCallBack = undefined;
