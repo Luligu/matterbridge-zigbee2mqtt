@@ -2,7 +2,7 @@
 /*
 
 How to install:
-  npm install --save-dev jest ts-jest @types/jest
+  npm install --save-dev jest ts-jest @types/jest eslint-plugin-jest
 
 Add package.json scripts:
   "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",

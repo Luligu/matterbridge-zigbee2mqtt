@@ -151,10 +151,3 @@ __test__
 # prettier
 .prettierignore
 .prettierrc.json
-
-Screenshot*.jpg
-Screenshot*.png
-yellow-button.png
-screenshot
-
-TODO.md

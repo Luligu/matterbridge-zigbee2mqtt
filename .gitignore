@@ -5,6 +5,9 @@ node_modules/
 dist/
 tsconfig.tsbuildinfo
 
+# Coverage
+coverage/
+
 # VSC
 .vscode
 
