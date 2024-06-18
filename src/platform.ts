@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Level, Logger, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig, waiter } from 'matterbridge';
+import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig, waiter } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
@@ -319,7 +319,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.debug('Setting flag to start when zigbee2mqtt sends devices: ', reason);
     }
 
-    if (this.debugEnabled) Logger.defaultLogLevel = Level.INFO;
+    // if (this.debugEnabled) Logger.defaultLogLevel = Level.INFO;
 
     if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
       for (const device of this.z2mBridgeDevices) {
@@ -335,7 +335,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.z2mGroupsRegistered = true;
     }
 
-    if (this.debugEnabled) Logger.defaultLogLevel = Level.DEBUG;
+    // if (this.debugEnabled) Logger.defaultLogLevel = Level.DEBUG;
   }
 
   override async onConfigure() {

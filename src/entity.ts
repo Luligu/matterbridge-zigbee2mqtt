@@ -4,7 +4,7 @@
  * @file entity.ts
  * @author Luca Liguori
  * @date 2023-12-29
- * @version 2.0.4
+ * @version 2.1.0
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -261,43 +261,6 @@ export class ZigbeeEntity extends EventEmitter {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round((hsl.s / 100) * 254));
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
         }
-        /* Switch */
-        /*
-        if (key === 'action') {
-          let position = undefined;
-          if (value === 'single') {
-            position = 1;
-            const cluster = this.bridgedDevice.getClusterServer(SwitchCluster.with(Switch.Feature.MomentarySwitch, Switch.Feature.MomentarySwitchRelease, Switch.Feature.MomentarySwitchLongPress, Switch.Feature.MomentarySwitchMultiPress));
-            cluster?.setCurrentPositionAttribute(1);
-            cluster?.triggerInitialPressEvent({ newPosition: 1 });
-            cluster?.setCurrentPositionAttribute(0);
-            cluster?.triggerShortReleaseEvent({ previousPosition: 1 });
-            cluster?.setCurrentPositionAttribute(0);
-            cluster?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 1 });
-            this.log.info(`Trigger 'single' event for ${this.ien}${this.entityName}${rs}`);
-          }
-          if (value === 'double') {
-            position = 2;
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 2 });
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
-            this.log.info(`Trigger 'double' event for ${this.ien}${this.entityName}${rs}`);
-          }
-          if (value === 'hold') {
-            position = 1;
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerInitialPressEvent({ newPosition: 1 });
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongPressEvent({ newPosition: 1 });
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.triggerLongReleaseEvent({ previousPosition: 1 });
-            this.bridgedDevice.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
-            this.log.info(`Trigger 'hold' event for ${this.ien}${this.entityName}${rs}`);
-          }
-          if (value === 'release') {
-            // this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
-          }
-          
-        }
-        */
       });
       this.log.setLogDebug(debugEnabled);
     });
