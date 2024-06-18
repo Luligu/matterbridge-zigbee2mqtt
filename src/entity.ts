@@ -731,6 +731,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     });
     if (this.bridgedDevice.hasClusterServer(OnOff.Complete) || this.bridgedDevice.hasEndpoints) {
       this.bridgedDevice.addCommandHandler('on', async (data) => {
+        if (!data.endpoint.number) return;
         this.log.debug(`Command on called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
@@ -738,6 +739,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.publishCommand('on', device.friendly_name, payload);
       });
       this.bridgedDevice.addCommandHandler('off', async (data) => {
+        if (!data.endpoint.number) return;
         this.log.debug(`Command off called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
@@ -745,6 +747,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.publishCommand('off', device.friendly_name, payload);
       });
       this.bridgedDevice.addCommandHandler('toggle', async (data) => {
+        if (!data.endpoint.number) return;
         this.log.debug(`Command toggle called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
@@ -754,20 +757,20 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
     if (this.bridgedDevice.hasClusterServer(LevelControl.Complete) || this.bridgedDevice.hasEndpoints) {
       this.bridgedDevice.addCommandHandler('moveToLevel', async ({ request: { level, transitionTime }, attributes: { currentLevel }, endpoint: { number } }) => {
+        if (!number) return;
         this.log.debug(`Command moveToLevel called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(number);
         label === undefined ? (payload['brightness'] = level) : (payload['brightness_' + label] = level);
-        // transitionTime = 100;
         if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
         this.publishCommand('moveToLevel', device.friendly_name, payload);
       });
       this.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level, transitionTime }, attributes: { currentLevel }, endpoint: { number } }) => {
+        if (!number) return;
         this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(number);
         label === undefined ? (payload['brightness'] = level) : (payload['brightness_' + label] = level);
-        // transitionTime = 100;
         if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
         this.publishCommand('moveToLevelWithOnOff', device.friendly_name, payload);
       });
@@ -916,9 +919,10 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
   constructor(entity: ZigbeeEntity, definition: AtLeastOne<DeviceTypeDefinition>, includeServerList: ClusterId[] = [], includeClientList?: ClusterId[]) {
     super(definition[0]);
     this.log = entity.log;
+    this.log.debug(`new BridgedBaseDevice ${entity.isDevice ? entity.device?.friendly_name : entity.group?.friendly_name}${db}`);
     definition.forEach((deviceType) => {
       this.addDeviceType(deviceType);
-      this.log.debug(`new BridgedBaseDevice ${entity.isDevice ? entity.device?.friendly_name : entity.group?.friendly_name} deviceType: ${hk}${deviceType.name}${db}`);
+      this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
     });
 
     // Log all server clusters in the includelist
