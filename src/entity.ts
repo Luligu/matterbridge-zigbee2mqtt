@@ -31,8 +31,6 @@ import {
   dimmableSwitch,
   onOffSwitch,
   Identify,
-  Groups,
-  Scenes,
   OnOff,
   LevelControl,
   ColorControl,
@@ -52,17 +50,13 @@ import {
   BridgedDeviceBasicInformation,
   ThermostatCluster,
   Thermostat,
-  TimeSync,
   Endpoint,
   AtLeastOne,
   FixedLabelCluster,
   SwitchCluster,
-  ElectricalMeasurement,
   EveHistory,
   getClusterNameById,
-  FlowMeasurement,
   DoorLockCluster,
-  logEndpoint,
   AttributeInitialValues,
   powerSource,
 } from 'matterbridge';
@@ -518,7 +512,7 @@ export interface ZigbeeToMatter {
   type: string;
   name: string;
   property: string;
-  deviceType: DeviceTypeDefinition | undefined;
+  deviceType: DeviceTypeDefinition;
   cluster: number;
   attribute: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -672,12 +666,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if (z2m) {
         this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
         if (endpoint === '') {
-          if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [z2m.deviceType ?? DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO], z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
-          else this.bridgedDevice.addDeviceTypeAndClusterServer(z2m.deviceType, z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
+          if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
+          else this.bridgedDevice.addDeviceTypeAndClusterServer(z2m.deviceType, [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           if (type !== '') this.bridgedDevice.addFixedLabel('type', type);
         } else {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO]);
-          const childEndpoint = this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoint, z2m.deviceType, z2m.deviceType ? [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] : [ClusterId(z2m.cluster)]);
+          const childEndpoint = this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoint, z2m.deviceType, [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           if (type !== '') childEndpoint.addFixedLabel('type', type);
           this.bridgedDevice.addFixedLabel('composed', type);
         }
@@ -712,8 +706,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     });
     this.log.setLogDebug(debugEnabled);
 
-    /* Verify that all required server clusters are present */
-    // TODO: check also endpoints
+    /* Verify that all required server clusters are present in the main endpoint and in the child endpoints */
     if (this.bridgedDevice) {
       const deviceTypes = this.bridgedDevice.getDeviceTypes();
       deviceTypes.forEach((deviceType) => {
@@ -723,6 +716,21 @@ export class ZigbeeDevice extends ZigbeeEntity {
             this.log.error(`Device type ${deviceType.name} (0x${deviceType.code.toString(16)}) requires cluster server ${getClusterNameById(clusterId)}(0x${clusterId.toString(16)}) but it is not present on endpoint`);
             this.bridgedDevice = undefined;
           }
+        });
+      });
+    }
+    if (this.bridgedDevice) {
+      const childEndpoints = this.bridgedDevice.getChildEndpoints();
+      childEndpoints.forEach((childEndpoint) => {
+        const deviceTypes = childEndpoint.getDeviceTypes();
+        deviceTypes.forEach((deviceType) => {
+          deviceType.requiredServerClusters.forEach((clusterId) => {
+            if (!this.bridgedDevice) return;
+            if (!childEndpoint.getClusterServerById(clusterId)) {
+              this.log.error(`Device type ${deviceType.name} (0x${deviceType.code.toString(16)}) requires cluster server ${getClusterNameById(clusterId)}(0x${clusterId.toString(16)}) but it is not present on child endpoint`);
+              this.bridgedDevice = undefined;
+            }
+          });
         });
       });
     }
@@ -981,74 +989,6 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
   protected addDeviceClusterServer(includeServerList: ClusterId[] = [], attributeInitialValues?: Record<ClusterId, AttributeInitialValues<any>>) {
     this.addClusterServerFromList(this, includeServerList);
-    /*
-    if (includeServerList.includes(Identify.Cluster.id) && !this.hasClusterServer(Identify.Complete)) {
-      this.createDefaultIdentifyClusterServer();
-    }
-    if (includeServerList.includes(Groups.Cluster.id) && !this.hasClusterServer(Groups.Complete)) {
-      this.createDefaultGroupsClusterServer();
-    }
-    if (includeServerList.includes(Scenes.Cluster.id) && !this.hasClusterServer(Scenes.Complete)) {
-      this.createDefaultScenesClusterServer();
-    }
-    if (includeServerList.includes(OnOff.Cluster.id) && !this.hasClusterServer(OnOff.Complete)) {
-      this.createDefaultOnOffClusterServer();
-    }
-    if (includeServerList.includes(LevelControl.Cluster.id) && !this.hasClusterServer(LevelControl.Complete)) {
-      this.createDefaultLevelControlClusterServer();
-    }
-    if (includeServerList.includes(ColorControl.Cluster.id) && !this.hasClusterServer(ColorControl.Complete)) {
-      this.createDefaultColorControlClusterServer();
-    }
-    if (includeServerList.includes(WindowCovering.Cluster.id) && !this.hasClusterServer(WindowCovering.Complete)) {
-      this.createDefaultWindowCoveringClusterServer();
-    }
-    if (includeServerList.includes(Switch.Cluster.id) && !this.hasClusterServer(Switch.Complete)) {
-      this.createDefaultSwitchClusterServer();
-    }
-    if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Complete)) {
-      this.createDefaultElectricalMeasurementClusterServer();
-    }
-    if (includeServerList.includes(EveHistory.Cluster.id) && !this.hasClusterServer(EveHistory.Complete)) {
-      this.addClusterServer(this.getDefaultStaticEveHistoryClusterServer());
-    }
-    if (includeServerList.includes(TemperatureMeasurement.Cluster.id) && !this.hasClusterServer(TemperatureMeasurement.Complete)) {
-      this.createDefaultTemperatureMeasurementClusterServer();
-    }
-    if (includeServerList.includes(RelativeHumidityMeasurement.Cluster.id) && !this.hasClusterServer(RelativeHumidityMeasurement.Complete)) {
-      this.createDefaultRelativeHumidityMeasurementClusterServer();
-    }
-    if (includeServerList.includes(PressureMeasurement.Cluster.id) && !this.hasClusterServer(PressureMeasurement.Complete)) {
-      this.createDefaultPressureMeasurementClusterServer();
-    }
-    if (includeServerList.includes(FlowMeasurement.Cluster.id) && !this.hasClusterServer(FlowMeasurement.Complete)) {
-      this.createDefaultFlowMeasurementClusterServer();
-    }
-    if (includeServerList.includes(BooleanState.Cluster.id) && !this.hasClusterServer(BooleanState.Complete)) {
-      this.createDefaultBooleanStateClusterServer(true);
-    }
-    if (includeServerList.includes(OccupancySensing.Cluster.id) && !this.hasClusterServer(OccupancySensing.Complete)) {
-      this.createDefaultOccupancySensingClusterServer(false);
-    }
-    if (includeServerList.includes(IlluminanceMeasurement.Cluster.id) && !this.hasClusterServer(IlluminanceMeasurement.Complete)) {
-      this.createDefaultIlluminanceMeasurementClusterServer();
-    }
-    if (includeServerList.includes(AirQuality.Cluster.id) && !this.hasClusterServer(AirQuality.Complete)) {
-      this.createDefaultAirQualityClusterServer();
-    }
-    if (includeServerList.includes(TvocMeasurement.Cluster.id) && !this.hasClusterServer(TvocMeasurement.Complete)) {
-      this.createDefaultTvocMeasurementClusterServer();
-    }
-    if (includeServerList.includes(DoorLock.Cluster.id) && !this.hasClusterServer(DoorLock.Complete)) {
-      this.createDefaultDoorLockClusterServer();
-    }
-    if (includeServerList.includes(Thermostat.Cluster.id) && !this.hasClusterServer(Thermostat.Complete)) {
-      this.createDefaultThermostatClusterServer();
-    }
-    if (includeServerList.includes(TimeSync.Cluster.id) && !this.hasClusterServer(TimeSync.Complete)) {
-      this.createDefaultTimeSyncClusterServer();
-    }
-    */
   }
 
   /**
@@ -1063,13 +1003,11 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     /* Not implemented since not supported by matter.js */
   }
 
-  public addDeviceTypeAndClusterServer(deviceType: DeviceTypeDefinition | undefined, serverList: ClusterId[]) {
+  public addDeviceTypeAndClusterServer(deviceType: DeviceTypeDefinition, serverList: ClusterId[]) {
     this.log.debug(`addDeviceTypeAndClusterServer`);
-    if (deviceType) {
-      // Log and add all device type definitions
-      this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
-      this.addDeviceType(deviceType);
-    }
+    // Log and add all device type definitions
+    this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
+    this.addDeviceType(deviceType);
     // Log and add all server clusters in the serverList
     serverList.forEach((clusterId) => {
       this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
@@ -1077,7 +1015,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     this.addDeviceClusterServer(serverList);
   }
 
-  public addChildDeviceTypeAndClusterServer(endpointName: string, deviceType: DeviceTypeDefinition | undefined, includeServerList: ClusterId[]) {
+  public addChildDeviceTypeAndClusterServer(endpointName: string, deviceType: DeviceTypeDefinition, includeServerList: ClusterId[]) {
     this.hasEndpoints = true;
 
     // Look for existing child endpoint
@@ -1100,19 +1038,16 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     // Not found? Create a new one
     if (!child) {
       this.log.debug(`addChildDeviceTypeAndClusterServer: Child endpoint created: ${zb}${endpointName}${db}`);
-      child = new Endpoint([deviceType ?? DeviceTypes.ON_OFF_PLUGIN_UNIT], { uniqueStorageKey: endpointName });
-      if (!deviceType) includeServerList.push(Identify.Cluster.id);
-      if (!deviceType) includeServerList.push(Scenes.Cluster.id);
-      if (!deviceType) includeServerList.push(Groups.Cluster.id);
-      if (!deviceType) includeServerList.push(OnOff.Cluster.id);
+      this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
+      child = new Endpoint([deviceType], { uniqueStorageKey: endpointName });
       child.addFixedLabel('endpointName', endpointName);
       this.addChildEndpoint(child);
     }
 
-    // Log and add device type to the child endpoint if it is new
+    // Log and add device type to the child endpoint
     const deviceTypes = child.getDeviceTypes();
-    if (deviceType && !deviceTypes.includes(deviceType)) {
-      this.log.debug(`addDeviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
+    if (!deviceTypes.includes(deviceType)) {
+      this.log.debug(`addChildDeviceTypeAndClusterServer: addDeviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
       deviceTypes.push(deviceType);
       child.setDeviceTypes(deviceTypes);
     }
@@ -1122,56 +1057,6 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     });
     this.addClusterServerFromList(child, includeServerList);
 
-    /*
-    if (includeServerList.includes(Identify.Cluster.id)) {
-      child.addClusterServer(this.getDefaultIdentifyClusterServer());
-    }
-    if (includeServerList.includes(Groups.Cluster.id)) {
-      child.addClusterServer(this.getDefaultGroupsClusterServer());
-    }
-    if (includeServerList.includes(Scenes.Cluster.id)) {
-      child.addClusterServer(this.getDefaultScenesClusterServer());
-    }
-    if (includeServerList.includes(OnOff.Cluster.id)) {
-      child.addClusterServer(this.getDefaultOnOffClusterServer());
-    }
-    if (includeServerList.includes(LevelControl.Cluster.id)) {
-      child.addClusterServer(this.getDefaultLevelControlClusterServer());
-    }
-    if (includeServerList.includes(ColorControl.Cluster.id)) {
-      child.addClusterServer(this.getDefaultColorControlClusterServer());
-    }
-    if (includeServerList.includes(Switch.Cluster.id)) {
-      child.addClusterServer(this.getDefaultSwitchClusterServer());
-    }
-    if (includeServerList.includes(TemperatureMeasurement.Cluster.id)) {
-      child.addClusterServer(this.getDefaultTemperatureMeasurementClusterServer());
-    }
-    if (includeServerList.includes(RelativeHumidityMeasurement.Cluster.id)) {
-      child.addClusterServer(this.getDefaultRelativeHumidityMeasurementClusterServer());
-    }
-    if (includeServerList.includes(PressureMeasurement.Cluster.id)) {
-      child.addClusterServer(this.getDefaultPressureMeasurementClusterServer());
-    }
-    if (includeServerList.includes(FlowMeasurement.Cluster.id)) {
-      child.addClusterServer(this.getDefaultFlowMeasurementClusterServer());
-    }
-    if (includeServerList.includes(BooleanState.Cluster.id)) {
-      child.addClusterServer(this.getDefaultBooleanStateClusterServer());
-    }
-    if (includeServerList.includes(OccupancySensing.Cluster.id)) {
-      child.addClusterServer(this.getDefaultOccupancySensingClusterServer());
-    }
-    if (includeServerList.includes(IlluminanceMeasurement.Cluster.id)) {
-      child.addClusterServer(this.getDefaultIlluminanceMeasurementClusterServer());
-    }
-    if (includeServerList.includes(EveHistory.Cluster.id) && !this.hasClusterServer(EveHistory.Complete)) {
-      child.addClusterServer(this.getDefaultStaticEveHistoryClusterServer());
-    }
-    if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Complete)) {
-      child.addClusterServer(this.getDefaultElectricalMeasurementClusterServer());
-    }
-    */
     return child;
   }
 
