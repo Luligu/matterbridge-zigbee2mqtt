@@ -62,6 +62,9 @@ import {
   getClusterNameById,
   FlowMeasurement,
   DoorLockCluster,
+  logEndpoint,
+  AttributeInitialValues,
+  powerSource,
 } from 'matterbridge';
 
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'node-ansi-logger';
@@ -561,13 +564,13 @@ export const z2ms: ZigbeeToMatter[] = [
   //{ type: '',       name: 'action',         property: 'action',     deviceType: DeviceTypes.GENERIC_SWITCH, cluster: Switch.Cluster.id,       attribute: 'currentPosition' },
   { type: '',       name: 'cpu_temperature', property: 'temperature', deviceType: DeviceTypes.TEMPERATURE_SENSOR, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) }},
   { type: '',       name: 'device_temperature', property: 'device_temperature', deviceType: DeviceTypes.TEMPERATURE_SENSOR, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
-  { type: '',       name: '',               property: 'battery',    deviceType: undefined,                  cluster: PowerSource.Cluster.id,  attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
-  { type: '',       name: '',               property: 'battery_low', deviceType: undefined,                 cluster: PowerSource.Cluster.id,  attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
-  { type: '',       name: '',               property: 'battery_voltage', deviceType: undefined,             cluster: PowerSource.Cluster.id,  attribute: 'batVoltage', converter: (value) => { return value } },
-  { type: '',       name: 'energy',         property: 'energy',     deviceType: undefined,                  cluster: EveHistory.Cluster.id,   attribute: 'TotalConsumption', converter: (value) => { return value } },
-  { type: '',       name: 'power',          property: 'power',      deviceType: undefined,                  cluster: EveHistory.Cluster.id,   attribute: 'Consumption', converter: (value) => { return value } },
-  { type: '',       name: 'voltage',        property: 'voltage',    deviceType: undefined,                  cluster: EveHistory.Cluster.id,   attribute: 'Voltage', converter: (value) => { return value } },
-  { type: '',       name: 'current',        property: 'current',    deviceType: undefined,                  cluster: EveHistory.Cluster.id,   attribute: 'Current', converter: (value) => { return value } },
+  { type: '',       name: '',               property: 'battery',    deviceType: powerSource,                cluster: PowerSource.Cluster.id,  attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
+  { type: '',       name: '',               property: 'battery_low', deviceType: powerSource,               cluster: PowerSource.Cluster.id,  attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
+  { type: '',       name: '',               property: 'battery_voltage', deviceType: powerSource,           cluster: PowerSource.Cluster.id,  attribute: 'batVoltage', converter: (value) => { return value } },
+  { type: '',       name: 'energy',         property: 'energy',     deviceType: powerSource,                cluster: EveHistory.Cluster.id,   attribute: 'TotalConsumption', converter: (value) => { return value } },
+  { type: '',       name: 'power',          property: 'power',      deviceType: powerSource,                cluster: EveHistory.Cluster.id,   attribute: 'Consumption', converter: (value) => { return value } },
+  { type: '',       name: 'voltage',        property: 'voltage',    deviceType: powerSource,                cluster: EveHistory.Cluster.id,   attribute: 'Voltage', converter: (value) => { return value } },
+  { type: '',       name: 'current',        property: 'current',    deviceType: powerSource,                cluster: EveHistory.Cluster.id,   attribute: 'Current', converter: (value) => { return value } },
   //{ type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: 'lockState' },
 ];
 /* eslint-enable */
@@ -715,7 +718,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const deviceTypes = this.bridgedDevice.getDeviceTypes();
       deviceTypes.forEach((deviceType) => {
         deviceType.requiredServerClusters.forEach((clusterId) => {
-          if (!this.bridgedDevice?.getClusterServerById(clusterId)) {
+          if (!this.bridgedDevice) return;
+          if (!this.bridgedDevice.getClusterServerById(clusterId)) {
             this.log.error(`Device type ${deviceType.name} (0x${deviceType.code.toString(16)}) requires cluster server ${getClusterNameById(clusterId)}(0x${clusterId.toString(16)}) but it is not present on endpoint`);
             this.bridgedDevice = undefined;
           }
@@ -920,16 +924,15 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     super(definition[0]);
     this.log = entity.log;
     this.log.debug(`new BridgedBaseDevice ${entity.isDevice ? entity.device?.friendly_name : entity.group?.friendly_name}${db}`);
+    // Log and add all device type definitions
     definition.forEach((deviceType) => {
       this.addDeviceType(deviceType);
       this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
     });
-
-    // Log all server clusters in the includelist
+    // Log and add all server clusters in the includelist
     includeServerList.forEach((clusterId) => {
       this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
     });
-    // Add all server clusters in the includelist
     this.addDeviceClusterServer(includeServerList);
 
     // Add BridgedDevice with PowerSourceInformation device type
@@ -972,12 +975,13 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
    * Adds mandatory clusters to the device
    *
    * @protected
-   * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
    * @param includeServerList List of clusters to include
+   * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
    */
-  // attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> }
-  // TODO use the base method from MatterbridgeDevice
-  protected addDeviceClusterServer(includeServerList: ClusterId[] = []) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+  protected addDeviceClusterServer(includeServerList: ClusterId[] = [], attributeInitialValues?: Record<ClusterId, AttributeInitialValues<any>>) {
+    this.addClusterServerFromList(this, includeServerList);
+    /*
     if (includeServerList.includes(Identify.Cluster.id) && !this.hasClusterServer(Identify.Complete)) {
       this.createDefaultIdentifyClusterServer();
     }
@@ -1044,25 +1048,29 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     if (includeServerList.includes(TimeSync.Cluster.id) && !this.hasClusterServer(TimeSync.Complete)) {
       this.createDefaultTimeSyncClusterServer();
     }
+    */
   }
 
   /**
    * Adds mandatory client clusters to the device
    *
    * @protected
-   * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
    * @param includeClientList List of clusters to include
+   * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
    */
-  // attributeInitialValues?: { [key: ClusterId]: AttributeInitialValues<any> },
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  protected addDeviceClusterClient(includeClientList: ClusterId[] = []) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  protected addDeviceClusterClient(includeClientList: ClusterId[] = [], attributeInitialValues?: Record<ClusterId, AttributeInitialValues<any>>) {
     /* Not implemented since not supported by matter.js */
   }
 
   public addDeviceTypeAndClusterServer(deviceType: DeviceTypeDefinition | undefined, serverList: ClusterId[]) {
-    this.log.debug(`addDeviceTypeAndClusterServer ${deviceType ? 'deviceType: ' + hk + deviceType.name + db : ''}`);
-    if (deviceType) this.addDeviceType(deviceType);
-    // Log all server clusters in the serverList
+    this.log.debug(`addDeviceTypeAndClusterServer`);
+    if (deviceType) {
+      // Log and add all device type definitions
+      this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
+      this.addDeviceType(deviceType);
+    }
+    // Log and add all server clusters in the serverList
     serverList.forEach((clusterId) => {
       this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
     });
@@ -1092,7 +1100,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     // Not found? Create a new one
     if (!child) {
       this.log.debug(`addChildDeviceTypeAndClusterServer: Child endpoint created: ${zb}${endpointName}${db}`);
-      child = new Endpoint([deviceType ?? DeviceTypes.ON_OFF_PLUGIN_UNIT]);
+      child = new Endpoint([deviceType ?? DeviceTypes.ON_OFF_PLUGIN_UNIT], { uniqueStorageKey: endpointName });
       if (!deviceType) includeServerList.push(Identify.Cluster.id);
       if (!deviceType) includeServerList.push(Scenes.Cluster.id);
       if (!deviceType) includeServerList.push(Groups.Cluster.id);
@@ -1101,18 +1109,20 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.addChildEndpoint(child);
     }
 
-    // Add device type to the child endpoint if is new
+    // Log and add device type to the child endpoint if it is new
     const deviceTypes = child.getDeviceTypes();
     if (deviceType && !deviceTypes.includes(deviceType)) {
       this.log.debug(`addDeviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
       deviceTypes.push(deviceType);
       child.setDeviceTypes(deviceTypes);
     }
-
+    // Log and add all server clusters in the includelist
     includeServerList.forEach((clusterId) => {
       this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
     });
+    this.addClusterServerFromList(child, includeServerList);
 
+    /*
     if (includeServerList.includes(Identify.Cluster.id)) {
       child.addClusterServer(this.getDefaultIdentifyClusterServer());
     }
@@ -1161,6 +1171,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     if (includeServerList.includes(ElectricalMeasurement.Cluster.id) && !this.hasClusterServer(ElectricalMeasurement.Complete)) {
       child.addClusterServer(this.getDefaultElectricalMeasurementClusterServer());
     }
+    */
     return child;
   }
 
