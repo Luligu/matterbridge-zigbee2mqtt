@@ -56,7 +56,6 @@ import {
   Endpoint,
   AtLeastOne,
   FixedLabelCluster,
-  EndpointNumber,
   SwitchCluster,
   ElectricalMeasurement,
   EveHistory,
@@ -90,6 +89,7 @@ export class ZigbeeEntity extends EventEmitter {
   private lastPayload: Payload = {};
   private lastSeen = 0;
   protected ignoreFeatures: string[] = [];
+  protected transition = false;
 
   constructor(platform: ZigbeePlatform, entity: BridgeDevice | BridgeGroup) {
     super();
@@ -644,10 +644,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (platform.featureBlackList) this.ignoreFeatures = [...this.ignoreFeatures, ...platform.featureBlackList];
     if (platform.deviceFeatureBlackList[device.friendly_name]) this.ignoreFeatures = [...this.ignoreFeatures, ...platform.deviceFeatureBlackList[device.friendly_name]];
 
-    // this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
-    // this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
-    // this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
-    // this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
+    /*
+    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
+    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
+    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
+    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
+    */
     names.forEach((name, index) => {
       if (platform.featureBlackList.includes(name)) {
         this.log.debug(`Device ${this.en}${device.friendly_name}${db} feature ${name} is globally blacklisted`);
@@ -656,6 +658,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if (platform.deviceFeatureBlackList[device.friendly_name]?.includes(name)) {
         this.log.debug(`Device ${this.en}${device.friendly_name}${db} feature ${name} is blacklisted`);
         return;
+      }
+      if (name === 'transition') {
+        this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} transition is supported`);
+        this.transition = true;
       }
       const type = types[index];
       const endpoint = endpoints[index];
@@ -726,28 +732,44 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (this.bridgedDevice.hasClusterServer(OnOff.Complete) || this.bridgedDevice.hasEndpoints) {
       this.bridgedDevice.addCommandHandler('on', async (data) => {
         this.log.debug(`Command on called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
-        const payload = this.bridgedDevice?.getChildPayload(data.endpoint.number, 'state', 'ON');
-        if (payload) this.publishCommand('on', device.friendly_name, payload);
+        const payload: Payload = {};
+        const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
+        label === undefined ? (payload['state'] = 'ON') : (payload['state_' + label] = 'ON');
+        this.publishCommand('on', device.friendly_name, payload);
       });
       this.bridgedDevice.addCommandHandler('off', async (data) => {
         this.log.debug(`Command off called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
-        const payload = this.bridgedDevice?.getChildPayload(data.endpoint.number, 'state', 'OFF');
-        if (payload) this.publishCommand('off', device.friendly_name, payload);
+        const payload: Payload = {};
+        const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
+        label === undefined ? (payload['state'] = 'OFF') : (payload['state_' + label] = 'OFF');
+        this.publishCommand('off', device.friendly_name, payload);
       });
       this.bridgedDevice.addCommandHandler('toggle', async (data) => {
         this.log.debug(`Command toggle called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
-        const payload = this.bridgedDevice?.getChildPayload(data.endpoint.number, 'state', 'TOGGLE');
-        if (payload) this.publishCommand('toggle', device.friendly_name, payload);
+        const payload: Payload = {};
+        const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
+        label === undefined ? (payload['state'] = 'TOGGLE') : (payload['state_' + label] = 'TOGGLE');
+        this.publishCommand('toggle', device.friendly_name, payload);
       });
     }
-    if (this.bridgedDevice.hasClusterServer(LevelControl.Complete)) {
-      this.bridgedDevice.addCommandHandler('moveToLevel', async ({ request: { level }, attributes: { currentLevel } }) => {
-        this.log.debug(`Command moveToLevel called for ${this.ien}${device.friendly_name}${rs}${db} request: ${level} attributes: ${currentLevel}`);
-        this.publishCommand('moveToLevel', device.friendly_name, { brightness: level });
+    if (this.bridgedDevice.hasClusterServer(LevelControl.Complete) || this.bridgedDevice.hasEndpoints) {
+      this.bridgedDevice.addCommandHandler('moveToLevel', async ({ request: { level, transitionTime }, attributes: { currentLevel }, endpoint: { number } }) => {
+        this.log.debug(`Command moveToLevel called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
+        const payload: Payload = {};
+        const label = this.bridgedDevice?.getEndpointLabel(number);
+        label === undefined ? (payload['brightness'] = level) : (payload['brightness_' + label] = level);
+        // transitionTime = 100;
+        if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
+        this.publishCommand('moveToLevel', device.friendly_name, payload);
       });
-      this.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level }, attributes: { currentLevel } }) => {
-        this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${device.friendly_name}${rs}${db} request: ${level} attributes: ${currentLevel}`);
-        this.publishCommand('moveToLevelWithOnOff', device.friendly_name, { brightness: level });
+      this.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level, transitionTime }, attributes: { currentLevel }, endpoint: { number } }) => {
+        this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
+        const payload: Payload = {};
+        const label = this.bridgedDevice?.getEndpointLabel(number);
+        label === undefined ? (payload['brightness'] = level) : (payload['brightness_' + label] = level);
+        // transitionTime = 100;
+        if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
+        this.publishCommand('moveToLevelWithOnOff', device.friendly_name, payload);
       });
     }
     if (this.bridgedDevice.hasClusterServer(ColorControl.Complete) && this.bridgedDevice.getClusterServer(ColorControlCluster)?.isAttributeSupportedByName('colorTemperatureMireds')) {
@@ -1075,6 +1097,14 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.addChildEndpoint(child);
     }
 
+    // Add device type to the child endpoint if is new
+    const deviceTypes = child.getDeviceTypes();
+    if (deviceType && !deviceTypes.includes(deviceType)) {
+      this.log.debug(`addDeviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
+      deviceTypes.push(deviceType);
+      child.setDeviceTypes(deviceTypes);
+    }
+
     includeServerList.forEach((clusterId) => {
       this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
     });
@@ -1128,37 +1158,6 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       child.addClusterServer(this.getDefaultElectricalMeasurementClusterServer());
     }
     return child;
-  }
-
-  getChildPayload(endpointNumber: EndpointNumber | undefined, key: string, value: string): Payload {
-    const payload: Payload = {};
-    if (!endpointNumber) {
-      payload[key] = value;
-      this.log.debug('getChildStatePayload payload:', payload);
-      return payload;
-    }
-    const endpoint = this.getChildEndpoint(endpointNumber);
-    // this.log.debug('getChildStatePayload endpoint:', endpoint);
-    if (!endpoint) {
-      payload[key] = value;
-      this.log.debug('getChildStatePayload payload:', payload);
-      return payload;
-    }
-    const labelList = endpoint.getClusterServer(FixedLabelCluster)?.getLabelListAttribute();
-    this.log.debug('getChildStatePayload labelList:', labelList);
-    if (!labelList) {
-      payload[key] = value;
-      this.log.debug('getChildStatePayload payload:', payload);
-      return payload;
-    }
-    for (const entry of labelList) {
-      if (entry.label === 'endpointName') {
-        payload['state_' + entry.value] = value;
-        this.log.debug('getChildStatePayload payload:', payload);
-        return payload;
-      }
-    }
-    return { unknown: value };
   }
 
   configure() {

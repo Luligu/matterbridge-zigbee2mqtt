@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.18] - 2024-06-17
+
+### Added
+
+- [dependencies]: Update dependencies
+- [schema]: Added schema to the root directory of the plugin
+- [properties]: Added soil_moisture properties as humidity sensor
+- [properties]: Added transition if the zigbee device supports it and the controller sends it. You can disable this globally adding transition to the featureBlackList or only for the single device adding transition to the deviceFeatureBlackList. (Thanks Stefan Schweiger)
+
+### Fixed
+- [schema]: Username and password are no more required fields (Thanks Stefan Schweiger)
+- [LevelControl]: Fixed the commandHandler for LevelControl in child endpoint (Thanks jpadie).
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.0.17] - 2024-06-16
 
 ### Fixed
