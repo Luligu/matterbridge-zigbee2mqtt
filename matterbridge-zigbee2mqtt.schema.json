@@ -1,0 +1,98 @@
+{
+  "title": "Matterbridge zigbee2mqtt plugin",
+  "description": "matterbridge-zigbee2mqtt v. 2.0.17 by https://github.com/Luligu",
+  "type": "object",
+  "required": ["host", "port", "topic"],
+  "properties": {
+    "name": {
+      "description": "Plugin name",
+      "type": "string",
+      "readOnly": true
+    },
+    "type": {
+      "description": "Plugin type",
+      "type": "string",
+      "readOnly": true
+    },
+    "host": {
+      "description": "Host",
+      "type": "string"
+    },
+    "username": {
+      "description": "Username",
+      "type": "string"
+    },
+    "password": {
+      "description": "Password",
+      "type": "string"
+    },
+    "port": {
+      "description": "Port",
+      "type": "number"
+    },
+    "topic": {
+      "description": "Topic",
+      "type": "string"
+    },
+    "blackList": {
+      "description": "The devices in the list will not be exposed.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "whiteList": {
+      "description": "Only the devices in the list will be exposed.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "switchList": {
+      "description": "The devices in the list will be exposed like switches.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "lightList": {
+      "description": "The devices in the list will be exposed like lights.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "outletList": {
+      "description": "The devices in the list will be exposed like outlets.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "featureBlackList": {
+      "description": "The features in the list will not be exposed for all devices.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deviceFeatureBlackList": {
+      "description": "List of features not to be exposed for a single device. Enter in the first field the name of the device and in the second field add all the features to exclude.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "debug": {
+      "description": "Enable the debug for the plugin (development only)",
+      "type": "boolean"
+    },
+    "unregisterOnShutdown": {
+      "description": "Unregister all devices on shutdown (development only)",
+      "type": "boolean"
+    }
+  }
+}

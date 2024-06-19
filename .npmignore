@@ -147,7 +147,19 @@ __test__
 .eslintrc
 .eslintrc.json
 .eslintignore
+eslint.config.js
 
 # prettier
 .prettierignore
 .prettierrc.json
+prettier.config.js
+
+# jest
+jest.config.js
+
+# screenshot
+screenshot
+
+# other stuff
+TODO.md
+yellow-button.png
