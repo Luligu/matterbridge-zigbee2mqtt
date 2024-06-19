@@ -59,6 +59,7 @@ import {
   DoorLockCluster,
   AttributeInitialValues,
   powerSource,
+  bridgedNode,
 } from 'matterbridge';
 
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'node-ansi-logger';
@@ -393,7 +394,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
           maxColorTemperature = Math.max(maxColorTemperature, feature.value_max);
         }
       });
-      this.log.info(`Group: ${gn}${group.friendly_name}${rs} state: ${useState} brightness: ${useBrightness} color: ${useColor} color_temp: ${useColorTemperature}-${minColorTemperature}-${maxColorTemperature}`);
+      this.log.debug(`Group: ${gn}${group.friendly_name}${rs}${db} state: ${useState} brightness: ${useBrightness} color: ${useColor} color_temp: ${useColorTemperature}-${minColorTemperature}-${maxColorTemperature}`);
       let deviceType = DeviceTypes.ON_OFF_LIGHT;
       if (useBrightness) deviceType = DeviceTypes.ON_OFF_LIGHT;
       if (useColorTemperature || useColor) deviceType = DeviceTypes.COLOR_TEMPERATURE_LIGHT;
@@ -541,7 +542,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       this.bridgedDevice.isRouter = true;
     }
 
-    const debugEnabled = this.platform.debugEnabled;
+    // const debugEnabled = this.platform.debugEnabled;
     // this.log.setLogDebug(true);
 
     // Get types and properties
@@ -629,11 +630,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if (z2m) {
         this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
         if (endpoint === '') {
-          if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
+          if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           else this.bridgedDevice.addDeviceTypeAndClusterServer(z2m.deviceType, [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           if (type !== '') this.bridgedDevice.addFixedLabel('type', type);
         } else {
-          if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO]);
+          if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [bridgedNode]);
           const childEndpoint = this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoint, z2m.deviceType, [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           if (type !== '') childEndpoint.addFixedLabel('type', type);
           this.bridgedDevice.addFixedLabel('composed', type);
@@ -642,7 +643,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if (name === 'action' && this.actions.length) {
         this.log.info(`Device ${this.ien}${device.friendly_name}${rs}${nf} has actions mapped to these switches on sub endpoints:`);
         this.log.info('   controller events      <=> zigbee2mqtt actions');
-        if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO], []);
+        if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [bridgedNode]);
         // Mapping actions
         const switchMap = ['Single Press', 'Double Press', 'Long Press  '];
         let count = 1;
@@ -667,7 +668,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.bridgedDevice.addFixedLabel('composed', 'button');
       }
     });
-    this.log.setLogDebug(debugEnabled);
+    // this.log.setLogDebug(debugEnabled);
 
     /* Verify that all required server clusters are present in the main endpoint and in the child endpoints */
     if (this.bridgedDevice) {
@@ -701,7 +702,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Command handlers
     this.bridgedDevice.addCommandHandler('identify', async (data) => {
-      this.log.warn(`Command identify called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} request identifyTime:${data.request.identifyTime}  identifyTime:${data.attributes.identifyTime.getLocal()} identifyType:${data.attributes.identifyType.getLocal()} `);
+      this.log.debug(`Command identify called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} request identifyTime:${data.request.identifyTime}  identifyTime:${data.attributes.identifyTime.getLocal()} identifyType:${data.attributes.identifyType.getLocal()} `);
       // logEndpoint(this.bridgedDevice!);
     });
     if (this.bridgedDevice.hasClusterServer(OnOff.Complete) || this.bridgedDevice.hasEndpoints) {
@@ -906,8 +907,8 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
     });
     this.addDeviceClusterServer(includeServerList);
 
-    // Add BridgedDevice with PowerSourceInformation device type
-    this.addDeviceType(DeviceTypes.BRIDGED_DEVICE_WITH_POWERSOURCE_INFO);
+    // Add BridgedDevice device type
+    this.addDeviceType(bridgedNode);
 
     // Add BridgedDeviceBasicInformation cluster
     if (entity.isDevice && entity.device && entity.device.friendly_name === 'Coordinator') {
@@ -918,8 +919,11 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.addBridgedDeviceBasicInformationCluster(entity.group.friendly_name, 'zigbee2MQTT', 'Group', `group-${entity.group.id}`);
     }
 
+    // Add BridgedDevice device type
+    this.addDeviceType(powerSource);
+
     // Add PowerSource cluster
-    this.createDefaultPowerSourceConfigurationClusterServer(); // TODO remove this cause is deprecated in Matter 1.3
+    // this.createDefaultPowerSourceConfigurationClusterServer(); // TODO remove this cause is deprecated in Matter 1.3
     if (entity.isDevice) {
       if (entity.device?.power_source === 'Battery') this.createDefaultPowerSourceReplaceableBatteryClusterServer(100, PowerSource.BatChargeLevel.Ok);
       else this.createDefaultPowerSourceWiredClusterServer();
@@ -927,7 +931,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
       this.createDefaultPowerSourceWiredClusterServer();
     }
 
-    // Add all other client clusters in the includelist
+    // Add all other client clusters in the includelist (not supported by matter.js)
     this.addDeviceClusterClient(includeClientList);
   }
 

@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.27
+ * @version 2.2.28
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -866,10 +866,12 @@ export class Zigbee2MQTT extends EventEmitter {
         this.z2mDevices[deviceIndex].isAvailabilityEnabled = true;
         this.z2mDevices[deviceIndex].isOnline = true;
         // this.log.warn('handleDeviceMessage availability payload: ', data);
+        this.emit('availability', entity, true);
         this.emit('ONLINE-' + entity);
       } else if (data.state === 'offline') {
         this.z2mDevices[deviceIndex].isOnline = false;
         // this.log.warn('handleDeviceMessage availability payload: ', data);
+        this.emit('availability', entity, false);
         this.emit('OFFLINE-' + entity);
       }
     } else if (service === 'get') {
@@ -902,9 +904,11 @@ export class Zigbee2MQTT extends EventEmitter {
       if (data.state === 'online') {
         this.z2mGroups[groupIndex].isAvailabilityEnabled = true;
         this.z2mGroups[groupIndex].isOnline = true;
+        this.emit('availability', entity, true);
         this.emit('ONLINE-' + entity);
       } else if (data.state === 'offline') {
         this.z2mGroups[groupIndex].isOnline = false;
+        this.emit('availability', entity, false);
         this.emit('OFFLINE-' + entity);
       }
     } else if (service === 'get') {
