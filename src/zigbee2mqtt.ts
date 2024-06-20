@@ -796,9 +796,15 @@ export class Zigbee2MQTT extends EventEmitter {
       // const data = JSON.parse(payload.toString());
       // this.log.debug('classZigbee2MQTT=>Message bridge/logging', data);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/config')) {
+      this.log.debug(`Message topic: ${topic}`);
       // const data = JSON.parse(payload.toString());
       // this.log.debug('classZigbee2MQTT=>Message bridge/config', data);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/definitions')) {
+      this.log.debug(`Message topic: ${topic}`);
+      // const data = JSON.parse(payload.toString());
+      // this.log.debug('classZigbee2MQTT=>Message bridge/definitions', data);
+    } else if (topic.startsWith(this.mqttTopic + '/bridge')) {
+      this.log.debug(`Message topic: ${topic}`);
       // const data = JSON.parse(payload.toString());
       // this.log.debug('classZigbee2MQTT=>Message bridge/definitions', data);
     } else {
