@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.1] - 2024-06-20
+
+### Added
+
+- [dependencies]: Update dependencies (mqtt to 5.7.2).
+- [schema]: Added info log when the plugin starts to register devices and groups. Added empty bridge/config and bridge/definitions handlers.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.0] - 2024-06-19
 
 ### Added

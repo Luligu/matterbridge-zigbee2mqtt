@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.28
+ * @version 2.2.29
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -795,6 +795,18 @@ export class Zigbee2MQTT extends EventEmitter {
     } else if (topic.startsWith(this.mqttTopic + '/bridge/logging')) {
       // const data = JSON.parse(payload.toString());
       // this.log.debug('classZigbee2MQTT=>Message bridge/logging', data);
+    } else if (topic.startsWith(this.mqttTopic + '/bridge/config')) {
+      this.log.debug(`Message topic: ${topic}`);
+      // const data = JSON.parse(payload.toString());
+      // this.log.debug('classZigbee2MQTT=>Message bridge/config', data);
+    } else if (topic.startsWith(this.mqttTopic + '/bridge/definitions')) {
+      this.log.debug(`Message topic: ${topic}`);
+      // const data = JSON.parse(payload.toString());
+      // this.log.debug('classZigbee2MQTT=>Message bridge/definitions', data);
+    } else if (topic.startsWith(this.mqttTopic + '/bridge')) {
+      this.log.debug(`Message topic: ${topic}`);
+      // const data = JSON.parse(payload.toString());
+      // this.log.debug('classZigbee2MQTT=>Message bridge/definitions', data);
     } else {
       let entity = topic.replace(this.mqttTopic + '/', '');
       let service = '';
