@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.2] - 2024-06-21
+
+### Added
+
+- [dependencies]: Update dependencies.
+- [start]: Refactor start sequence.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.1] - 2024-06-20
 
 ### Added
