@@ -22,7 +22,7 @@
  */
 
 import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig, waiter } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify } from 'node-ansi-logger';
+import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN } from 'node-ansi-logger';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup, BridgedBaseDevice } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
@@ -73,7 +73,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   constructor(matterbridge: Matterbridge, log: AnsiLogger, config: PlatformConfig) {
     super(matterbridge, log, config);
 
-    this.debugEnabled = matterbridge.debugEnabled;
+    this.debugEnabled = config.debug as boolean;
     this.shouldStart = false;
     this.shouldConfigure = false;
 
@@ -104,6 +104,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.debug('Created ZigbeePlatform as Matterbridge extension');
       return;
     }
+
+    this.log.info(`Initializing platform: ${this.config.name}${rs} v${CYAN}${this.version}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}:`);
     // this.log.debug(`Config:')}${rs}`, config);
 
@@ -272,6 +274,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           this.z2mDevicesRegistered = true;
         }
       }
+
       if (this.shouldConfigure) {
         this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
         for (const bridgedEntity of this.zigbeeEntities) {
@@ -286,6 +289,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
       this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
       this.z2mBridgeGroups = groups;
+
       if (this.shouldStart) {
         if (!this.z2mGroupsRegistered && this.z2mBridgeGroups) {
           for (const group of this.z2mBridgeGroups) {
@@ -294,6 +298,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           this.z2mGroupsRegistered = true;
         }
       }
+
       if (this.shouldConfigure) {
         this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
         for (const bridgedEntity of this.zigbeeEntities) {
@@ -318,14 +323,16 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
 
     if (!hasOnline || !hasInfo || !hasDevices) {
-      this.log.error('Exiting due to missing zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+      this.log.error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
       return;
     }
 
+    /*
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldStart = true;
       this.log.debug('Setting flag to start when zigbee2mqtt sends devices: ', reason);
     }
+    */
 
     if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
       this.log.info(`Registering ${this.z2mBridgeDevices.length} devices`);
@@ -347,10 +354,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onConfigure() {
+    /*
     if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
       this.shouldConfigure = true;
       this.log.debug('Setting flag to configure when zigbee2mqtt sends devices');
     }
+    */
 
     this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
     for (const bridgedEntity of this.zigbeeEntities) {
@@ -404,10 +413,16 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.publishCallBack = undefined;
   }
 
+  /**
+   * @deprecated
+   */
   public setPublishCallBack(onPublish: (entityName: string, topic: string, message: string) => Promise<void>): void {
     this.publishCallBack = onPublish;
   }
 
+  /**
+   * @deprecated
+   */
   public setPermitJoinCallBack(onPermitJoin: (entityName: string, permit: boolean) => Promise<void>): void {
     this.permitJoinCallBack = onPermitJoin;
   }
@@ -422,6 +437,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
   }
 
+  /**
+   * @deprecated
+   */
   public emit(eventName: string, data: Payload) {
     this.z2m.emit(eventName, data);
   }
