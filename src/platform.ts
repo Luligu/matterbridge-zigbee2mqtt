@@ -121,6 +121,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.z2m.subscribe(this.z2m.mqttTopic + '/#');
     });
 
+    this.z2m.on('mqtt_subscribed', () => {
+      this.log.info(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} subscribed to: ${this.z2m.mqttTopic + '/#'}`);
+    });
+
     this.z2m.on('close', () => {
       this.log.warn(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} closed the connection`);
     });
@@ -256,6 +260,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
       this.z2mBridgeInfo = bridgeInfo;
       this.log.info(`zigbee2MQTT version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
+      if (this.z2mBridgeInfo.config.advanced.output === 'attribute') this.log.error(`zigbee2MQTT advanced.output must be 'json' or 'attribute_and_json'. Now is ${this.z2mBridgeInfo.config.advanced.output}`);
+      if (this.z2mBridgeInfo.config.advanced.legacy_api === true) this.log.info(`zigbee2MQTT advanced.legacy_api is ${this.z2mBridgeInfo.config.advanced.legacy_api}`);
+      if (this.z2mBridgeInfo.config.advanced.legacy_availability_payload === true) this.log.info(`zigbee2MQTT advanced.legacy_availability_payload is ${this.z2mBridgeInfo.config.advanced.legacy_availability_payload}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
@@ -323,7 +330,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
 
     if (!hasOnline || !hasInfo || !hasDevices) {
-      this.log.error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+      throw new Error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+      // this.log.error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
       return;
     }
 

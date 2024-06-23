@@ -60,6 +60,12 @@ import {
   AttributeInitialValues,
   powerSource,
   bridgedNode,
+  CarbonDioxideConcentrationMeasurement,
+  CarbonMonoxideConcentrationMeasurement,
+  FormaldehydeConcentrationMeasurement,
+  Pm1ConcentrationMeasurement,
+  Pm25ConcentrationMeasurement,
+  Pm10ConcentrationMeasurement,
 } from 'matterbridge';
 
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'node-ansi-logger';
@@ -519,6 +525,14 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '',       name: 'pressure',       property: 'pressure',   deviceType: DeviceTypes.PRESSURE_SENSOR, cluster: PressureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return value } },
   { type: '',       name: 'air_quality',    property: 'air_quality', deviceType: airQualitySensor,          cluster: AirQuality.Cluster.id,   attribute: 'airQuality', valueLookup: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] },
   { type: '',       name: 'voc',            property: 'voc',        deviceType: airQualitySensor,           cluster: TvocMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.min(65535, value) } },
+
+  { type: '',       name: 'co',             property: 'co',         deviceType: airQualitySensor,           cluster: CarbonMonoxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '',       name: 'co2',            property: 'co2',        deviceType: airQualitySensor,           cluster: CarbonDioxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '',       name: 'formaldehyd',    property: 'formaldehyd',deviceType: airQualitySensor,           cluster: FormaldehydeConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '',       name: 'pm1',            property: 'pm1',        deviceType: airQualitySensor,           cluster: Pm1ConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '',       name: 'pm25',           property: 'pm25',       deviceType: airQualitySensor,           cluster: Pm25ConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '',       name: 'pm10',           property: 'pm10',       deviceType: airQualitySensor,           cluster: Pm10ConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+
   //{ type: '',       name: 'action',         property: 'action',     deviceType: DeviceTypes.GENERIC_SWITCH, cluster: Switch.Cluster.id,       attribute: 'currentPosition' },
   { type: '',       name: 'cpu_temperature', property: 'temperature', deviceType: DeviceTypes.TEMPERATURE_SENSOR, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) }},
   { type: '',       name: 'device_temperature', property: 'device_temperature', deviceType: DeviceTypes.TEMPERATURE_SENSOR, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
