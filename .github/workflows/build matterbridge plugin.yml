@@ -21,11 +21,11 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
+      - name: Install matterbridge
+        run: npm -g install matterbridge
+
       - name: Install dependencies
         run: npm install
-  
-      - name: Install matterbridge
-        run: npm install --save-dev matterbridge
   
       - name: Lint the project
         run: npm run lint
@@ -33,10 +33,3 @@ jobs:
       - name: Build the project
         run: npm run build
 
-      - name: List, audit, fix outdated dependencies and build again
-        run: |
-          npm list --outdated
-          npm audit || true  # ignore failures
-          npm audit fix || true
-          npm list --outdated
-          npm run build

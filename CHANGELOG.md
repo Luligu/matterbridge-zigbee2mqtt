@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.3] - 2024-06-23
+
+### Added
+
+- [zigbee]: Added new properties: co - CarbonMonoxideConcentrationMeasurement, co2 - CarbonDioxideConcentrationMeasurement, formaldehyd - FormaldehydeConcentrationMeasurement, pm1 - Pm1ConcentrationMeasurement, pm25 - Pm25ConcentrationMeasurement, pm10 - Pm10ConcentrationMeasurement
+
+### Changed 
+
+- [bridge/info]: Log error when advanced.output is set to 'attribute'.
+
+### Fixed 
+
+- [bridge/info]: Fixed the issue when advanced.output is set 'attribute_and_json'. (Thanks copystring).
+- [bridge/info]: Fixed the issue when include_device_information is set to true. (Thanks copystring).
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.2] - 2024-06-21
 
 ### Added

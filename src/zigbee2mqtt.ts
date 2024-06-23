@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.2.29
+ * @version 2.3.0
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -587,7 +587,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`Message bridge/state online => ${this.z2mIsOnline}`);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/info')) {
       const data = this.tryJsonParse(payload.toString());
-      // this.log.debug('classZigbee2MQTT=>Message bridge/info', data);
+      // this.log.info('classZigbee2MQTT=>Message bridge/info', data);
       this.z2mPermitJoin = data.permit_join ? data.permit_join : false;
       this.z2mPermitJoinTimeout = data.permit_join_timeout ? data.permit_join_timeout : 0;
       this.z2mVersion = data.version ? data.version : '';
@@ -595,6 +595,12 @@ export class Zigbee2MQTT extends EventEmitter {
       this.log.debug(`Message bridge/info availability => ${this.z2mIsAvailabilityEnabled}`);
       this.log.debug(`Message bridge/info version => ${this.z2mVersion}`);
       this.log.debug(`Message bridge/info permit_join => ${this.z2mPermitJoin} timeout => ${this.z2mPermitJoinTimeout}`);
+      this.log.debug(`Message bridge/info advanced.output => ${data.config.advanced.output}`);
+      this.log.debug(`Message bridge/info advanced.legacy_api => ${data.config.advanced.legacy_api}`);
+      this.log.debug(`Message bridge/info advanced.legacy_availability_payload => ${data.config.advanced.legacy_availability_payload}`);
+      if (data.config.advanced.output === 'attribute') this.log.error(`Message bridge/info advanced.output must be 'json' or 'attribute_and_json'. Now is ${data.config.advanced.output}`);
+      if (data.config.advanced.legacy_api === true) this.log.info(`Message bridge/info advanced.legacy_api is ${data.config.advanced.legacy_api}`);
+      if (data.config.advanced.legacy_availability_payload === true) this.log.info(`Message bridge/info advanced.legacy_availability_payload is ${data.config.advanced.legacy_availability_payload}`);
       this.emit('info', this.z2mVersion, this.z2mIsAvailabilityEnabled, this.z2mPermitJoin, this.z2mPermitJoinTimeout);
       this.writeBufferJSON('bridge-info', payload);
       this.emit('bridge-info', data);
@@ -779,7 +785,7 @@ export class Zigbee2MQTT extends EventEmitter {
         return;
       }
       const data = this.tryJsonParse(payload.toString());
-      this.log.info(`Message topic: ${topic} payload:${rs}`, data);
+      this.log.debug(`Message topic: ${topic} payload:${rs}`, data);
       /*
       [05/09/2023, 20:35:26] [z2m] classZigbee2MQTT=>Message bridge/response zigbee2mqtt/bridge/response/group/add {
         data: { friendly_name: 'Guest', id: 1 },
@@ -861,9 +867,9 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   private handleDeviceMessage(deviceIndex: number, entity: string, service: string, payload: Buffer) {
-    // this.log.debug(`classZigbee2MQTT=>handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
+    // this.log.info(`classZigbee2MQTT=>handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
     if (payload.length === 0 || payload === null) {
-      this.log.warn(`handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload null`);
+      // this.log.warn(`handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
     const payloadString = payload.toString();
@@ -871,7 +877,7 @@ export class Zigbee2MQTT extends EventEmitter {
     if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
       data = this.tryJsonParse(payload.toString());
     } else {
-      data = { state: payloadString };
+      data = { state: payloadString }; // Only state for availability
     }
     if (service === 'availability') {
       if (data.state === 'online') {
@@ -888,20 +894,20 @@ export class Zigbee2MQTT extends EventEmitter {
       }
     } else if (service === 'get') {
       // Do nothing
-      // this.log.warn(`handleDeviceMessage entity ${dn}${entity}${wr} service ${service} payload ${pl}${payload}${rs}`);
     } else if (service === 'set') {
       // Do nothing
-      // this.log.warn(`handleDeviceMessage entity ${dn}${entity}${wr} service ${service} payload ${pl}${payload}${rs}`);
-    } else {
+    } else if (service === undefined) {
       // this.log.debug(`classZigbee2MQTT=>emitting message for device ${dn}${entity}${rs} payload ${pl}${payload}${rs}`);
       this.emit('MESSAGE-' + entity, data);
+    } else {
+      // MQTT output attribute type
     }
   }
 
   private handleGroupMessage(groupIndex: number, entity: string, service: string, payload: Buffer) {
-    // this.log.debug(`classZigbee2MQTT=>handleGroupMessage ${id}#${groupIndex+1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
+    // this.log.info(`classZigbee2MQTT=>handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
     if (payload.length === 0 || payload === null) {
-      this.log.warn(`handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload null`);
+      // this.log.warn(`handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
     const payloadString = payload.toString();
@@ -909,7 +915,7 @@ export class Zigbee2MQTT extends EventEmitter {
     if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
       data = this.tryJsonParse(payload.toString());
     } else {
-      data = { state: payloadString };
+      data = { state: payloadString }; // Only state for availability
     }
     data['last_seen'] = new Date().toISOString();
     if (service === 'availability') {
@@ -927,9 +933,11 @@ export class Zigbee2MQTT extends EventEmitter {
       // Do nothing
     } else if (service === 'set') {
       // Do nothing
-    } else {
+    } else if (service === undefined) {
       // this.log.debug(`classZigbee2MQTT=>emitting message for group ${gn}${entity}${rs} payload ${pl}${payload}${rs}`);
       this.emit('MESSAGE-' + entity, data);
+    } else {
+      // MQTT output attribute type
     }
   }
 
