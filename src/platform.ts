@@ -151,6 +151,66 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.updateAvailability(false);
     });
 
+    this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
+      this.z2mBridgeInfo = bridgeInfo;
+      this.log.info(`zigbee2MQTT version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
+      if (this.z2mBridgeInfo.config.advanced.output === 'attribute') this.log.error(`zigbee2MQTT advanced.output must be 'json' or 'attribute_and_json'. Now is ${this.z2mBridgeInfo.config.advanced.output}`);
+      if (this.z2mBridgeInfo.config.advanced.legacy_api === true) this.log.info(`zigbee2MQTT advanced.legacy_api is ${this.z2mBridgeInfo.config.advanced.legacy_api}`);
+      if (this.z2mBridgeInfo.config.advanced.legacy_availability_payload === true) this.log.info(`zigbee2MQTT advanced.legacy_availability_payload is ${this.z2mBridgeInfo.config.advanced.legacy_availability_payload}`);
+    });
+
+    this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
+      this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
+      if (config.injectDevices) {
+        const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
+        this.log.warn(`***Injecting ${data.devices.length} devices from ${config.injectDevices}`);
+        this.z2mBridgeDevices = [devices, data.devices].flat();
+      } else this.z2mBridgeDevices = devices;
+
+      if (this.shouldStart) {
+        if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
+          for (const device of this.z2mBridgeDevices) {
+            await this.registerZigbeeDevice(device);
+          }
+          this.z2mDevicesRegistered = true;
+        }
+      }
+
+      if (this.shouldConfigure) {
+        this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
+        for (const bridgedEntity of this.zigbeeEntities) {
+          if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
+        }
+        for (const device of this.bridgedDevices) {
+          device.configure();
+        }
+      }
+    });
+
+    this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
+      this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
+      this.z2mBridgeGroups = groups;
+
+      if (this.shouldStart) {
+        if (!this.z2mGroupsRegistered && this.z2mBridgeGroups) {
+          for (const group of this.z2mBridgeGroups) {
+            await this.registerZigbeeGroup(group);
+          }
+          this.z2mGroupsRegistered = true;
+        }
+      }
+
+      if (this.shouldConfigure) {
+        this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
+        for (const bridgedEntity of this.zigbeeEntities) {
+          if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);
+        }
+        for (const device of this.bridgedDevices) {
+          device.configure();
+        }
+      }
+    });
+
     this.z2m.on('availability', (device: string, available: boolean) => {
       this.z2mDeviceAvailability.set(device, available);
       if (available) this.log.info(`zigbee2MQTT device ${device} is ${available ? 'online' : 'offline'}`);
@@ -257,66 +317,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     });
 
-    this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
-      this.z2mBridgeInfo = bridgeInfo;
-      this.log.info(`zigbee2MQTT version ${this.z2mBridgeInfo.version} zh version ${this.z2mBridgeInfo.zigbee_herdsman.version} zhc version ${this.z2mBridgeInfo.zigbee_herdsman_converters.version}`);
-      if (this.z2mBridgeInfo.config.advanced.output === 'attribute') this.log.error(`zigbee2MQTT advanced.output must be 'json' or 'attribute_and_json'. Now is ${this.z2mBridgeInfo.config.advanced.output}`);
-      if (this.z2mBridgeInfo.config.advanced.legacy_api === true) this.log.info(`zigbee2MQTT advanced.legacy_api is ${this.z2mBridgeInfo.config.advanced.legacy_api}`);
-      if (this.z2mBridgeInfo.config.advanced.legacy_availability_payload === true) this.log.info(`zigbee2MQTT advanced.legacy_availability_payload is ${this.z2mBridgeInfo.config.advanced.legacy_availability_payload}`);
-    });
-
-    this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
-      this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
-      if (config.injectDevices) {
-        const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
-        this.log.warn(`***Injecting ${data.devices.length} devices from ${config.injectDevices}`);
-        this.z2mBridgeDevices = [devices, data.devices].flat();
-      } else this.z2mBridgeDevices = devices;
-
-      if (this.shouldStart) {
-        if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
-          for (const device of this.z2mBridgeDevices) {
-            await this.registerZigbeeDevice(device);
-          }
-          this.z2mDevicesRegistered = true;
-        }
-      }
-
-      if (this.shouldConfigure) {
-        this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
-        for (const bridgedEntity of this.zigbeeEntities) {
-          if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
-        }
-        for (const device of this.bridgedDevices) {
-          device.configure();
-        }
-      }
-    });
-
-    this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
-      this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
-      this.z2mBridgeGroups = groups;
-
-      if (this.shouldStart) {
-        if (!this.z2mGroupsRegistered && this.z2mBridgeGroups) {
-          for (const group of this.z2mBridgeGroups) {
-            await this.registerZigbeeGroup(group);
-          }
-          this.z2mGroupsRegistered = true;
-        }
-      }
-
-      if (this.shouldConfigure) {
-        this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
-        for (const bridgedEntity of this.zigbeeEntities) {
-          if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);
-        }
-        for (const device of this.bridgedDevices) {
-          device.configure();
-        }
-      }
-    });
-
     this.log.debug('Created zigbee2mqtt dynamic platform');
   }
 
@@ -329,10 +329,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
 
+    if (!hasOnline) this.log.error('The plugin did not receive zigbee2mqtt bridge state. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+    if (!hasInfo) this.log.error('The plugin did not receive zigbee2mqtt bridge info. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+    if (!hasDevices) this.log.error('The plugin did not receive zigbee2mqtt bridge devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
     if (!hasOnline || !hasInfo || !hasDevices) {
       throw new Error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-      // this.log.error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-      return;
     }
 
     /*
