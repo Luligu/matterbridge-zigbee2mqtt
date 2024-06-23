@@ -238,7 +238,7 @@ For general controller issues check the Matterbridge Known issues section
 
 ## Alexa
 
-In the plugin config add each switch device to the lightList or outletList cause they don't show up like switch (Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize).
+In the plugin config add each switch device to the lightList or outletList if they don't show up like switch (Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize).
 
 ## SmartThings
 
