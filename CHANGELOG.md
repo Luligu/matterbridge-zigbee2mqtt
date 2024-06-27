@@ -4,6 +4,16 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.4] - 2024-06-28
+
+### Added
+
+- [dependencies]: Update dependencies.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.3] - 2024-06-23
 
 ### Added
