@@ -370,7 +370,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
     */
 
-    this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
+    this.log.info(`Requesting update for ${this.zigbeeEntities.length} zigbee entities.`);
     for (const bridgedEntity of this.zigbeeEntities) {
       if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
       if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);

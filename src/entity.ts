@@ -1043,24 +1043,14 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
 
   configure() {
     if (this.getClusterServerById(WindowCovering.Cluster.id)) {
-      this.log.debug(`Configuring ${this.deviceName} WindowCovering`);
+      this.log.info(`Configuring ${this.deviceName} WindowCovering cluster`);
       this.setWindowCoveringTargetAsCurrentAndStopped();
     }
     if (this.getClusterServerById(DoorLock.Cluster.id)) {
-      this.log.debug(`Configuring ${this.deviceName} DoorLock`);
+      this.log.info(`Configuring ${this.deviceName} DoorLock cluster`);
       const state = this.getClusterServerById(DoorLock.Cluster.id)?.getLockStateAttribute();
       if (state === DoorLock.LockState.Locked) this.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
       if (state === DoorLock.LockState.Unlocked) this.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
     }
-    /*
-    if (this.getClusterServerById(DoorLock.Cluster.id)) {
-      this.log.debug(`Configuring ${this.deviceName}`);
-      this.getClusterServerById(DoorLock.Cluster.id)?.setLockStateAttribute(DoorLock.LockState.Locked);
-    }
-    if (this.getClusterServerById(Switch.Cluster.id)) {
-      this.log.debug(`Configuring ${this.deviceName}`);
-      this.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
-    }
-    */
   }
 }
