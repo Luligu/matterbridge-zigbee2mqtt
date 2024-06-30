@@ -901,7 +901,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
 }
 
 export class BridgedBaseDevice extends MatterbridgeDevice {
-  // public log: AnsiLogger;
   public hasEndpoints = false;
   public isRouter = false;
   public noUpdate = false;

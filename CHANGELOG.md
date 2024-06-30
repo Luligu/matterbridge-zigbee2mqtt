@@ -4,9 +4,9 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.4] - 2024-06-29
+## [2.1.4] - 2024-06-30
 
-### Added
+### Changed
 
 - [dependencies]: Update dependencies.
 - [dependencies]: Update eslint to 9.6.0.
