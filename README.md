@@ -17,6 +17,8 @@ Matterbridge zigbee2mqtt is a matterbridge production-level plugin that expose a
 
 No hub or dedicated hardware needed.
 
+If you like this project and find it useful, please consider giving it a star on GitHub at https://github.com/Luligu/matterbridge-zigbee2mqtt and sponsoring it.
+
 ## Prerequisites
 
 ### Matterbridge
@@ -238,7 +240,7 @@ For general controller issues check the Matterbridge Known issues section
 
 ## Alexa
 
-In the plugin config add each switch device to the lightList or outletList cause they don't show up like switch (Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize).
+In the plugin config add each switch device to the lightList or outletList if they don't show up like switch (Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize).
 
 ## SmartThings
 
