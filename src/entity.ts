@@ -246,6 +246,7 @@ export class ZigbeeEntity extends EventEmitter {
         /* WindowCovering */
         if (key === 'position') {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', typeof value === 'number' ? 10000 - value * 100 : 0);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', typeof value === 'number' ? 10000 - value * 100 : 0);
         }
         if (key === 'moving') {
           const status = value === 'UP' ? WindowCovering.MovementStatus.Opening : value === 'DOWN' ? WindowCovering.MovementStatus.Closing : WindowCovering.MovementStatus.Stopped;
@@ -253,6 +254,7 @@ export class ZigbeeEntity extends EventEmitter {
           if (value === 'STOP') {
             const position = this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.getCurrentPositionLiftPercent100thsAttribute();
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
           }
         }
         /* ColorControl ColorTemperatureMired */
@@ -770,7 +772,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds} attributes: ${attributes.colorTemperatureMireds?.getLocal()} colorMode ${attributes.colorMode.getLocal()}`);
         this.log.debug(`Command moveToColorTemperature called for ${this.ien}${device.friendly_name}${rs}${db} colorMode`, attributes.colorMode.getLocal());
         attributes.colorMode.setLocal(ColorControl.ColorMode.ColorTemperatureMireds);
-        this.publishCommand('moveToColorTemperature', device.friendly_name, { color_temp: request.colorTemperatureMireds });
+        const payload: Payload = { color_temp: request.colorTemperatureMireds };
+        if (this.transition && request.transitionTime && request.transitionTime / 10 >= 1) payload['transition'] = Math.round(request.transitionTime / 10);
+        this.publishCommand('moveToColorTemperature', device.friendly_name, payload);
       });
     }
     if (this.bridgedDevice.hasClusterServer(ColorControl.Complete) && this.bridgedDevice.getClusterServer(ColorControlCluster)?.isAttributeSupportedByName('currentHue')) {
@@ -784,7 +788,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
         lastRequestTimeout = setTimeout(() => {
           clearTimeout(lastRequestTimeout);
           const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (lastRequestedSaturation / 254) * 100, 50);
-          this.publishCommand('moveToHue', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+          const payload: Payload = { color: { r: rgb.r, g: rgb.g, b: rgb.b } };
+          if (this.transition && request.transitionTime && request.transitionTime / 10 >= 1) payload['transition'] = Math.round(request.transitionTime / 10);
+          this.publishCommand('moveToHue', device.friendly_name, payload);
         }, 500);
       });
       this.bridgedDevice.addCommandHandler('moveToSaturation', async ({ request: request, attributes: attributes }) => {
@@ -794,7 +800,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
         lastRequestTimeout = setTimeout(() => {
           clearTimeout(lastRequestTimeout);
           const rgb = color.hslColorToRgbColor((lastRequestedHue / 254) * 360, (request.saturation / 254) * 100, 50);
-          this.publishCommand('moveToSaturation', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+          const payload: Payload = { color: { r: rgb.r, g: rgb.g, b: rgb.b } };
+          if (this.transition && request.transitionTime && request.transitionTime / 10 >= 1) payload['transition'] = Math.round(request.transitionTime / 10);
+          this.publishCommand('moveToSaturation', device.friendly_name, payload);
         }, 500);
       });
       this.bridgedDevice.addCommandHandler('moveToHueAndSaturation', async ({ request: request, attributes: attributes }) => {
@@ -803,7 +811,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
         );
         attributes.colorMode.setLocal(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
         const rgb = color.hslColorToRgbColor((request.hue / 254) * 360, (request.saturation / 254) * 100, 50);
-        this.publishCommand('moveToHueAndSaturation', device.friendly_name, { color: { r: rgb.r, g: rgb.g, b: rgb.b } });
+        const payload: Payload = { color: { r: rgb.r, g: rgb.g, b: rgb.b } };
+        if (this.transition && request.transitionTime && request.transitionTime / 10 >= 1) payload['transition'] = Math.round(request.transitionTime / 10);
+        this.publishCommand('moveToHueAndSaturation', device.friendly_name, payload);
       });
     }
     if (this.bridgedDevice.hasClusterServer(WindowCovering.Complete)) {

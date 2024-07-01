@@ -4,6 +4,16 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.5] - 2024-07-01
+
+### Changed
+
+- [zigbee]: Fixed WindowCovering.targetPositionLiftPercent100ths update.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.4] - 2024-06-30
 
 ### Changed
