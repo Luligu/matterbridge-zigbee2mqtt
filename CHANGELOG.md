@@ -8,8 +8,10 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- [zigbee]: Fixed WindowCovering.targetPositionLiftPercent100ths update (Thanks Nitay Ben-Zvi).
 - [z2m]: Added transition to ColorControl if the zigbee device supports it and the controller sends it. You can disable this globally adding transition to the featureBlackList or only for the single device adding transition to the deviceFeatureBlackList. (Thanks Stefan Schweiger).
+
+### Fixed 
+- [zigbee]: Fixed WindowCovering.targetPositionLiftPercent100ths update (Thanks Nitay Ben-Zvi).
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
