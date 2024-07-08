@@ -67,15 +67,16 @@ import {
   Pm25ConcentrationMeasurement,
   Pm10ConcentrationMeasurement,
 } from 'matterbridge';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'matterbridge/logger';
+import { deepCopy, deepEqual } from 'matterbridge/utils/utils';
+import * as color from 'matterbridge/utils/colorUtils';
 
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'node-ansi-logger';
+import EventEmitter from 'events';
+import { hostname } from 'os';
+
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
-import * as color from './colorUtils.js';
-import EventEmitter from 'events';
-import { hostname } from 'os';
-import { deepCopy, deepEqual } from 'matterbridge';
 
 export class ZigbeeEntity extends EventEmitter {
   public log: AnsiLogger;
