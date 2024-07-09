@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 - [imports]: Updated matterbridge imports.
 
+### Fixed
+
+- [z2m]: Fixed the detection of color_temp only lights.
+
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
 </a>
