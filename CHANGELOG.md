@@ -4,7 +4,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.6] - Not planned
+## [2.1.6] - 2024-07-10
 
 ### Changed
 
