@@ -35,6 +35,7 @@ export default [
       'no-console': 'warn',
       'no-undef': 'off',
       'spaced-comment': ['error', 'always'],
+      'no-useless-constructor': 'off',
     },
   },
   {
@@ -57,6 +58,9 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tseslint.plugin,
+    },
+    rules: {
+      '@typescript-eslint/no-useless-constructor': 'off',
     },
   },
   {
