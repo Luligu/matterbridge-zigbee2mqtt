@@ -54,7 +54,6 @@ import {
   AtLeastOne,
   FixedLabelCluster,
   SwitchCluster,
-  EveHistory,
   getClusterNameById,
   DoorLockCluster,
   AttributeInitialValues,
@@ -67,15 +66,17 @@ import {
   Pm25ConcentrationMeasurement,
   Pm10ConcentrationMeasurement,
 } from 'matterbridge';
+import { EveHistory } from 'matterbridge/history';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'matterbridge/logger';
+import { deepCopy, deepEqual } from 'matterbridge/utils/utils';
+import * as color from 'matterbridge/utils/colorUtils';
 
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'node-ansi-logger';
+import EventEmitter from 'events';
+import { hostname } from 'os';
+
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
-import * as color from './colorUtils.js';
-import EventEmitter from 'events';
-import { hostname } from 'os';
-import { deepCopy, deepEqual } from 'matterbridge';
 
 export class ZigbeeEntity extends EventEmitter {
   public log: AnsiLogger;
@@ -498,11 +499,13 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state',          property: 'state',      deviceType: onOffSwitch,                cluster: OnOff.Cluster.id,        attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'switch', name: 'brightness',     property: 'brightness', deviceType: dimmableSwitch,             cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
   { type: 'switch', name: 'color_xy',       property: 'color_xy',   deviceType: colorTemperatureSwitch,     cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
+  { type: 'switch', name: 'color_temp',     property: 'color_temp', deviceType: colorTemperatureSwitch,     cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'outlet', name: 'state',          property: 'state',      deviceType: DeviceTypes.ON_OFF_PLUGIN_UNIT, cluster: OnOff.Cluster.id,    attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'outlet', name: 'brightness',     property: 'brightness', deviceType: DeviceTypes.DIMMABLE_PLUGIN_UNIT, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
   { type: 'light',  name: 'state',          property: 'state',      deviceType: DeviceTypes.ON_OFF_LIGHT,   cluster: OnOff.Cluster.id,        attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'light',  name: 'brightness',     property: 'brightness', deviceType: DeviceTypes.DIMMABLE_LIGHT, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
   { type: 'light',  name: 'color_xy',       property: 'color_xy',   deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
+  { type: 'light',  name: 'color_temp',     property: 'color_temp', deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'cover',  name: 'state',          property: 'state',      deviceType: DeviceTypes.WINDOW_COVERING, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
   { type: 'lock',   name: 'state',          property: 'state',      deviceType: DeviceTypes.DOOR_LOCK,      cluster: DoorLock.Cluster.id,     attribute: 'lockState', converter: (value) => { return value === 'LOCK' ? DoorLock.LockState.Locked : DoorLock.LockState.Unlocked } },
 
