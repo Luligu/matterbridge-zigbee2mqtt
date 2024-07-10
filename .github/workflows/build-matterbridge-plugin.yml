@@ -1,4 +1,4 @@
-name: Build and Lint
+name: Build, lint and test
 
 on: [push, pull_request]
 
@@ -30,17 +30,20 @@ jobs:
       - name: Lint the project
         run: npm run lint
 
+      - name: Test the project
+        run: npm run test
+
       - name: Build the project
         run: npm run build
 
-      - name: List, audit, fix outdated dependencies and build again
-        run: |
-          npm uninstall matterbridge
-          npm list --outdated
-          npm audit || true  # ignore failures
-          npm audit fix || true
-          npm list --outdated
-          npm install -g matterbridge
-          npm install
-          npm run build
+      # - name: List, audit, fix outdated dependencies and build again
+      #   run: |
+      #     npm uninstall matterbridge
+      #     npm list --outdated
+      #     npm audit || true  # ignore failures
+      #     npm audit fix || true
+      #     npm list --outdated
+      #     npm install -g matterbridge
+      #     npm install
+      #     npm run build
 
