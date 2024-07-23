@@ -68,8 +68,8 @@ import {
 } from 'matterbridge';
 import { EveHistory } from 'matterbridge/history';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'matterbridge/logger';
-import { deepCopy, deepEqual } from 'matterbridge/utils/utils';
-import * as color from 'matterbridge/utils/colorUtils';
+import { deepCopy, deepEqual } from 'matterbridge/utils';
+import * as color from 'matterbridge/utils';
 
 import EventEmitter from 'events';
 import { hostname } from 'os';
