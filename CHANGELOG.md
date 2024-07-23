@@ -4,7 +4,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.8] - 2024-07-12
+## [2.1.8] - 2024-07-23
 
 ### Changed
 
@@ -29,7 +29,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - [package]: Updated dependencies.
-- [imports]: Updated matterbridge imports.
+- [imports]: Updated matterbridge  imports.
 
 ### Fixed
 
