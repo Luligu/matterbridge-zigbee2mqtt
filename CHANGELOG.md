@@ -4,7 +4,19 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.8] - 2024-07-12
+## [2.1.9] - 2024-07-28
+
+### Changed
+
+- [package]: Updated dependencies.
+- [logger]: Update node-ansi-logger to 2.0.6.
+- [storage]: Update node-persist-manager to 1.0.8.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
+## [2.1.8] - 2024-07-23
 
 ### Changed
 
@@ -29,7 +41,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - [package]: Updated dependencies.
-- [imports]: Updated matterbridge imports.
+- [imports]: Updated matterbridge  imports.
 
 ### Fixed
 
