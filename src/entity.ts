@@ -493,8 +493,6 @@ export interface ZigbeeToMatter {
   valueLookup?: string[];
 }
 
-/* eslint-disable */
-// prettier-ignore
 export const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffSwitch, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
@@ -550,7 +548,6 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'current', property: 'current', deviceType: powerSource, cluster: EveHistory.Cluster.id, attribute: 'Current', converter: (value) => { return value } },
   //{ type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: 'lockState' },
 ];
-/* eslint-enable */
 
 export class ZigbeeDevice extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, device: BridgeDevice) {
