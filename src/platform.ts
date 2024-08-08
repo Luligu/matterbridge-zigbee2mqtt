@@ -21,8 +21,8 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN } from 'matterbridge/logger';
+import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Endpoint, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er } from 'matterbridge/logger';
 import { waiter } from 'matterbridge/utils';
 
 import path from 'path';
@@ -504,13 +504,18 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       return undefined;
     }
     this.log.debug(`Registering device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
-    const matterDevice = new ZigbeeDevice(this, device);
-    if (matterDevice.bridgedDevice) {
-      await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
-      this.bridgedDevices.push(matterDevice.bridgedDevice);
-      this.zigbeeEntities.push(matterDevice);
-      this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
-    } else this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
+    let matterDevice: ZigbeeDevice | undefined;
+    try {
+      matterDevice = new ZigbeeDevice(this, device);
+      if (matterDevice.bridgedDevice && (matterDevice.bridgedDevice instanceof Endpoint)) {
+        await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
+        this.bridgedDevices.push(matterDevice.bridgedDevice);
+        this.zigbeeEntities.push(matterDevice);
+        this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
+      } else this.log.warn(`Device ${dn}${device.friendly_name}${wr} ID: ${device.ieee_address} not registered`);
+    } catch (error) {
+      this.log.error(`Error registering device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address}: ${error}`);
+    }
     return matterDevice;
   }
 
