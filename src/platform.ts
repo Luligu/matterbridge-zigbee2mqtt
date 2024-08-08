@@ -507,7 +507,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     let matterDevice: ZigbeeDevice | undefined;
     try {
       matterDevice = new ZigbeeDevice(this, device);
-      if (matterDevice.bridgedDevice && (matterDevice.bridgedDevice instanceof Endpoint)) {
+      if (matterDevice.bridgedDevice && matterDevice.bridgedDevice instanceof Endpoint) {
         await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
         this.zigbeeEntities.push(matterDevice);

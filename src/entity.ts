@@ -311,7 +311,7 @@ export class ZigbeeEntity extends EventEmitter {
       else {
         this.log.debug(
           `Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
-          `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} value ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db} not found in lookup ${debugStringify(lookup)}`,
+            `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} value ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db} not found in lookup ${debugStringify(lookup)}`,
         );
         return;
       }
@@ -325,7 +325,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(
       `Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
-      `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
+        `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {
       cluster.attributes[attributeName].setLocal(value);
@@ -493,6 +493,8 @@ export interface ZigbeeToMatter {
   valueLookup?: string[];
 }
 
+/* eslint-disable */
+// prettier-ignore
 export const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffSwitch, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
@@ -548,6 +550,7 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'current', property: 'current', deviceType: powerSource, cluster: EveHistory.Cluster.id, attribute: 'Current', converter: (value) => { return value } },
   //{ type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: 'lockState' },
 ];
+/* eslint-enable */
 
 export class ZigbeeDevice extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, device: BridgeDevice) {
@@ -724,7 +727,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Command on called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
-        label === undefined ? (payload['state'] = 'ON') : (payload['state_' + label] = 'ON');
+        if (label === undefined) payload['state'] = 'ON';
+        else payload['state_' + label] = 'ON';
         this.publishCommand('on', device.friendly_name, payload);
       });
       this.bridgedDevice.addCommandHandler('off', async (data) => {
@@ -732,7 +736,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Command off called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
-        label === undefined ? (payload['state'] = 'OFF') : (payload['state_' + label] = 'OFF');
+        if (label === undefined) payload['state'] = 'OFF';
+        else payload['state_' + label] = 'OFF';
         this.publishCommand('off', device.friendly_name, payload);
       });
       this.bridgedDevice.addCommandHandler('toggle', async (data) => {
@@ -740,7 +745,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Command toggle called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
-        label === undefined ? (payload['state'] = 'TOGGLE') : (payload['state_' + label] = 'TOGGLE');
+        if (label === undefined) payload['state'] = 'TOGGLE';
+        else payload['state_' + label] = 'TOGGLE';
         this.publishCommand('toggle', device.friendly_name, payload);
       });
     }
@@ -750,7 +756,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Command moveToLevel called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(number);
-        label === undefined ? (payload['brightness'] = level) : (payload['brightness_' + label] = level);
+        if (label === undefined) payload['brightness'] = level;
+        else payload['brightness_' + label] = level;
         if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
         this.publishCommand('moveToLevel', device.friendly_name, payload);
       });
@@ -759,7 +766,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
         const payload: Payload = {};
         const label = this.bridgedDevice?.getEndpointLabel(number);
-        label === undefined ? (payload['brightness'] = level) : (payload['brightness_' + label] = level);
+        if (label === undefined) payload['brightness'] = level;
+        else payload['brightness_' + label] = level;
         if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
         this.publishCommand('moveToLevelWithOnOff', device.friendly_name, payload);
       });
@@ -899,9 +907,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
           }, 10 * 1000);
         });
       }
-    }
-    if (this.bridgedDevice.hasClusterServer(Switch.Complete)) {
-      this.bridgedDevice.verifyRequiredClusters;
     }
   }
 }

@@ -15,7 +15,6 @@ All notable changes to this project will be documented in this file.
 
 - [z2m]: Fixed issue: 'Only supported EndpointInterface implementation is Endpoint'.
 
-
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
 </a>
@@ -57,7 +56,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - [package]: Updated dependencies.
-- [imports]: Updated matterbridge  imports.
+- [imports]: Updated matterbridge imports.
 
 ### Fixed
 
