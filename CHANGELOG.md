@@ -4,6 +4,21 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.10] - 2024-08-09
+
+### Changed
+
+- [package]: Updated dependencies.
+- [logger]: Update mqtt to 5.9.1.
+
+### Fixed
+
+- [z2m]: Fixed issue: 'Only supported EndpointInterface implementation is Endpoint'.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.9] - 2024-07-28
 
 ### Changed
@@ -41,7 +56,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - [package]: Updated dependencies.
-- [imports]: Updated matterbridge  imports.
+- [imports]: Updated matterbridge imports.
 
 ### Fixed
 
