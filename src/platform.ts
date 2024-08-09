@@ -164,6 +164,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
       this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
       if (config.injectDevices) {
+        this.log.warn(`***Injecting virtual devices from ${path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string)}`);
         const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
         this.log.warn(`***Injecting ${data.devices.length} devices from ${config.injectDevices}`);
         this.z2mBridgeDevices = [devices, data.devices].flat();
@@ -338,13 +339,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       throw new Error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
     }
 
-    /*
-    if (!this.z2mDevicesRegistered || !this.z2mGroupsRegistered) {
-      this.shouldStart = true;
-      this.log.debug('Setting flag to start when zigbee2mqtt sends devices: ', reason);
-    }
-    */
-
     if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
       this.log.info(`Registering ${this.z2mBridgeDevices.length} devices`);
       for (const device of this.z2mBridgeDevices) {
@@ -507,6 +501,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     let matterDevice: ZigbeeDevice | undefined;
     try {
       matterDevice = new ZigbeeDevice(this, device);
+      if (!(matterDevice.bridgedDevice instanceof Endpoint)) this.log.error(`Device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address} is not instance of endpoint`);
       if (matterDevice.bridgedDevice && matterDevice.bridgedDevice instanceof Endpoint) {
         await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
@@ -524,13 +519,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       return undefined;
     }
     this.log.debug(`Registering group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
-    const matterGroup = new ZigbeeGroup(this, group);
-    if (matterGroup.bridgedDevice) {
-      await this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
-      this.bridgedDevices.push(matterGroup.bridgedDevice);
-      this.zigbeeEntities.push(matterGroup);
-      this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
-    } else this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
+    let matterGroup: ZigbeeGroup | undefined;
+    try {
+      matterGroup = new ZigbeeGroup(this, group);
+      if (!(matterGroup.bridgedDevice instanceof Endpoint)) this.log.error(`Group ${dn}${group.friendly_name}${er} ID: ${group.id} is not instance of endpoint`);
+      if (matterGroup.bridgedDevice && matterGroup.bridgedDevice instanceof Endpoint) {
+        await this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
+        this.bridgedDevices.push(matterGroup.bridgedDevice);
+        this.zigbeeEntities.push(matterGroup);
+        this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
+      } else this.log.warn(`Group ${gn}${group.friendly_name}${wr} ID: ${group.id} not registered`);
+    } catch (error) {
+      this.log.error(`Error registering group ${gn}${group.friendly_name}${er} ID: ${group.id}: ${error}`);
+    }
     return matterGroup;
   }
 

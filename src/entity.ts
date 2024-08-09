@@ -622,12 +622,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (platform.featureBlackList) this.ignoreFeatures = [...this.ignoreFeatures, ...platform.featureBlackList];
     if (platform.deviceFeatureBlackList[device.friendly_name]) this.ignoreFeatures = [...this.ignoreFeatures, ...platform.deviceFeatureBlackList[device.friendly_name]];
 
-    /*
-    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
-    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
-    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
-    this.log.debug(`*Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
-    */
+    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
+    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
+    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
+    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
+
     names.forEach((name, index) => {
       if (platform.featureBlackList.includes(name)) {
         this.log.debug(`Device ${this.en}${device.friendly_name}${db} feature ${name} is globally blacklisted`);
@@ -656,6 +655,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (type !== '') childEndpoint.addFixedLabel('type', type);
           this.bridgedDevice.addFixedLabel('composed', type);
         }
+      } else {
+        // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => no mapping found`);
       }
       if (name === 'action' && this.actions.length) {
         this.log.info(`Device ${this.ien}${device.friendly_name}${rs}${nf} has actions mapped to these switches on sub endpoints:`);
