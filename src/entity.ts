@@ -80,6 +80,7 @@ import { Payload, PayloadValue } from './payloadTypes.js';
 
 export class ZigbeeEntity extends EventEmitter {
   public log: AnsiLogger;
+  public serial = '';
   protected platform: ZigbeePlatform;
   public device: BridgeDevice | undefined;
   public group: BridgeGroup | undefined;
@@ -380,6 +381,12 @@ export class ZigbeeGroup extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, group: BridgeGroup) {
     super(platform, group);
 
+    if (this.platform.postfixHostname) {
+      this.serial = `group-${group.id}_${hostname}`.slice(-1, 32);
+    } else {
+      this.serial = `group-${group.id}`.slice(-1, 32);
+    }
+
     // TODO Add the group scanning for real groups. This cover only automations
     let useState = false;
     let useBrightness = false;
@@ -555,6 +562,11 @@ export const z2ms: ZigbeeToMatter[] = [
 export class ZigbeeDevice extends ZigbeeEntity {
   constructor(platform: ZigbeePlatform, device: BridgeDevice) {
     super(platform, device);
+
+    this.serial = `${device.ieee_address}`;
+    if (this.platform.postfixHostname) {
+      this.serial = `${this.serial}_${hostname}`.slice(-1, 32);
+    }
 
     if (device.friendly_name === 'Coordinator' || (device.model_id === 'ti.router' && device.manufacturer === 'TexasInstruments') || (device.model_id.startsWith('SLZB-') && device.manufacturer === 'SMLIGHT')) {
       this.bridgedDevice = new BridgedBaseDevice(this, [DeviceTypes.DOOR_LOCK], [Identify.Cluster.id, DoorLock.Cluster.id]);
@@ -937,11 +949,11 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
 
     // Add BridgedDeviceBasicInformation cluster
     if (entity.isDevice && entity.device && entity.device.friendly_name === 'Coordinator') {
-      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, 'zigbee2MQTT', 'Coordinator', entity.device.ieee_address);
+      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, 'zigbee2MQTT', 'Coordinator', entity.serial);
     } else if (entity.isDevice && entity.device) {
-      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, entity.device.definition ? entity.device.definition.vendor : entity.device.manufacturer, entity.device.definition ? entity.device.definition.model : entity.device.model_id, entity.device.ieee_address);
+      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, entity.device.definition ? entity.device.definition.vendor : entity.device.manufacturer, entity.device.definition ? entity.device.definition.model : entity.device.model_id, entity.serial);
     } else if (entity.isGroup && entity.group) {
-      this.addBridgedDeviceBasicInformationCluster(entity.group.friendly_name, 'zigbee2MQTT', 'Group', `group-${entity.group.id}`);
+      this.addBridgedDeviceBasicInformationCluster(entity.group.friendly_name, 'zigbee2MQTT', 'Group', entity.serial);
     }
 
     // Add BridgedDevice device type
@@ -968,7 +980,7 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
    * @param deviceSerial Serial of the device
    */
   protected addBridgedDeviceBasicInformationCluster(deviceName: string, vendorName: string, productName: string, deviceSerial: string) {
-    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName.slice(0, 32), (deviceSerial + '_' + hostname).slice(0, 32), 0xfff1, vendorName.slice(0, 32), productName.slice(0, 32));
+    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName.slice(0, 32), deviceSerial, 0xfff1, vendorName.slice(0, 32), productName.slice(0, 32));
   }
 
   /**

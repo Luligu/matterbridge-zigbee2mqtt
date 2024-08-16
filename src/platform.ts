@@ -58,6 +58,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public switchList: string[] = [];
   public featureBlackList: string[] = [];
   public deviceFeatureBlackList: DeviceFeatureBlackList = {};
+  public postfixHostname = true;
 
   // zigbee2Mqtt
   public debugEnabled: boolean;
@@ -93,6 +94,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.outletList) this.outletList = config.outletList as string[];
     if (config.featureBlackList) this.featureBlackList = config.featureBlackList as string[];
     if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList as DeviceFeatureBlackList;
+    this.postfixHostname = (config.postfixHostname as boolean) ?? true;
+
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
     config.port = this.mqttPort;
@@ -102,6 +105,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.password = this.mqttPassword;
     config.whiteList = this.whiteList;
     config.blackList = this.blackList;
+    config.postfixHostname = this.postfixHostname;
 
     if (config.type === 'MatterbridgeExtension') {
       this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
