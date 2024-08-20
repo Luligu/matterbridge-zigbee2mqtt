@@ -19,23 +19,30 @@
       "readOnly": true
     },
     "host": {
-      "description": "Host (IP address or hostname without mqtt://)",
-      "type": "string"
+      "description": "MQTT server host (IP address or hostname without mqtt://)",
+      "type": "string",
+      "default": "localhost"
     },
     "username": {
-      "description": "Username",
+      "description": "MQTT server authentication user",
       "type": "string"
     },
     "password": {
-      "description": "Password",
+      "description": "MQTT server authentication password",
       "type": "string"
     },
     "port": {
-      "description": "Port",
-      "type": "number"
+      "description": "MQTT server port (default 1883)",
+      "type": "number",
+      "default": 1883
+    },
+    "version": {
+      "description": "MQTT server protocol version 3, 4 or 5 (default 5)",
+      "type": "number",
+      "default": 5
     },
     "topic": {
-      "description": "Topic",
+      "description": "MQTT base topic for Zigbee2MQTT MQTT messages",
       "type": "string"
     },
     "blackList": {
