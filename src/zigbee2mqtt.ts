@@ -4,9 +4,9 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.3.0
+ * @version 2.3.1
  *
- * Copyright 2023, 2024 Luca Liguori.
+ * Copyright 2023, 2024, 2025 Luca Liguori.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import * as util from 'util';
 import * as crypto from 'crypto';
 import { MqttClient, IClientOptions, connectAsync, ErrorWithReasonCode, IConnackPacket, IDisconnectPacket, IPublishPacket, Packet } from 'mqtt';
 import { EventEmitter } from 'events';
-import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF } from 'node-ansi-logger';
+import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF, LogLevel } from 'node-ansi-logger';
 import { BridgeExtension, KeyValue, Topology } from './zigbee2mqttTypes.js';
 import { mkdir } from 'fs/promises';
 import { Payload } from './payloadTypes.js';
@@ -272,7 +272,7 @@ export class Zigbee2MQTT extends EventEmitter {
   };
 
   // Constructor
-  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername = '', mqttPassword = '') {
+  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername = '', mqttPassword = '', protocolVersion: 4 | 5 | 3 = 5) {
     super();
 
     this.mqttHost = mqttHost;
@@ -285,6 +285,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.options.username = mqttUsername;
       this.options.password = mqttPassword;
     }
+    this.options.protocolVersion = protocolVersion;
 
     this.z2mIsAvailabilityEnabled = false;
     this.z2mIsOnline = false;
@@ -299,7 +300,7 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   public setLogDebug(logDebug: boolean): void {
-    this.log.setLogDebug(logDebug);
+    this.log.logLevel = logDebug ? LogLevel.DEBUG : LogLevel.INFO;
   }
 
   public async setDataPath(dataPath: string): Promise<void> {
