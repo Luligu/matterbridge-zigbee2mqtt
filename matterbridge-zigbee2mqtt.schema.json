@@ -2,7 +2,11 @@
   "title": "Matterbridge zigbee2mqtt plugin",
   "description": "matterbridge-zigbee2mqtt v. 2.0.17 by https://github.com/Luligu",
   "type": "object",
-  "required": ["host", "port", "topic"],
+  "required": [
+    "host",
+    "port",
+    "topic"
+  ],
   "properties": {
     "name": {
       "description": "Plugin name",
@@ -15,7 +19,7 @@
       "readOnly": true
     },
     "host": {
-      "description": "Host",
+      "description": "Host (IP address or hostname without mqtt://)",
       "type": "string"
     },
     "username": {
