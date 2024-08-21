@@ -67,7 +67,7 @@ import {
   Pm10ConcentrationMeasurement,
 } from 'matterbridge';
 import { EveHistory } from 'matterbridge/history';
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf } from 'matterbridge/logger';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf, LogLevel } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
 
@@ -141,7 +141,7 @@ export class ZigbeeEntity extends EventEmitter {
       }
 
       const debugEnabled = this.platform.debugEnabled;
-      this.log.setLogDebug(true);
+      this.log.logLevel = LogLevel.DEBUG;
       if (this.bridgedDevice === undefined) {
         this.log.debug(`*Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
@@ -272,7 +272,7 @@ export class ZigbeeEntity extends EventEmitter {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
         }
       });
-      this.log.setLogDebug(debugEnabled);
+      this.log.logLevel = debugEnabled ? LogLevel.DEBUG : LogLevel.INFO;
     });
 
     this.platform.z2m.on('ONLINE-' + this.entityName, () => {

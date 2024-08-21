@@ -4,6 +4,18 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.12] - 2024-08-21
+
+### Changed
+
+- [schema]: Changed schema file to add MQTT protocol.
+- [schema]: Changed descriptions in schema for easier setup.
+- [package]: Updated dependencies.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.11] - 2024-08-20
 
 ### Changed
