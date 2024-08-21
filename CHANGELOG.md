@@ -9,7 +9,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 - [schema]: Changed schema file to add MQTT protocol.
-- [schema]: Changed descriptions for easier setup.
+- [schema]: Changed descriptions in schema for easier setup.
+- [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">

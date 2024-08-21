@@ -50,6 +50,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private mqttTopic = 'zigbee2mqtt';
   private mqttUsername = '';
   private mqttPassword = '';
+  private mqttProtocol: 4 | 5 | 3 = 5;
   private whiteList: string[] = [];
   private blackList: string[] = [];
   public lightList: string[] = [];
@@ -84,6 +85,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.topic) this.mqttTopic = config.topic as string;
     if (config.username) this.mqttUsername = config.username as string;
     if (config.password) this.mqttPassword = config.password as string;
+    if (config.protocolVersion && typeof config.protocolVersion === 'number' && config.protocolVersion >= 3 && config.protocolVersion <= 5) this.mqttProtocol = config.protocolVersion as 4 | 5 | 3;
     if (config.whiteList) this.whiteList = config.whiteList as string[];
     if (config.blackList) this.blackList = config.blackList as string[];
     if (config.switchList) this.switchList = config.switchList as string[];
@@ -94,6 +96,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
     config.port = this.mqttPort;
+    config.protocolVersion = this.mqttProtocol;
     config.topic = this.mqttTopic;
     config.username = this.mqttUsername;
     config.password = this.mqttPassword;
@@ -101,7 +104,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.blackList = this.blackList;
 
     if (config.type === 'MatterbridgeExtension') {
-      this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
+      this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol);
       this.z2m.setLogDebug(this.debugEnabled);
       this.log.debug('Created ZigbeePlatform as Matterbridge extension');
       return;

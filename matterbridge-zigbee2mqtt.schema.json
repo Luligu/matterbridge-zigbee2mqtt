@@ -36,7 +36,7 @@
       "type": "number",
       "default": 1883
     },
-    "version": {
+    "protocolVersion": {
       "description": "MQTT server protocol version 3, 4 or 5 (default 5)",
       "type": "number",
       "default": 5
