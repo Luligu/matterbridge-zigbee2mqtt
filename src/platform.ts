@@ -104,7 +104,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.blackList = this.blackList;
 
     if (config.type === 'MatterbridgeExtension') {
-      this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol);
+      this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
       this.z2m.setLogDebug(this.debugEnabled);
       this.log.debug('Created ZigbeePlatform as Matterbridge extension');
       return;
@@ -114,7 +114,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}:`);
     // this.log.debug(`Config:')}${rs}`, config);
 
-    this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword);
+    this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
     this.z2m.setLogDebug(this.debugEnabled);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 

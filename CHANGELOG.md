@@ -4,6 +4,20 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.13] - 2024-08-22
+
+### Changed
+
+- [package]: Updated dependencies.
+
+### Fixed
+
+- [package]: Fixed MQTT protocol.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.12] - 2024-08-21
 
 ### Changed
