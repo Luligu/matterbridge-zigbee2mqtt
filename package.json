@@ -87,14 +87,14 @@
   "dependencies": {
     "moment": "2.30.1",
     "mqtt": "5.10.0",
-    "node-ansi-logger": "2.0.8",
+    "node-ansi-logger": "3.0.0",
     "node-persist-manager": "1.0.8"
   },
   "devDependencies": {
     "@eslint/js": "9.9.0",
     "@types/eslint__js": "8.42.3",
     "@types/jest": "29.5.12",
-    "@types/node": "22.4.2",
+    "@types/node": "22.5.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-jest": "28.8.0",
     "eslint-plugin-prettier": "5.2.1",
