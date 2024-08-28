@@ -121,7 +121,7 @@ The unregisterOnShutdown option allows to remove from the bridge all z2m devices
 
 These are the default vules:
 
-```
+```json
 {
   "name": "matterbridge-zigbee2mqtt",
   "type": "DynamicPlatform",
@@ -137,13 +137,14 @@ These are the default vules:
   "lightList": [],
   "outletList": [],
   "featureBlackList": [],
-  "deviceFeatureBlackList": {}
+  "deviceFeatureBlackList": {},
+  "postfixHostname": true
 }
 ```
 
 If you want to exclude "device_temperature" for all the devices, add to the config
 
-```
+```json
 {
   ...
   "featureBlackList": ["device_temperature"]
@@ -154,7 +155,7 @@ If you want to exclude "device_temperature" for all the devices, add to the conf
 If you want to exclude "temperature" and "humidity" for the device "My motion sensor" and
 "device_temperature" only for the device "My climate sensor", add to the config
 
-```
+```json
 {
   ...
   "deviceFeatureBlackList": {
@@ -162,6 +163,18 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
     "My climate sensor": ["device_temperature"]
   }
   ...
+}
+```
+
+By default matterbridge uses hostname in order to make entities unique, however in some cases
+you may not want this behavior, for example when deploying matterbridge in kubernets cluster.
+You can use "postfixHostname" boolean flag to disable this behavior:
+
+```json
+{
+    ...
+    "postfixHostname": false
+    ...
 }
 ```
 
