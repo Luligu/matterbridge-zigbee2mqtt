@@ -24,7 +24,6 @@
 import {
   DeviceTypes,
   DeviceTypeDefinition,
-  AirQuality,
   MatterbridgeDevice,
   airQualitySensor,
   colorTemperatureSwitch,
@@ -44,7 +43,6 @@ import {
   IlluminanceMeasurement,
   PowerSource,
   ClusterId,
-  TvocMeasurement,
   WindowCovering,
   DoorLock,
   BridgedDeviceBasicInformation,
@@ -59,13 +57,8 @@ import {
   AttributeInitialValues,
   powerSource,
   bridgedNode,
-  CarbonDioxideConcentrationMeasurement,
-  CarbonMonoxideConcentrationMeasurement,
-  FormaldehydeConcentrationMeasurement,
-  Pm1ConcentrationMeasurement,
-  Pm25ConcentrationMeasurement,
-  Pm10ConcentrationMeasurement,
 } from 'matterbridge';
+import { AirQuality, TvocMeasurement, CarbonDioxideConcentrationMeasurement, CarbonMonoxideConcentrationMeasurement, FormaldehydeConcentrationMeasurement, Pm1ConcentrationMeasurement, Pm25ConcentrationMeasurement, Pm10ConcentrationMeasurement } from 'matterbridge/cluster';
 import { EveHistory } from 'matterbridge/history';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf, LogLevel } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
