@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "2.1.13",
+  "version": "2.1.14",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
@@ -46,10 +46,10 @@
     "watch": "tsc --watch",
     "start:bridge": "matterbridge -bridge",
     "start:childbridge": "matterbridge -childbridge",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests",
-    "test:verbose": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --verbose",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --passWithNoTests --coverage",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:verbose": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "lint": "eslint --max-warnings=0 .",
     "lint:fix": "eslint --fix --max-warnings=0 .",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
@@ -58,7 +58,7 @@
     "cleanBuild": "npm run clean && tsc",
     "deepClean": "rimraf tsconfig.tsbuildinfo package-lock.json ./dist ./node_modules",
     "deepCleanRebuild": "npm run deepClean && npm install && npm run build",
-    "prepublishOnly": "npm run lint && npm run cleanBuild",
+    "prepublishOnly": "npm run lint && npm run test && npm run cleanBuild",
     "checkDependencies": "npx npm-check-updates",
     "updateDependencies": "npx npm-check-updates -u && npm install & npm run cleanBuild",
     "matterbridge:add": "matterbridge -add .\\",
@@ -77,24 +77,22 @@
     "install": "node link-matterbridge-script.js",
     "install:dependencies": "npm install node-ansi-logger moment mqtt && npm install --save-dev rimraf",
     "install:typescript": "npm install --save-dev typescript @types/node && npm run install && npm run build",
-    "install:eslint": "npm install --save-dev @eslint/js @types/eslint__js typescript typescript-eslint",
+    "install:eslint": "npm install --save-dev eslint @eslint/js @types/eslint__js typescript typescript-eslint",
     "install:prettier": "npm install --save-dev prettier eslint-config-prettier eslint-plugin-prettier",
     "install:jest": "npm install --save-dev jest ts-jest @types/jest eslint-plugin-jest"
   },
-  "overrides": {
-    "eslint": "latest"
-  },
   "dependencies": {
     "moment": "2.30.1",
-    "mqtt": "5.10.0",
+    "mqtt": "5.10.1",
     "node-ansi-logger": "3.0.0",
     "node-persist-manager": "1.0.8"
   },
   "devDependencies": {
-    "@eslint/js": "9.9.1",
-    "@types/eslint__js": "8.42.3",
+    "@eslint/js": "^9.9.1",
+    "@types/eslint__js": "^8.42.3",
     "@types/jest": "29.5.12",
     "@types/node": "22.5.1",
+    "eslint": "^9.9.1",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-jest": "28.8.0",
     "eslint-plugin-prettier": "5.2.1",
@@ -102,7 +100,7 @@
     "prettier": "3.3.3",
     "rimraf": "6.0.1",
     "ts-jest": "29.2.5",
-    "typescript": "5.5.4",
-    "typescript-eslint": "8.3.0"
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.3.0"
   }
 }

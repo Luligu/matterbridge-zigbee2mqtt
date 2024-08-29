@@ -4,6 +4,21 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.14] - 2024-08-29
+
+### Added
+
+- [config]: Added parameter postfixHostname (default true). If you change it, the controllers will remove and recreate all the devices! (https://github.com/L2jLiga)
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Updated imports.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.1.13] - 2024-08-22
 
 ### Changed

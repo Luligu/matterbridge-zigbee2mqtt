@@ -4,7 +4,7 @@
  * @file entity.ts
  * @author Luca Liguori
  * @date 2023-12-29
- * @version 2.1.0
+ * @version 2.1.1
  *
  * Copyright 2023, 2024 Luca Liguori.
  *
@@ -375,9 +375,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
     super(platform, group);
 
     if (this.platform.postfixHostname) {
-      this.serial = `group-${group.id}_${hostname}`.slice(-1, 32);
+      this.serial = `group-${group.id}_${hostname}`.slice(0, 32);
     } else {
-      this.serial = `group-${group.id}`.slice(-1, 32);
+      this.serial = `group-${group.id}`.slice(0, 32);
     }
 
     // TODO Add the group scanning for real groups. This cover only automations
@@ -558,7 +558,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     this.serial = `${device.ieee_address}`;
     if (this.platform.postfixHostname) {
-      this.serial = `${this.serial}_${hostname}`.slice(-1, 32);
+      this.serial = `${this.serial}_${hostname}`.slice(0, 32);
     }
 
     if (device.friendly_name === 'Coordinator' || (device.model_id === 'ti.router' && device.manufacturer === 'TexasInstruments') || (device.model_id.startsWith('SLZB-') && device.manufacturer === 'SMLIGHT')) {

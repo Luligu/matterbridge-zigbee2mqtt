@@ -167,8 +167,7 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 ```
 
 By default matterbridge uses hostname in order to make entities unique, however in some cases
-you may not want this behavior, for example when deploying matterbridge in kubernets cluster.
-You can use "postfixHostname" boolean flag to disable this behavior:
+you may not want this behavior. You can use "postfixHostname" boolean flag to disable this behavior:
 
 ```json
 {
