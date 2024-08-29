@@ -60,7 +60,7 @@
       }
     },
     "switchList": {
-      "description": "The devices in the list will be exposed like switches. (don't use it for Alexa, use lightList or outletList instead)",
+      "description": "The devices in the list will be exposed like switches (don't use it for Alexa, use lightList or outletList instead).",
       "type": "array",
       "items": {
         "type": "string"
@@ -96,6 +96,11 @@
           "type": "string"
         }
       }
+    },
+    "postfixHostname": {
+      "description": "Unique postfix added to each device identifier to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
+      "type": "boolean",
+      "default": true
     },
     "debug": {
       "description": "Enable the debug for the plugin (development only)",
