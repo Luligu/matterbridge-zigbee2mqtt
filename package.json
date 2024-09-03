@@ -44,6 +44,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
+    "start": "matterbridge",
     "start:bridge": "matterbridge -bridge",
     "start:childbridge": "matterbridge -childbridge",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
