@@ -57,8 +57,15 @@ import {
   AttributeInitialValues,
   powerSource,
   bridgedNode,
+  AirQuality,
+  TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  CarbonDioxideConcentrationMeasurement,
+  CarbonMonoxideConcentrationMeasurement,
+  FormaldehydeConcentrationMeasurement,
+  Pm1ConcentrationMeasurement,
+  Pm25ConcentrationMeasurement,
+  Pm10ConcentrationMeasurement,
 } from 'matterbridge';
-import { AirQuality, TvocMeasurement, CarbonDioxideConcentrationMeasurement, CarbonMonoxideConcentrationMeasurement, FormaldehydeConcentrationMeasurement, Pm1ConcentrationMeasurement, Pm25ConcentrationMeasurement, Pm10ConcentrationMeasurement } from 'matterbridge/cluster';
 import { EveHistory } from 'matterbridge/history';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf, LogLevel } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
@@ -529,7 +536,7 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'soil_moisture', property: 'soil_moisture', deviceType: DeviceTypes.HUMIDITY_SENSOR, cluster: RelativeHumidityMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
   { type: '', name: 'pressure', property: 'pressure', deviceType: DeviceTypes.PRESSURE_SENSOR, cluster: PressureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return value } },
   { type: '', name: 'air_quality', property: 'air_quality', deviceType: airQualitySensor, cluster: AirQuality.Cluster.id, attribute: 'airQuality', valueLookup: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] },
-  { type: '', name: 'voc', property: 'voc', deviceType: airQualitySensor, cluster: TvocMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.min(65535, value) } },
+  { type: '', name: 'voc', property: 'voc', deviceType: airQualitySensor, cluster: TotalVolatileOrganicCompoundsConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.min(65535, value) } },
 
   { type: '', name: 'co', property: 'co', deviceType: airQualitySensor, cluster: CarbonMonoxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
   { type: '', name: 'co2', property: 'co2', deviceType: airQualitySensor, cluster: CarbonDioxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
@@ -874,12 +881,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (this.bridgedDevice.hasClusterServer(Thermostat.Complete)) {
       this.bridgedDevice.addCommandHandler('setpointRaiseLower', async ({ request: request, attributes: attributes }) => {
         this.log.debug(`Command setpointRaiseLower called for ${this.ien}${device.friendly_name}${rs}${db}`, request);
-        if (request.mode === /* Thermostat.SetpointRaiseLowerMode.Heat*/ 0 && attributes.occupiedHeatingSetpoint) {
+        if (request.mode === Thermostat.SetpointRaiseLowerMode.Heat && attributes.occupiedHeatingSetpoint) {
           const setpoint = Math.round(attributes.occupiedHeatingSetpoint.getLocal() / 100 + request.amount / 10);
           this.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: setpoint });
           this.log.debug('Command setpointRaiseLower sent:', debugStringify({ current_heating_setpoint: setpoint }));
         }
-        if (request.mode === /* Thermostat.SetpointRaiseLowerMode.Cool*/ 1 && attributes.occupiedCoolingSetpoint) {
+        if (request.mode === Thermostat.SetpointRaiseLowerMode.Cool && attributes.occupiedCoolingSetpoint) {
           const setpoint = Math.round(attributes.occupiedCoolingSetpoint.getLocal() / 100 + request.amount / 10);
           this.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_cooling_setpoint: setpoint });
           this.log.debug('Command setpointRaiseLower sent:', debugStringify({ current_cooling_setpoint: setpoint }));
