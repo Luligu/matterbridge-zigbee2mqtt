@@ -6,7 +6,22 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking Changes
 
-- Unless you are using docker (in that case all is already updated), please update Matterbridge to 1.5.3 to work with matterbridge-zigbee2mqtt 2.1.16. This is a one time issue due to the update to matter.js 0.10.0.
+- Unless you are using docker (in that case all is already updated), please update Matterbridge to >=1.5.5 to work with matterbridge-zigbee2mqtt >=2.1.17. This is a one time issue due to the update to matter.js 0.10.x.
+
+## [2.1.17] - 2024-09-18
+
+### Changed
+
+- [matterbridge]: Removed Matterbridge deprecated method to get the child endpoints.
+- [package]: Updated dependencies.
+
+### Added
+
+- [matterbridge]: Added a check of the current Matterbridge version (required v1.5.5).
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
 
 ## [2.1.16] - 2024-09-04
 
