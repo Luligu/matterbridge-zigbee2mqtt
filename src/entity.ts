@@ -184,7 +184,8 @@ export class ZigbeeEntity extends EventEmitter {
               const switchMap = ['Single', 'Double', 'Long'];
               if (endpointName.value === 'switch_' + switchNumber) {
                 this.log.debug(`Action "${value}" found on switch ${switchNumber} endpoint ${this.eidn}${child.number}${db} action ${switchMap[switchAction]}`);
-                if (child.number) this.triggerSwitchEvent(child, switchMap[switchAction]);
+                // if (child.number) this.triggerSwitchEvent(child, switchMap[switchAction]);
+                if (child.number) this.bridgedDevice.triggerSwitchEvent(switchMap[switchAction] as 'Single' | 'Double' | 'Long', this.log, child);
               }
             }
 
