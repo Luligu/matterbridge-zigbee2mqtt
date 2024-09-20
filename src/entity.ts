@@ -325,7 +325,7 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(
-      `Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
+      `Update endpoint ${this.eidn}${endpoint.name}:${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
         `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {

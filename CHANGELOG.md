@@ -14,12 +14,12 @@ All notable changes to this project will be documented in this file.
 
 - [matterbridge]: Removed Matterbridge deprecated method to get the child endpoints.
 - [package]: Updated dependencies.
-- [plugin]: Moved trigger code to matterbridge triggerSwitchEvent
+- [plugin]: Moved trigger code to matterbridge triggerSwitchEvent.
 
 ### Added
 
 - [matterbridge]: Added a check of the current Matterbridge version (required v1.5.5).
-- [plugin]: Added configuration of ColorControl cluster features (HS, XY, CT)
+- [plugin]: Added configuration of ColorControl cluster features (HS, XY, CT).
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
