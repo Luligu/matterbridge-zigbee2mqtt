@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 
 - [matterbridge]: Added a check of the current Matterbridge version (required v1.5.5).
 - [plugin]: Added configuration of ColorControl cluster features (HS, XY, CT).
+- [plugin]: Removed the superset device types.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">

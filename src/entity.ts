@@ -705,6 +705,42 @@ export class ZigbeeDevice extends ZigbeeEntity {
       }
     });
 
+    // Remove superset device Types
+    if (this.bridgedDevice) {
+      const deviceTypes = this.bridgedDevice.getDeviceTypes();
+      const deviceTypesMap = new Map<number, DeviceTypeDefinition>();
+      deviceTypes.forEach((deviceType) => {
+        deviceTypesMap.set(deviceType.code, deviceType);
+      });
+      if (deviceTypesMap.has(DeviceTypes.ON_OFF_LIGHT.code) && deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code)) {
+        deviceTypesMap.delete(DeviceTypes.ON_OFF_LIGHT.code);
+        this.log.debug(`***Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing ON_OFF_LIGHT from ${this.bridgedDevice.name}`);
+      }
+      if (deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code) && deviceTypesMap.has(DeviceTypes.COLOR_TEMPERATURE_LIGHT.code)) {
+        deviceTypesMap.delete(DeviceTypes.DIMMABLE_LIGHT.code);
+        this.log.debug(`***Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing DIMMABLE_LIGHT from ${this.bridgedDevice.name}`);
+      }
+      this.bridgedDevice.setDeviceTypes(Array.from(deviceTypesMap.values()).sort((a, b) => b.code - a.code) as AtLeastOne<DeviceTypeDefinition>);
+
+      const childEndpoints = this.bridgedDevice.getChildEndpoints();
+      childEndpoints.forEach((childEndpoint) => {
+        const deviceTypes = childEndpoint.getDeviceTypes();
+        const deviceTypesMap = new Map<number, DeviceTypeDefinition>();
+        deviceTypes.forEach((deviceType) => {
+          deviceTypesMap.set(deviceType.code, deviceType);
+        });
+        if (deviceTypesMap.has(DeviceTypes.ON_OFF_LIGHT.code) && deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code)) {
+          deviceTypesMap.delete(DeviceTypes.ON_OFF_LIGHT.code);
+          this.log.debug(`***Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing ON_OFF_LIGHT from ${childEndpoint.name}`);
+        }
+        if (deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code) && deviceTypesMap.has(DeviceTypes.COLOR_TEMPERATURE_LIGHT.code)) {
+          deviceTypesMap.delete(DeviceTypes.DIMMABLE_LIGHT.code);
+          this.log.debug(`***Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing DIMMABLE_LIGHT from ${childEndpoint.name}`);
+        }
+        childEndpoint.setDeviceTypes(Array.from(deviceTypesMap.values()).sort((a, b) => b.code - a.code) as AtLeastOne<DeviceTypeDefinition>);
+      });
+    }
+
     // Configure ColorControlCluster
     if (this.bridgedDevice && this.bridgedDevice.hasClusterServer(ColorControl.Complete)) {
       this.log.debug(`*Configuring device ${this.ien}${device.friendly_name}${rs}${db} ColorControlCluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')}`);
