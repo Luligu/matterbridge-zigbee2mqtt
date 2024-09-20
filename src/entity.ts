@@ -158,7 +158,8 @@ export class ZigbeeEntity extends EventEmitter {
           // Find the endpoint name (l1...)
           const labelList = child.getClusterServer(FixedLabelCluster)?.getLabelListAttribute();
           if (!labelList) return;
-          const endpointName = labelList.find((entry) => entry.label === 'endpointName');
+          // const endpointName = labelList.find((entry) => entry.label === 'endpointName');
+          const endpointName = child.uniqueStorageKey;
           if (!endpointName) return;
           const endpointType = labelList.find((entry) => entry.label === 'type');
           // this.log.warn(`***Multi endpoint section labelList:${rs}`, labelList);
@@ -180,7 +181,7 @@ export class ZigbeeEntity extends EventEmitter {
               const switchNumber = Math.floor(index / 3) + 1;
               const switchAction = index - (switchNumber - 1) * 3;
               const switchMap = ['Single', 'Double', 'Long'];
-              if (endpointName.value === 'switch_' + switchNumber) {
+              if (endpointName === 'switch_' + switchNumber) {
                 this.log.debug(`Action "${value}" found on switch ${switchNumber} endpoint ${this.eidn}${child.number}${db} action ${switchMap[switchAction]}`);
                 // if (child.number) this.triggerSwitchEvent(child, switchMap[switchAction]);
                 if (child.number) this.bridgedDevice.triggerSwitchEvent(switchMap[switchAction] as 'Single' | 'Double' | 'Long', this.log, child);
@@ -188,16 +189,16 @@ export class ZigbeeEntity extends EventEmitter {
             }
 
             let z2m: ZigbeeToMatter | undefined;
-            z2m = z2ms.find((z2m) => z2m.type === endpointType?.value && z2m.property + '_' + endpointName.value === key);
+            z2m = z2ms.find((z2m) => z2m.type === endpointType?.value && z2m.property + '_' + endpointName === key);
             if (z2m) {
               // this.log.debug(`*Endpoint ${this.eidn}${child.number}${db} type ${zb}${endpointType?.value}${db} found converter for type ${z2m.type} property ${key} => ${z2m.type}-${z2m.name}-${z2m.property} ${hk}${getClusterNameById(ClusterId(z2m.cluster))}${db}.${hk}${z2m.attribute}${db}`);
             } else {
-              z2m = z2ms.find((z2m) => z2m.property + '_' + endpointName.value === key);
+              z2m = z2ms.find((z2m) => z2m.property + '_' + endpointName === key);
             }
             if (z2m) {
               if (z2m.converter || z2m.valueLookup) {
                 // this.log.debug(`*Endpoint ${this.eidn}${child.number}${db} type ${zb}${endpointType?.value}${db} found converter for ${key} => ${z2m.type}-${z2m.name}-${z2m.property} ${hk}${getClusterNameById(ClusterId(z2m.cluster))}${db}.${hk}${z2m.attribute}${db}`);
-                this.updateAttributeIfChanged(child, endpointName.value, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
+                this.updateAttributeIfChanged(child, endpointName, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
                 return;
               }
             }
@@ -506,12 +507,14 @@ export interface ZigbeeToMatter {
 export const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffSwitch, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
+  { type: 'switch', name: 'color_hs', property: 'color_hs', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'switch', name: 'color_xy', property: 'color_xy', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'switch', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'outlet', name: 'state', property: 'state', deviceType: DeviceTypes.ON_OFF_PLUGIN_UNIT, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'outlet', name: 'brightness', property: 'brightness', deviceType: DeviceTypes.DIMMABLE_PLUGIN_UNIT, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
   { type: 'light', name: 'state', property: 'state', deviceType: DeviceTypes.ON_OFF_LIGHT, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'light', name: 'brightness', property: 'brightness', deviceType: DeviceTypes.DIMMABLE_LIGHT, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
+  { type: 'light', name: 'color_hs', property: 'color_hs', deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_xy', property: 'color_xy', deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_temp', property: 'color_temp', deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'cover', name: 'state', property: 'state', deviceType: DeviceTypes.WINDOW_COVERING, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
