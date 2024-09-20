@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 - [matterbridge]: Removed Matterbridge deprecated method to get the child endpoints.
 - [package]: Updated dependencies.
+- [plugin]: Moved trigger code to matterbridge triggerSwitchEvent
 
 ### Added
 

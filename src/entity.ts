@@ -34,7 +34,6 @@ import {
   LevelControl,
   ColorControl,
   ColorControlCluster,
-  Switch,
   TemperatureMeasurement,
   BooleanState,
   RelativeHumidityMeasurement,
@@ -51,7 +50,6 @@ import {
   Endpoint,
   AtLeastOne,
   FixedLabelCluster,
-  SwitchCluster,
   getClusterNameById,
   DoorLockCluster,
   AttributeInitialValues,
@@ -346,6 +344,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
+  /*
   protected triggerSwitchEvent(endpoint: Endpoint, event: string) {
     let position = undefined;
     if (event === 'Single') {
@@ -376,6 +375,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.log.debug(`Trigger 'Long press' event for ${this.entityName}`);
     }
   }
+  */
 }
 
 export class ZigbeeGroup extends ZigbeeEntity {
