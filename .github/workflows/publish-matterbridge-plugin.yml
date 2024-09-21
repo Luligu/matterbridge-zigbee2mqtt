@@ -18,6 +18,12 @@ jobs:
           node-version: '20.x'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Clean cache
+        run: npm cache clean --force
+  
+      - name: Install latest npm
+        run: npm install -g npm@latest
+
       - name: Verify Node.js version
         run: node -v
 
@@ -28,7 +34,7 @@ jobs:
         run: npm install -g matterbridge
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
     
       - name: Lint the project
         run: npm run lint

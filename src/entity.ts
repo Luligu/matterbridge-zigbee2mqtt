@@ -34,7 +34,6 @@ import {
   LevelControl,
   ColorControl,
   ColorControlCluster,
-  Switch,
   TemperatureMeasurement,
   BooleanState,
   RelativeHumidityMeasurement,
@@ -51,7 +50,6 @@ import {
   Endpoint,
   AtLeastOne,
   FixedLabelCluster,
-  SwitchCluster,
   getClusterNameById,
   DoorLockCluster,
   AttributeInitialValues,
@@ -160,7 +158,8 @@ export class ZigbeeEntity extends EventEmitter {
           // Find the endpoint name (l1...)
           const labelList = child.getClusterServer(FixedLabelCluster)?.getLabelListAttribute();
           if (!labelList) return;
-          const endpointName = labelList.find((entry) => entry.label === 'endpointName');
+          // const endpointName = labelList.find((entry) => entry.label === 'endpointName');
+          const endpointName = child.uniqueStorageKey;
           if (!endpointName) return;
           const endpointType = labelList.find((entry) => entry.label === 'type');
           // this.log.warn(`***Multi endpoint section labelList:${rs}`, labelList);
@@ -182,23 +181,24 @@ export class ZigbeeEntity extends EventEmitter {
               const switchNumber = Math.floor(index / 3) + 1;
               const switchAction = index - (switchNumber - 1) * 3;
               const switchMap = ['Single', 'Double', 'Long'];
-              if (endpointName.value === 'switch_' + switchNumber) {
+              if (endpointName === 'switch_' + switchNumber) {
                 this.log.debug(`Action "${value}" found on switch ${switchNumber} endpoint ${this.eidn}${child.number}${db} action ${switchMap[switchAction]}`);
-                if (child.number) this.triggerSwitchEvent(child, switchMap[switchAction]);
+                // if (child.number) this.triggerSwitchEvent(child, switchMap[switchAction]);
+                if (child.number) this.bridgedDevice.triggerSwitchEvent(switchMap[switchAction] as 'Single' | 'Double' | 'Long', this.log, child);
               }
             }
 
             let z2m: ZigbeeToMatter | undefined;
-            z2m = z2ms.find((z2m) => z2m.type === endpointType?.value && z2m.property + '_' + endpointName.value === key);
+            z2m = z2ms.find((z2m) => z2m.type === endpointType?.value && z2m.property + '_' + endpointName === key);
             if (z2m) {
               // this.log.debug(`*Endpoint ${this.eidn}${child.number}${db} type ${zb}${endpointType?.value}${db} found converter for type ${z2m.type} property ${key} => ${z2m.type}-${z2m.name}-${z2m.property} ${hk}${getClusterNameById(ClusterId(z2m.cluster))}${db}.${hk}${z2m.attribute}${db}`);
             } else {
-              z2m = z2ms.find((z2m) => z2m.property + '_' + endpointName.value === key);
+              z2m = z2ms.find((z2m) => z2m.property + '_' + endpointName === key);
             }
             if (z2m) {
               if (z2m.converter || z2m.valueLookup) {
                 // this.log.debug(`*Endpoint ${this.eidn}${child.number}${db} type ${zb}${endpointType?.value}${db} found converter for ${key} => ${z2m.type}-${z2m.name}-${z2m.property} ${hk}${getClusterNameById(ClusterId(z2m.cluster))}${db}.${hk}${z2m.attribute}${db}`);
-                this.updateAttributeIfChanged(child, endpointName.value, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
+                this.updateAttributeIfChanged(child, endpointName, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
                 return;
               }
             }
@@ -325,7 +325,7 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(
-      `Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
+      `Update endpoint ${this.eidn}${endpoint.name}:${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
         `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {
@@ -345,6 +345,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
+  /*
   protected triggerSwitchEvent(endpoint: Endpoint, event: string) {
     let position = undefined;
     if (event === 'Single') {
@@ -375,6 +376,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.log.debug(`Trigger 'Long press' event for ${this.entityName}`);
     }
   }
+  */
 }
 
 export class ZigbeeGroup extends ZigbeeEntity {
@@ -505,12 +507,14 @@ export interface ZigbeeToMatter {
 export const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffSwitch, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
+  { type: 'switch', name: 'color_hs', property: 'color_hs', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'switch', name: 'color_xy', property: 'color_xy', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'switch', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'outlet', name: 'state', property: 'state', deviceType: DeviceTypes.ON_OFF_PLUGIN_UNIT, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'outlet', name: 'brightness', property: 'brightness', deviceType: DeviceTypes.DIMMABLE_PLUGIN_UNIT, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
   { type: 'light', name: 'state', property: 'state', deviceType: DeviceTypes.ON_OFF_LIGHT, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'light', name: 'brightness', property: 'brightness', deviceType: DeviceTypes.DIMMABLE_LIGHT, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(0, Math.min(254, value)) } },
+  { type: 'light', name: 'color_hs', property: 'color_hs', deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_xy', property: 'color_xy', deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_temp', property: 'color_temp', deviceType: DeviceTypes.COLOR_TEMPERATURE_LIGHT, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'cover', name: 'state', property: 'state', deviceType: DeviceTypes.WINDOW_COVERING, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
@@ -634,10 +638,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (platform.featureBlackList) this.ignoreFeatures = [...this.ignoreFeatures, ...platform.featureBlackList];
     if (platform.deviceFeatureBlackList[device.friendly_name]) this.ignoreFeatures = [...this.ignoreFeatures, ...platform.deviceFeatureBlackList[device.friendly_name]];
 
-    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
-    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
-    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
-    // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
+    /*
+    this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
+    this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
+    this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
+    this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
+    */
 
     names.forEach((name, index) => {
       if (platform.featureBlackList.includes(name)) {
@@ -698,6 +704,48 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.bridgedDevice.addFixedLabel('composed', 'button');
       }
     });
+
+    // Remove superset device Types
+    if (this.bridgedDevice) {
+      const deviceTypes = this.bridgedDevice.getDeviceTypes();
+      const deviceTypesMap = new Map<number, DeviceTypeDefinition>();
+      deviceTypes.forEach((deviceType) => {
+        deviceTypesMap.set(deviceType.code, deviceType);
+      });
+      if (deviceTypesMap.has(DeviceTypes.ON_OFF_LIGHT.code) && deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code)) {
+        deviceTypesMap.delete(DeviceTypes.ON_OFF_LIGHT.code);
+        this.log.debug(`Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing ON_OFF_LIGHT`);
+      }
+      if (deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code) && deviceTypesMap.has(DeviceTypes.COLOR_TEMPERATURE_LIGHT.code)) {
+        deviceTypesMap.delete(DeviceTypes.DIMMABLE_LIGHT.code);
+        this.log.debug(`Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing DIMMABLE_LIGHT`);
+      }
+      this.bridgedDevice.setDeviceTypes(Array.from(deviceTypesMap.values()).sort((a, b) => b.code - a.code) as AtLeastOne<DeviceTypeDefinition>);
+
+      const childEndpoints = this.bridgedDevice.getChildEndpoints();
+      childEndpoints.forEach((childEndpoint) => {
+        const deviceTypes = childEndpoint.getDeviceTypes();
+        const deviceTypesMap = new Map<number, DeviceTypeDefinition>();
+        deviceTypes.forEach((deviceType) => {
+          deviceTypesMap.set(deviceType.code, deviceType);
+        });
+        if (deviceTypesMap.has(DeviceTypes.ON_OFF_LIGHT.code) && deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code)) {
+          deviceTypesMap.delete(DeviceTypes.ON_OFF_LIGHT.code);
+          this.log.debug(`Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing ON_OFF_LIGHT`);
+        }
+        if (deviceTypesMap.has(DeviceTypes.DIMMABLE_LIGHT.code) && deviceTypesMap.has(DeviceTypes.COLOR_TEMPERATURE_LIGHT.code)) {
+          deviceTypesMap.delete(DeviceTypes.DIMMABLE_LIGHT.code);
+          this.log.debug(`Configuring device ${this.ien}${device.friendly_name}${rs}${db} removing DIMMABLE_LIGHT`);
+        }
+        childEndpoint.setDeviceTypes(Array.from(deviceTypesMap.values()).sort((a, b) => b.code - a.code) as AtLeastOne<DeviceTypeDefinition>);
+      });
+    }
+
+    // Configure ColorControlCluster
+    if (this.bridgedDevice && this.bridgedDevice.hasClusterServer(ColorControl.Complete)) {
+      this.log.debug(`Configuring device ${this.ien}${device.friendly_name}${rs}${db} ColorControlCluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')}`);
+      this.bridgedDevice.configureColorControlCluster(names.includes('color_hs') || names.includes('color_xy'), false, names.includes('color_temp'));
+    }
 
     /* Verify that all required server clusters are present in the main endpoint and in the child endpoints */
     if (this.bridgedDevice) {
