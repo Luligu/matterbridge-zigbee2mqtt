@@ -4,10 +4,6 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-### Breaking Changes
-
-- Unless you are using docker (in that case all is already updated), please update Matterbridge to >=1.5.5 to work with matterbridge-zigbee2mqtt >=2.1.17. This is a one time issue due to the update to matter.js 0.10.x.
-
 ## [2.1.18] - 2024-30-01
 
 ### Changed
