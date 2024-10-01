@@ -34,11 +34,14 @@ jobs:
         run: npm -v
             
       - name: Install matterbridge
-        run: npm install -g matterbridge
+        run: npm install -g matterbridge --omit=dev
 
       - name: Install dependencies
         run: npm ci
   
+      - name: Link matterbridge
+        run: npm link matterbridge
+
       - name: Lint the project
         run: npm run lint
 
