@@ -52,7 +52,6 @@ import {
   FixedLabelCluster,
   getClusterNameById,
   DoorLockCluster,
-  AttributeInitialValues,
   powerSource,
   bridgedNode,
   AirQuality,
@@ -63,8 +62,10 @@ import {
   Pm1ConcentrationMeasurement,
   Pm25ConcentrationMeasurement,
   Pm10ConcentrationMeasurement,
+  electricalSensor,
+  ElectricalEnergyMeasurement,
+  ElectricalPowerMeasurement,
 } from 'matterbridge';
-import { EveHistory } from 'matterbridge/history';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf, LogLevel } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
@@ -300,18 +301,18 @@ export class ZigbeeEntity extends EventEmitter {
   protected updateAttributeIfChanged(endpoint: Endpoint, endpointName: string | undefined, clusterId: number, attributeName: string, value: PayloadValue, lookup?: string[]): void {
     const cluster = endpoint.getClusterServerById(ClusterId(clusterId));
     if (cluster === undefined) {
-      this.log.debug(`Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter exposing all features?`);
+      this.log.debug(`Update endpoint ${this.eidn}${endpoint.name}:${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter exposing all features?`);
       return;
     }
     if (!cluster.isAttributeSupportedByName(attributeName)) {
-      this.log.debug(`***Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} not found`);
+      this.log.debug(`***Update endpoint ${this.eidn}${endpoint.name}:${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} not found`);
       return;
     }
     if (lookup !== undefined) {
       if (typeof value === 'string' && lookup.indexOf(value) !== -1) value = lookup.indexOf(value);
       else {
         this.log.debug(
-          `Update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
+          `Update endpoint ${this.eidn}${endpoint.name}:${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
             `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} value ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db} not found in lookup ${debugStringify(lookup)}`,
         );
         return;
@@ -344,39 +345,6 @@ export class ZigbeeEntity extends EventEmitter {
       this.platform.publish(entityName, 'set', JSON.stringify(payload));
     }
   }
-
-  /*
-  protected triggerSwitchEvent(endpoint: Endpoint, event: string) {
-    let position = undefined;
-    if (event === 'Single') {
-      position = 1;
-      const cluster = endpoint.getClusterServer(SwitchCluster.with(Switch.Feature.MomentarySwitch, Switch.Feature.MomentarySwitchRelease, Switch.Feature.MomentarySwitchLongPress, Switch.Feature.MomentarySwitchMultiPress));
-      cluster?.setCurrentPositionAttribute(1);
-      cluster?.triggerInitialPressEvent({ newPosition: 1 });
-      cluster?.setCurrentPositionAttribute(0);
-      cluster?.triggerShortReleaseEvent({ previousPosition: 1 });
-      cluster?.setCurrentPositionAttribute(0);
-      cluster?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 1 });
-      this.log.debug(`Trigger 'Single press' event for ${this.entityName}`);
-    }
-    if (event === 'Double') {
-      position = 2;
-      endpoint.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
-      endpoint.getClusterServerById(Switch.Cluster.id)?.triggerMultiPressCompleteEvent({ previousPosition: 1, totalNumberOfPressesCounted: 2 });
-      endpoint.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
-      this.log.debug(`Trigger 'Double press' event for ${this.entityName}`);
-    }
-    if (event === 'Long') {
-      position = 1;
-      endpoint.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(position);
-      endpoint.getClusterServerById(Switch.Cluster.id)?.triggerInitialPressEvent({ newPosition: 1 });
-      endpoint.getClusterServerById(Switch.Cluster.id)?.triggerLongPressEvent({ newPosition: 1 });
-      endpoint.getClusterServerById(Switch.Cluster.id)?.triggerLongReleaseEvent({ previousPosition: 1 });
-      endpoint.getClusterServerById(Switch.Cluster.id)?.setCurrentPositionAttribute(0);
-      this.log.debug(`Trigger 'Long press' event for ${this.entityName}`);
-    }
-  }
-  */
 }
 
 export class ZigbeeGroup extends ZigbeeEntity {
@@ -555,10 +523,10 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: '', property: 'battery', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
   { type: '', name: '', property: 'battery_low', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
   { type: '', name: '', property: 'battery_voltage', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batVoltage', converter: (value) => { return value } },
-  { type: '', name: 'energy', property: 'energy', deviceType: powerSource, cluster: EveHistory.Cluster.id, attribute: 'TotalConsumption', converter: (value) => { return value } },
-  { type: '', name: 'power', property: 'power', deviceType: powerSource, cluster: EveHistory.Cluster.id, attribute: 'Consumption', converter: (value) => { return value } },
-  { type: '', name: 'voltage', property: 'voltage', deviceType: powerSource, cluster: EveHistory.Cluster.id, attribute: 'Voltage', converter: (value) => { return value } },
-  { type: '', name: 'current', property: 'current', deviceType: powerSource, cluster: EveHistory.Cluster.id, attribute: 'Current', converter: (value) => { return value } },
+  { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.Cluster.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: value * 1000 } } },
+  { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activePower', converter: (value) => { return value * 1000 } },
+  { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'voltage', converter: (value) => { return value * 1000 } },
+  { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activeCurrent', converter: (value) => { return value * 1000 } },
   //{ type: '',       name: 'transmit_power', property: 'transmit_power', deviceType: DeviceTypes.DOOR_LOCK, cluster: DoorLock.Cluster.id, attribute: 'lockState' },
 ];
 /* eslint-enable */
@@ -665,13 +633,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
         if (endpoint === '') {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
-          else this.bridgedDevice.addDeviceTypeAndClusterServer(z2m.deviceType, [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
+          else this.bridgedDevice.addDeviceTypeWithClusterServer([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           if (type !== '') this.bridgedDevice.addFixedLabel('type', type);
         } else {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [bridgedNode]);
-          const childEndpoint = this.bridgedDevice.addChildDeviceTypeAndClusterServer(endpoint, z2m.deviceType, [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
+          const childEndpoint = this.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           if (type !== '') childEndpoint.addFixedLabel('type', type);
           this.bridgedDevice.addFixedLabel('composed', type);
+          this.bridgedDevice.hasEndpoints = true;
         }
       } else {
         // this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => no mapping found`);
@@ -689,7 +658,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             actionsMap.push(this.actions[a]);
             this.log.info(`-- Button ${count}: ${hk}${switchMap[a]}${nf} <=> ${zb}${actionsMap[a]}${nf}`);
           }
-          this.bridgedDevice.addChildDeviceTypeAndClusterServer('switch_' + count, DeviceTypes.GENERIC_SWITCH, [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters]);
+          this.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters]);
         } else {
           for (let i = 0; i < this.actions.length; i += 3) {
             const actionsMap: string[] = [];
@@ -697,7 +666,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
               actionsMap.push(this.actions[a]);
               this.log.info(`-- Button ${count}: ${hk}${switchMap[a - i]}${nf} <=> ${zb}${actionsMap[a - i]}${nf}`);
             }
-            this.bridgedDevice.addChildDeviceTypeAndClusterServer('switch_' + count, DeviceTypes.GENERIC_SWITCH, [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters]);
+            this.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters]);
             count++;
           }
         }
@@ -787,7 +756,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         if (!data.endpoint.number) return;
         this.log.debug(`Command on called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
-        const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
+        const label = data.endpoint.uniqueStorageKey;
         if (label === undefined) payload['state'] = 'ON';
         else payload['state_' + label] = 'ON';
         this.publishCommand('on', device.friendly_name, payload);
@@ -796,7 +765,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         if (!data.endpoint.number) return;
         this.log.debug(`Command off called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
-        const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
+        const label = data.endpoint.uniqueStorageKey;
         if (label === undefined) payload['state'] = 'OFF';
         else payload['state_' + label] = 'OFF';
         this.publishCommand('off', device.friendly_name, payload);
@@ -805,31 +774,31 @@ export class ZigbeeDevice extends ZigbeeEntity {
         if (!data.endpoint.number) return;
         this.log.debug(`Command toggle called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} onOff: ${data.attributes.onOff.getLocal()}`);
         const payload: Payload = {};
-        const label = this.bridgedDevice?.getEndpointLabel(data.endpoint.number);
+        const label = data.endpoint.uniqueStorageKey;
         if (label === undefined) payload['state'] = 'TOGGLE';
         else payload['state_' + label] = 'TOGGLE';
         this.publishCommand('toggle', device.friendly_name, payload);
       });
     }
     if (this.bridgedDevice.hasClusterServer(LevelControl.Complete) || this.bridgedDevice.hasEndpoints) {
-      this.bridgedDevice.addCommandHandler('moveToLevel', async ({ request: { level, transitionTime }, attributes: { currentLevel }, endpoint: { number } }) => {
-        if (!number) return;
-        this.log.debug(`Command moveToLevel called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
+      this.bridgedDevice.addCommandHandler('moveToLevel', async (data) => {
+        if (!data.endpoint.number) return;
+        this.log.debug(`Command moveToLevel called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} request: ${data.request.level} transition: ${data.request.transitionTime} attributes: ${data.attributes.currentLevel.getLocal()}`);
         const payload: Payload = {};
-        const label = this.bridgedDevice?.getEndpointLabel(number);
-        if (label === undefined) payload['brightness'] = level;
-        else payload['brightness_' + label] = level;
-        if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
+        const label = data.endpoint.uniqueStorageKey;
+        if (label === undefined) payload['brightness'] = data.request.level;
+        else payload['brightness_' + label] = data.request.level;
+        if (this.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1) payload['transition'] = Math.round(data.request.transitionTime / 10);
         this.publishCommand('moveToLevel', device.friendly_name, payload);
       });
-      this.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async ({ request: { level, transitionTime }, attributes: { currentLevel }, endpoint: { number } }) => {
-        if (!number) return;
-        this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${number} request: ${level} transition: ${transitionTime} attributes: ${currentLevel.getLocal()}`);
+      this.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async (data) => {
+        if (!data.endpoint.number) return;
+        this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint.number} request: ${data.request.level} transition: ${data.request.transitionTime} attributes: ${data.attributes.currentLevel.getLocal()}`);
         const payload: Payload = {};
-        const label = this.bridgedDevice?.getEndpointLabel(number);
-        if (label === undefined) payload['brightness'] = level;
-        else payload['brightness_' + label] = level;
-        if (this.transition && transitionTime && transitionTime / 10 >= 1) payload['transition'] = Math.round(transitionTime / 10);
+        const label = data.endpoint.uniqueStorageKey;
+        if (label === undefined) payload['brightness'] = data.request.level;
+        else payload['brightness_' + label] = data.request.level;
+        if (this.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1) payload['transition'] = Math.round(data.request.transitionTime / 10);
         this.publishCommand('moveToLevelWithOnOff', device.friendly_name, payload);
       });
     }
@@ -977,139 +946,29 @@ export class BridgedBaseDevice extends MatterbridgeDevice {
   public isRouter = false;
   public noUpdate = false;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(entity: ZigbeeEntity, definition: AtLeastOne<DeviceTypeDefinition>, includeServerList: ClusterId[] = [], includeClientList?: ClusterId[]) {
-    super(definition[0]);
-    this.log = entity.log;
-    this.log.debug(`new BridgedBaseDevice ${entity.isDevice ? entity.device?.friendly_name : entity.group?.friendly_name}${db}`);
-    // Log and add all device type definitions
-    definition.forEach((deviceType) => {
-      this.addDeviceType(deviceType);
-      this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
-    });
-    // Log and add all server clusters in the includelist
-    includeServerList.forEach((clusterId) => {
-      this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
-    });
-    this.addDeviceClusterServer(includeServerList);
+    super(definition, undefined, entity.log.logLevel === LogLevel.DEBUG);
+    this.addClusterServerFromList(this, includeServerList);
 
-    // Add BridgedDevice device type
+    // Add bridgedNode device type and BridgedDeviceBasicInformation cluster
     this.addDeviceType(bridgedNode);
-
-    // Add BridgedDeviceBasicInformation cluster
     if (entity.isDevice && entity.device && entity.device.friendly_name === 'Coordinator') {
-      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, 'zigbee2MQTT', 'Coordinator', entity.serial);
+      this.createDefaultBridgedDeviceBasicInformationClusterServer(entity.device.friendly_name, entity.serial, 0xfff1, 'zigbee2MQTT', 'Coordinator');
     } else if (entity.isDevice && entity.device) {
-      this.addBridgedDeviceBasicInformationCluster(entity.device.friendly_name, entity.device.definition ? entity.device.definition.vendor : entity.device.manufacturer, entity.device.definition ? entity.device.definition.model : entity.device.model_id, entity.serial);
+      this.createDefaultBridgedDeviceBasicInformationClusterServer(entity.device.friendly_name, entity.serial, 0xfff1, entity.device.definition ? entity.device.definition.vendor : entity.device.manufacturer, entity.device.definition ? entity.device.definition.model : entity.device.model_id);
     } else if (entity.isGroup && entity.group) {
-      this.addBridgedDeviceBasicInformationCluster(entity.group.friendly_name, 'zigbee2MQTT', 'Group', entity.serial);
+      this.createDefaultBridgedDeviceBasicInformationClusterServer(entity.group.friendly_name, entity.serial, 0xfff1, 'zigbee2MQTT', 'Group');
     }
 
-    // Add BridgedDevice device type
+    // Add powerSource device type and PowerSource cluster
     this.addDeviceType(powerSource);
-
-    // Add PowerSource cluster
-    // this.createDefaultPowerSourceConfigurationClusterServer(); // TODO remove this cause is deprecated in Matter 1.3
     if (entity.isDevice) {
       if (entity.device?.power_source === 'Battery') this.createDefaultPowerSourceReplaceableBatteryClusterServer(100, PowerSource.BatChargeLevel.Ok);
       else this.createDefaultPowerSourceWiredClusterServer();
     } else if (entity.isGroup) {
       this.createDefaultPowerSourceWiredClusterServer();
     }
-
-    // Add all other client clusters in the includelist (not supported by matter.js)
-    this.addDeviceClusterClient(includeClientList);
-  }
-
-  /**
-   * Adds BridgedDeviceBasicInformationCluster
-   *
-   * @protected
-   * @param deviceName Name of the device
-   * @param deviceSerial Serial of the device
-   */
-  protected addBridgedDeviceBasicInformationCluster(deviceName: string, vendorName: string, productName: string, deviceSerial: string) {
-    this.createDefaultBridgedDeviceBasicInformationClusterServer(deviceName.slice(0, 32), deviceSerial, 0xfff1, vendorName.slice(0, 32), productName.slice(0, 32));
-  }
-
-  /**
-   * Adds mandatory clusters to the device
-   *
-   * @protected
-   * @param includeServerList List of clusters to include
-   * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-  protected addDeviceClusterServer(includeServerList: ClusterId[] = [], attributeInitialValues?: Record<ClusterId, AttributeInitialValues<any>>) {
-    this.addClusterServerFromList(this, includeServerList);
-  }
-
-  /**
-   * Adds mandatory client clusters to the device
-   *
-   * @protected
-   * @param includeClientList List of clusters to include
-   * @param attributeInitialValues Optional object with initial attribute values for automatically added clusters
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  protected addDeviceClusterClient(includeClientList: ClusterId[] = [], attributeInitialValues?: Record<ClusterId, AttributeInitialValues<any>>) {
-    /* Not implemented since not supported by matter.js */
-  }
-
-  public addDeviceTypeAndClusterServer(deviceType: DeviceTypeDefinition, serverList: ClusterId[]) {
-    this.log.debug(`addDeviceTypeAndClusterServer`);
-    // Log and add all device type definitions
-    this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
-    this.addDeviceType(deviceType);
-    // Log and add all server clusters in the serverList
-    serverList.forEach((clusterId) => {
-      this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
-    });
-    this.addDeviceClusterServer(serverList);
-  }
-
-  public addChildDeviceTypeAndClusterServer(endpointName: string, deviceType: DeviceTypeDefinition, includeServerList: ClusterId[]) {
-    this.hasEndpoints = true;
-
-    // Look for existing child endpoint
-    let child: Endpoint | undefined = undefined;
-    const childEndpoints = this.getChildEndpoints();
-    childEndpoints.forEach((childEndpoint) => {
-      if (child) return;
-      const labelList = childEndpoint.getClusterServer(FixedLabelCluster)?.getLabelListAttribute();
-      if (labelList) {
-        for (const entry of labelList) {
-          if (entry.label === 'endpointName' && entry.value === endpointName) {
-            this.log.debug(`addChildDeviceTypeAndClusterServer: Child endpoint found: ${zb}${endpointName}${db}`);
-            child = childEndpoint;
-            return;
-          }
-        }
-      }
-    });
-
-    // Not found? Create a new one
-    if (!child) {
-      this.log.debug(`addChildDeviceTypeAndClusterServer: Child endpoint created: ${zb}${endpointName}${db}`);
-      this.log.debug(`- with deviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
-      child = new Endpoint([deviceType], { uniqueStorageKey: endpointName });
-      child.addFixedLabel('endpointName', endpointName);
-      this.addChildEndpoint(child);
-    }
-
-    // Log and add device type to the child endpoint
-    const deviceTypes = child.getDeviceTypes();
-    if (!deviceTypes.includes(deviceType)) {
-      this.log.debug(`addChildDeviceTypeAndClusterServer: addDeviceType: ${hk}${deviceType.code}${db}-${hk}${deviceType.name}${db}`);
-      deviceTypes.push(deviceType);
-      child.setDeviceTypes(deviceTypes);
-    }
-    // Log and add all server clusters in the includelist
-    includeServerList.forEach((clusterId) => {
-      this.log.debug(`- with cluster: ${hk}${clusterId}${db}-${hk}${getClusterNameById(clusterId)}${db}`);
-    });
-    this.addClusterServerFromList(child, includeServerList);
-
-    return child;
   }
 
   configure() {

@@ -4,7 +4,19 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.19] - 2024-30-01
+## [2.2.0] - 2024-10-08
+
+### Changed
+
+- [matterbridge]: Removed EveHistory energy measurement in favor of Matter 1.3 ElectricalPowerMeasurement and ElectricalEnergyMeasurement (supported by Home Assistant from version 2024.10).
+- [matterbridge]: Updated to new child endpoints MatterbridgeDevice methods.
+- [package]: Updated dependencies.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
+## [2.1.19] - 2024-10-01
 
 ### Changed
 
