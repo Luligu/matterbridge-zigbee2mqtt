@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "2.2.20-dev.2",
+  "version": "2.2.20-dev.3",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",

@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 
 - [matterbridge]: Removed EveHistory energy measurement in favor of Matter 1.3 ElectricalPowerMeasurement and ElectricalEnergyMeasurement (supported by Home Assistant from version 2024.10).
 - [matterbridge]: Updated to new child endpoints MatterbridgeDevice methods.
+- [groups]: Refactor the group to support also covers and thermostats.
+- [entity]: Code optimization.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
