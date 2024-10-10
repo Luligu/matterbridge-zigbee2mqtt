@@ -89,7 +89,7 @@
     "@eslint/js": "9.12.0",
     "@types/eslint__js": "8.42.3",
     "@types/jest": "29.5.13",
-    "@types/node": "22.7.4",
+    "@types/node": "22.7.5",
     "eslint": "9.12.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-jest": "28.8.3",
@@ -98,7 +98,7 @@
     "prettier": "3.3.3",
     "rimraf": "6.0.1",
     "ts-jest": "29.2.5",
-    "typescript": "5.6.2",
-    "typescript-eslint": "8.8.0"
+    "typescript": "5.6.3",
+    "typescript-eslint": "8.8.1"
   }
 }
