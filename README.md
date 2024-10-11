@@ -45,9 +45,13 @@ A fully working installation of zigbee2MQTT is required.
 
 See the guidelines on [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) for more information.
 
-## How to install
+## How to install the plugin
 
-### If you want to use the plugin
+### With the frontend (preferred method)
+
+Just open the frontend, select the matterbridge-zigbee2mqtt plugin and click on install. If you are using Matterbridge with Docker (I suggest you do it), all plugins are already loaded in the container so you just need to select and add it.
+
+### Without the frontend
 
 On windows:
 
@@ -68,10 +72,10 @@ matterbridge -add matterbridge-zigbee2mqtt
 Then start Matterbridge
 
 ```
-matterbridge -bridge
+matterbridge
 ```
 
-### If you want to contribute to the plugin
+## If you want to contribute to the plugin
 
 On windows:
 

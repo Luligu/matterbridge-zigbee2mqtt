@@ -67,10 +67,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public z2m!: Zigbee2MQTT;
   public z2mDevicesRegistered = false;
   public z2mGroupsRegistered = false;
-  private z2mBridgeOnline: boolean | undefined;
-  private z2mBridgeInfo: BridgeInfo | undefined;
-  private z2mBridgeDevices: BridgeDevice[] | undefined;
-  private z2mBridgeGroups: BridgeGroup[] | undefined;
+  public z2mBridgeOnline: boolean | undefined;
+  public z2mBridgeInfo: BridgeInfo | undefined;
+  public z2mBridgeDevices: BridgeDevice[] | undefined;
+  public z2mBridgeGroups: BridgeGroup[] | undefined;
   private z2mDeviceAvailability = new Map<string, boolean>();
   private availabilityTimer: NodeJS.Timeout | undefined;
 
@@ -537,7 +537,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     let matterDevice: ZigbeeDevice | undefined;
     try {
       matterDevice = new ZigbeeDevice(this, device);
-      if (!(matterDevice.bridgedDevice instanceof Endpoint)) this.log.error(`Device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address} is not instance of endpoint`);
+      if (matterDevice.bridgedDevice && !(matterDevice.bridgedDevice instanceof Endpoint)) this.log.error(`Device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address} is not instance of endpoint`);
       if (matterDevice.bridgedDevice && matterDevice.bridgedDevice instanceof Endpoint) {
         await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
@@ -558,7 +558,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     let matterGroup: ZigbeeGroup | undefined;
     try {
       matterGroup = new ZigbeeGroup(this, group);
-      if (!(matterGroup.bridgedDevice instanceof Endpoint)) this.log.error(`Group ${dn}${group.friendly_name}${er} ID: ${group.id} is not instance of endpoint`);
+      if (matterGroup.bridgedDevice && !(matterGroup.bridgedDevice instanceof Endpoint)) this.log.error(`Group ${dn}${group.friendly_name}${er} ID: ${group.id} is not instance of endpoint`);
       if (matterGroup.bridgedDevice && matterGroup.bridgedDevice instanceof Endpoint) {
         await this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
