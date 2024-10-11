@@ -98,7 +98,7 @@ export class ZigbeeEntity extends EventEmitter {
   private lastSeen = 0;
   protected ignoreFeatures: string[] = [];
   protected transition = false;
-  protected propertyMap = new Map<string, { name: string; type: string; endpoint: string; action?: string }>();
+  protected propertyMap = new Map<string, { name: string; type: string; endpoint: string; unit?: string; action?: string }>();
 
   constructor(platform: ZigbeePlatform, entity: BridgeDevice | BridgeGroup) {
     super();
@@ -124,7 +124,7 @@ export class ZigbeeEntity extends EventEmitter {
       // Check if the message is a duplicate that can be ingored cause only linkquality and last_seen have changed (action is always passed)
       const now = Date.now();
       if (now - this.lastSeen < 1000 * 60 && deepEqual(this.lastPayload, payload, ['linkquality', 'last_seen', ...this.ignoreFeatures]) && !Object.prototype.hasOwnProperty.call(this.lastPayload, 'action')) {
-        // this.log.debug(`Skipping linkquality MQTT message for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`*Skipping not changed MQTT message for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
       this.lastSeen = Date.now();
@@ -143,11 +143,11 @@ export class ZigbeeEntity extends EventEmitter {
       }
 
       if (this.bridgedDevice === undefined) {
-        this.log.debug(`Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`*Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
       if (this.bridgedDevice.noUpdate) {
-        this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`*Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
       this.log.info(`${db}${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
@@ -169,10 +169,14 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'illuminance' && this.isDevice && this.device?.definition?.model === 'RTCGQ14LM') {
           key = 'illuminance_lux';
         }
+        if (key === 'illuminance' && !('illuminance_lux' in payload)) {
+          key = 'illuminance_lux';
+        }
 
         // Lookup the property in the propertyMap and ZigbeeToMatter table
         const propertyMap = this.propertyMap.get(key);
-        // if (propertyMap) this.log.info(`${db}Payload entry ${CYAN}${key}${db} => name: ${CYAN}${propertyMap.name}${db} type: ${CYAN}${propertyMap.type === '' ? 'general' : propertyMap.type}${db} ` + `endpoint: ${CYAN}${propertyMap.endpoint === '' ? 'main' : propertyMap.endpoint}${db}`);
+        if (propertyMap) this.log.debug(`Payload entry ${CYAN}${key}${db} => name: ${CYAN}${propertyMap.name}${db} type: ${CYAN}${propertyMap.type === '' ? 'generic' : propertyMap.type}${db} ` + `endpoint: ${CYAN}${propertyMap.endpoint === '' ? 'main' : propertyMap.endpoint}${db}`);
+        else this.log.debug(`*Payload entry ${CYAN}${key}${db} not found in propertyMap`);
         let z2m: ZigbeeToMatter | undefined;
         z2m = z2ms.find((z2m) => z2m.type === propertyMap?.type && z2m.property === propertyMap?.name);
         if (!z2m) z2m = z2ms.find((z2m) => z2m.property === propertyMap?.name);
@@ -181,16 +185,16 @@ export class ZigbeeEntity extends EventEmitter {
             this.updateAttributeIfChanged(this.bridgedDevice, propertyMap === undefined || propertyMap.endpoint === '' ? undefined : propertyMap.endpoint, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
             return;
           }
-        }
+        } else this.log.debug(`*Payload entry ${CYAN}${key}${db} not found in zigbeeToMatter converter table`);
 
         // Switch actions on the endpoints
         if (key === 'action' && value !== '') {
           const propertyMap = this.propertyMap.get(('action_' + value) as string);
           if (propertyMap) {
-            // this.log.info(`${db}Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap.name}${db} endpoint: ${CYAN}${propertyMap.endpoint}${db} action: ${CYAN}${propertyMap.action}${db}`);
+            // this.log.debug(`Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap.name}${db} endpoint: ${CYAN}${propertyMap.endpoint}${db} action: ${CYAN}${propertyMap.action}${db}`);
             const child = this.bridgedDevice.getChildEndpointByName(propertyMap.endpoint);
             if (child && child.number) this.bridgedDevice.triggerSwitchEvent(propertyMap.action as 'Single' | 'Double' | 'Long', this.log, child);
-          }
+          } else this.log.debug(`*Payload entry ${CYAN}${('action_' + value) as string}${db} not found in propertyMap`);
         }
 
         // WindowCovering
@@ -262,11 +266,11 @@ export class ZigbeeEntity extends EventEmitter {
     }
     const cluster = rootEndpoint.getClusterServerById(ClusterId(clusterId));
     if (cluster === undefined) {
-      this.log.debug(`Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter exposing all features?`);
+      this.log.debug(`*Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter exposing all features?`);
       return;
     }
     if (!cluster.isAttributeSupportedByName(attributeName)) {
-      this.log.debug(`Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} not found`);
+      this.log.debug(`***Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} not found`);
       return;
     }
     if (lookup !== undefined) {
@@ -274,7 +278,7 @@ export class ZigbeeEntity extends EventEmitter {
         value = lookup.indexOf(value);
       } else {
         this.log.debug(
-          `Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
+          `***Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
             `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} value ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db} not found in lookup ${debugStringify(lookup)}`,
         );
         return;
@@ -282,9 +286,10 @@ export class ZigbeeEntity extends EventEmitter {
     }
     const localValue = cluster.attributes[attributeName].getLocal();
     if (typeof value === 'object' ? deepEqual(value, localValue) : value === localValue) {
-      // this.log.debug(
-      // `Skip update endpoint ${this.eidn}${endpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` + `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} already ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
-      // );
+      this.log.debug(
+        `*Skip update endpoint ${this.eidn}${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
+          `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} already ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
+      );
       return;
     }
     this.log.info(
@@ -647,7 +652,7 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: '', property: 'battery', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
   { type: '', name: '', property: 'battery_low', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
   { type: '', name: '', property: 'battery_voltage', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batVoltage', converter: (value) => { return value } },
-  { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.Cluster.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: value * 1000 } } },
+  { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.Cluster.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: value * 1000000 } } },
   { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activePower', converter: (value) => { return value * 1000 } },
   { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'voltage', converter: (value) => { return value * 1000 } },
   { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activeCurrent', converter: (value) => { return value * 1000 } },
@@ -673,37 +678,38 @@ export class ZigbeeDevice extends ZigbeeEntity {
     const endpoints: string[] = [];
     const names: string[] = [];
     const properties: string[] = [];
+    const units: string[] = [];
     device.definition?.exposes.forEach((expose) => {
       if (expose.features) {
         // Specific features with type
         expose.features?.forEach((feature) => {
           if (expose.type === 'lock' && feature.name === 'state' && feature.property === 'child_lock') feature.name = 'child_lock';
           types.push(expose.type);
-          if (expose.endpoint) endpoints.push(expose.endpoint);
-          else endpoints.push('');
+          endpoints.push(expose.endpoint || '');
           names.push(feature.name);
           properties.push(feature.property);
+          units.push(feature.unit || '');
         });
       } else {
         // Generic features without type
         types.push('');
-        if (expose.endpoint) endpoints.push(expose.endpoint);
-        else endpoints.push('');
+        endpoints.push(expose.endpoint || '');
         if (device.power_source === 'Battery' && expose.name === 'voltage') expose.name = 'battery_voltage';
         if (device.power_source === 'Battery' && expose.property === 'voltage') expose.property = 'battery_voltage';
-        if (expose.name) names.push(expose.name);
+        names.push(expose.name || '');
         properties.push(expose.property);
+        units.push(expose.unit || '');
         if (expose.name === 'action' && expose.values) {
           this.actions.push(...expose.values);
         }
       }
     });
     device.definition?.options.forEach((option) => {
-      if (option.name) names.push(option.name);
-      properties.push(option.property);
       types.push('');
-      if (option.endpoint) endpoints.push(option.endpoint);
-      else endpoints.push('');
+      names.push(option.name || '');
+      properties.push(option.property);
+      units.push(option.unit || '');
+      endpoints.push(option.endpoint || '');
     });
     if (platform.switchList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
@@ -729,6 +735,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
     this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
     this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
+    this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} - units[${units.length}]: ${debugStringify(units)}`);
     */
 
     names.forEach((name, index) => {
@@ -747,10 +754,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const type = types[index];
       const endpoint = endpoints[index];
       const property = properties[index];
+      const unit = units[index];
       const z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);
       if (z2m) {
         this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
-        this.propertyMap.set(property, { name, type, endpoint });
+        this.propertyMap.set(property, { name, type, endpoint, unit });
         if (endpoint === '') {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           else this.bridgedDevice.addDeviceTypeWithClusterServer([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
@@ -797,6 +805,18 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.bridgedDevice.addFixedLabel('composed', 'button');
       }
     });
+
+    // Add battery properties
+    if (device.power_source === 'Battery') {
+      this.propertyMap.set('battery', { name: 'battery', type: '', endpoint: '' });
+      this.propertyMap.set('battery_low', { name: 'battery_low', type: '', endpoint: '' });
+      this.propertyMap.set('battery_voltage', { name: 'battery_voltage', type: '', endpoint: '' });
+    }
+
+    // Add illuminance_lux
+    if (this.propertyMap.has('illuminance') && !this.propertyMap.has('illuminance_lux')) {
+      this.propertyMap.set('illuminance_lux', { name: 'illuminance_lux', type: '', endpoint: '' });
+    }
 
     // Remove superset device Types
     if (this.bridgedDevice) {
@@ -872,7 +892,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Properties
     this.propertyMap.forEach((value, key) => {
-      this.log.debug(`Property ${CYAN}${key}${db} name ${CYAN}${value.name}${db} type ${CYAN}${value.type}${db} endpoint ${CYAN}${value.endpoint === '' ? 'main' : value.endpoint}${db}`);
+      this.log.debug(`Property ${CYAN}${key}${db} name ${CYAN}${value.name}${db} type ${CYAN}${value.type === '' ? 'generic' : value.type}${db} endpoint ${CYAN}${value.endpoint === '' ? 'main' : value.endpoint}${db}`);
     });
 
     // Command handlers

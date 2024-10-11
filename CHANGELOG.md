@@ -8,7 +8,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- [package]: Fixed log.
+- [entity]: Fixed propertyMap.
+- [entity]: Fixed energy kWh.
+- [entity]: Fixed log.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
