@@ -143,14 +143,14 @@ export class ZigbeeEntity extends EventEmitter {
       }
 
       if (this.bridgedDevice === undefined) {
-        this.log.info(`${db}Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
       if (this.bridgedDevice.noUpdate) {
-        this.log.info(`${db}Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
         return;
       }
-      this.log.debug(`${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+      this.log.info(`${db}${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
 
       // Parse the payload and update the accessory
       Object.entries(payload).forEach(([key, value]) => {
@@ -172,7 +172,7 @@ export class ZigbeeEntity extends EventEmitter {
 
         // Lookup the property in the propertyMap and ZigbeeToMatter table
         const propertyMap = this.propertyMap.get(key);
-        if (propertyMap) this.log.info(`${db}Payload entry ${CYAN}${key}${db} => name: ${CYAN}${propertyMap.name}${db} type: ${CYAN}${propertyMap.type === '' ? 'general' : propertyMap.type}${db} ` + `endpoint: ${CYAN}${propertyMap.endpoint === '' ? 'main' : propertyMap.endpoint}${db}`);
+        // if (propertyMap) this.log.info(`${db}Payload entry ${CYAN}${key}${db} => name: ${CYAN}${propertyMap.name}${db} type: ${CYAN}${propertyMap.type === '' ? 'general' : propertyMap.type}${db} ` + `endpoint: ${CYAN}${propertyMap.endpoint === '' ? 'main' : propertyMap.endpoint}${db}`);
         let z2m: ZigbeeToMatter | undefined;
         z2m = z2ms.find((z2m) => z2m.type === propertyMap?.type && z2m.property === propertyMap?.name);
         if (!z2m) z2m = z2ms.find((z2m) => z2m.property === propertyMap?.name);
@@ -187,7 +187,7 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'action' && value !== '') {
           const propertyMap = this.propertyMap.get(('action_' + value) as string);
           if (propertyMap) {
-            this.log.info(`${db}Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap.name}${db} endpoint: ${CYAN}${propertyMap.endpoint}${db} action: ${CYAN}${propertyMap.action}${db}`);
+            // this.log.info(`${db}Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap.name}${db} endpoint: ${CYAN}${propertyMap.endpoint}${db} action: ${CYAN}${propertyMap.action}${db}`);
             const child = this.bridgedDevice.getChildEndpointByName(propertyMap.endpoint);
             if (child && child.number) this.bridgedDevice.triggerSwitchEvent(propertyMap.action as 'Single' | 'Double' | 'Long', this.log, child);
           }
@@ -266,12 +266,13 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     if (!cluster.isAttributeSupportedByName(attributeName)) {
-      this.log.debug(`***Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} not found`);
+      this.log.debug(`Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} not found`);
       return;
     }
     if (lookup !== undefined) {
-      if (typeof value === 'string' && lookup.indexOf(value) !== -1) value = lookup.indexOf(value);
-      else {
+      if (typeof value === 'string' && lookup.indexOf(value) !== -1) {
+        value = lookup.indexOf(value);
+      } else {
         this.log.debug(
           `Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
             `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} value ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db} not found in lookup ${debugStringify(lookup)}`,
@@ -286,8 +287,8 @@ export class ZigbeeEntity extends EventEmitter {
       // );
       return;
     }
-    this.log.debug(
-      `Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
+    this.log.info(
+      `${db}Update endpoint ${this.eidn}${rootEndpoint.name}:${rootEndpoint.number}${db}${endpointName ? ' (' + zb + endpointName + db + ')' : ''} ` +
         `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}-${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {
