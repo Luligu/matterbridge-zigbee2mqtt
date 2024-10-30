@@ -266,13 +266,13 @@ export class Zigbee2MQTT extends EventEmitter {
     protocolVersion: 5,
     reconnectPeriod: 5000, // 1000
     connectTimeout: 60 * 1000, // 30 * 1000
-    username: '',
-    password: '',
+    username: undefined,
+    password: undefined,
     clean: true,
   };
 
   // Constructor
-  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername = '', mqttPassword = '', protocolVersion: 4 | 5 | 3 = 5, debug = false) {
+  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mq ttUsername = '', mqttPassword = '', protocolVersion: 4 | 5 | 3 = 5, debug = false) {
     super();
 
     this.mqttHost = mqttHost;
@@ -281,7 +281,7 @@ export class Zigbee2MQTT extends EventEmitter {
     this.mqttUsername = mqttUsername;
     this.mqttPassword = mqttPassword;
 
-    if (mqttUsername !== '' && mqttPassword !== '') {
+    if (!!mqttUsername && !!mqttPassword) {
       this.options.username = mqttUsername;
       this.options.password = mqttPassword;
     }
