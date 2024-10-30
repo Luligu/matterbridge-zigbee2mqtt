@@ -272,7 +272,7 @@ export class Zigbee2MQTT extends EventEmitter {
   };
 
   // Constructor
-  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mq ttUsername = '', mqttPassword = '', protocolVersion: 4 | 5 | 3 = 5, debug = false) {
+  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername = '', mqttPassword = '', protocolVersion: 4 | 5 | 3 = 5, debug = false) {
     super();
 
     this.mqttHost = mqttHost;
@@ -284,6 +284,9 @@ export class Zigbee2MQTT extends EventEmitter {
     if (!!mqttUsername && !!mqttPassword) {
       this.options.username = mqttUsername;
       this.options.password = mqttPassword;
+    }
+    if (!!mqttUsername) {
+      this.options.clientId = mqttUsername;
     }
     this.options.protocolVersion = protocolVersion;
 
