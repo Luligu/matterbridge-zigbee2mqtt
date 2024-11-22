@@ -4,6 +4,20 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.2] - 2024-10-22
+
+### Changed
+
+- [package]: Updated dependencies.
+- [plugin]: Require Matterbridge 1.6.0.
+
+### Fixed
+
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.2.1] - 2024-10-11
 
 ### Fixed

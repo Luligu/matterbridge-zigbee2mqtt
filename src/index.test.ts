@@ -15,7 +15,7 @@ describe('initializePlugin', () => {
       matterbridgeDirectory: '',
       matterbridgePluginDirectory: 'temp',
       systemInformation: { ipv4Address: undefined },
-      matterbridgeVersion: '1.5.5',
+      matterbridgeVersion: '1.6.0',
       removeAllBridgedDevices: jest.fn(),
     } as unknown as Matterbridge;
     mockLog = { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() } as unknown as AnsiLogger;

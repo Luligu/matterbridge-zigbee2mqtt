@@ -78,8 +78,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (!this.localVerifyMatterbridgeVersion('1.5.5')) {
-      throw new Error(`The zigbee2mqtt plugin requires Matterbridge version >= "1.5.5". Please update Matterbridge to the latest version in the frontend."`);
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.6.0')) {
+      throw new Error(`This plugin requires Matterbridge version >= "1.6.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
     }
 
     this.debugEnabled = config.debug as boolean;
@@ -428,30 +428,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
     this.z2m.stop();
     this.publishCallBack = undefined;
-  }
-
-  localVerifyMatterbridgeVersion(requiredVersion: string): boolean {
-    const compareVersions = (matterbridgeVersion: string, requiredVersion: string): boolean => {
-      const stripTag = (v: string) => {
-        const parts = v.split('-');
-        return parts.length > 0 ? parts[0] : v;
-      };
-      const v1Parts = stripTag(matterbridgeVersion).split('.').map(Number);
-      const v2Parts = stripTag(requiredVersion).split('.').map(Number);
-      for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
-        const v1Part = v1Parts[i] || 0;
-        const v2Part = v2Parts[i] || 0;
-        if (v1Part < v2Part) {
-          return false;
-        } else if (v1Part > v2Part) {
-          return true;
-        }
-      }
-      return true;
-    };
-
-    if (!compareVersions(this.matterbridge.matterbridgeVersion, requiredVersion)) return false;
-    return true;
   }
 
   /**

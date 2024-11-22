@@ -68,6 +68,10 @@ import {
   dimmableLight,
   colorTemperatureLight,
   onOffOutlet,
+  DescriptorCluster,
+  Descriptor,
+  ClusterServer,
+  VendorId,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, wr, debugStringify, hk, zb, or, nf, LogLevel, CYAN } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
@@ -764,7 +768,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
           else this.bridgedDevice.addDeviceTypeWithClusterServer([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
         } else {
           if (!this.bridgedDevice) this.bridgedDevice = new BridgedBaseDevice(this, [bridgedNode]);
-          this.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
+          /* const child = */ this.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
+          // if (endpoint === 'l1') addTagList(child, 0x07, 1, 'endpoint ' + endpoint);
+          // if (endpoint === 'l2') addTagList(child, 0x07, 2, 'endpoint ' + endpoint);
+          // if (endpoint === 'l1') addTagList(child, null, 0x43, 0x08, 'endpoint ' + endpoint);
+          // if (endpoint === 'l2') addTagList(child, null, 0x43, 0x08, 'endpoint ' + endpoint);
           this.bridgedDevice.addFixedLabel('composed', type);
           this.bridgedDevice.hasEndpoints = true;
         }
@@ -1088,6 +1096,31 @@ export class ZigbeeDevice extends ZigbeeEntity {
       }
     }
   }
+}
+
+export function addTagList(endpoint: Endpoint, mfgCode: VendorId | null, namespaceId: number, tag: number, label: string | null = null) {
+  const descriptor = endpoint.getClusterServerById(DescriptorCluster.id);
+  if (!descriptor) return;
+  // console.log('addTagList', namespaceId, tag, label);
+  // console.log('original descriptor', descriptor);
+
+  endpoint.addClusterServer(
+    ClusterServer(
+      DescriptorCluster.with(Descriptor.Feature.TagList),
+      {
+        tagList: [{ mfgCode, namespaceId, tag, label }],
+        deviceTypeList: [...descriptor.attributes.deviceTypeList.getLocal()],
+        serverList: [...descriptor.attributes.serverList.getLocal()],
+        clientList: [...descriptor.attributes.clientList.getLocal()],
+        partsList: [...descriptor.attributes.partsList.getLocal()],
+      },
+      {},
+      {},
+    ),
+  );
+
+  // descriptor = endpoint.getClusterServerById(DescriptorCluster.id);
+  // console.log('new descriptor', descriptor);
 }
 
 export class BridgedBaseDevice extends MatterbridgeDevice {
