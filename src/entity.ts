@@ -173,6 +173,9 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'illuminance' && this.isDevice && this.device?.definition?.model === 'RTCGQ14LM') {
           key = 'illuminance_lux';
         }
+        if (key === 'illuminance' && this.isDevice && this.device?.definition?.model === 'USM-300ZB') {
+          key = 'illuminance_lux';
+        }
         if (key === 'illuminance' && !('illuminance_lux' in payload)) {
           key = 'illuminance_lux';
         }
