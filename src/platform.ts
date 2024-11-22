@@ -48,8 +48,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private mqttHost = 'localhost';
   private mqttPort = 1883;
   private mqttTopic = 'zigbee2mqtt';
-  private mqttUsername = '';
-  private mqttPassword = '';
+  private mqttUsername: string | undefined = undefined;
+  private mqttPassword: string | undefined = undefined;
   private mqttProtocol: 4 | 5 | 3 = 5;
   private whiteList: string[] = [];
   private blackList: string[] = [];
@@ -78,10 +78,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.6.0')) {
-      throw new Error(`This plugin requires Matterbridge version >= "1.6.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.6.1')) {
+      throw new Error(`This plugin requires Matterbridge version >= "1.6.1". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
     }
 
+    this.log.debug(`Config:')}${rs}`, config);
     this.debugEnabled = config.debug as boolean;
     this.shouldStart = false;
     this.shouldConfigure = false;
@@ -121,7 +122,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.log.info(`Initializing platform: ${this.config.name}${rs} v${CYAN}${this.version}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}:`);
-    // this.log.debug(`Config:')}${rs}`, config);
+    this.log.debug(`Config:')}${rs}`, config);
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
     this.z2m.setLogDebug(this.debugEnabled);

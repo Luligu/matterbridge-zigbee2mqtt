@@ -13,10 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- [mqtt]: Username and password are passed like undefined unless set.
 - [readme]: Updated install script.
 - [readme]: Updated build script.
 - [package]: Updated dependencies.
-- [plugin]: Requires Matterbridge 1.6.0.
+- [plugin]: Requires Matterbridge 1.6.1.
 
 ### Fixed
 

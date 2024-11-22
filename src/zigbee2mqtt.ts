@@ -266,13 +266,13 @@ export class Zigbee2MQTT extends EventEmitter {
     protocolVersion: 5,
     reconnectPeriod: 5000, // 1000
     connectTimeout: 60 * 1000, // 30 * 1000
-    username: '',
-    password: '',
+    username: undefined,
+    password: undefined,
     clean: true,
   };
 
   // Constructor
-  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername = '', mqttPassword = '', protocolVersion: 4 | 5 | 3 = 5, debug = false) {
+  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername: string | undefined = undefined, mqttPassword: string | undefined = undefined, protocolVersion: 4 | 5 | 3 = 5, debug = false) {
     super();
 
     this.mqttHost = mqttHost;
@@ -281,10 +281,8 @@ export class Zigbee2MQTT extends EventEmitter {
     this.mqttUsername = mqttUsername;
     this.mqttPassword = mqttPassword;
 
-    if (mqttUsername !== '' && mqttPassword !== '') {
-      this.options.username = mqttUsername;
-      this.options.password = mqttPassword;
-    }
+    this.options.username = mqttUsername !== undefined && mqttUsername !== '' ? mqttUsername : undefined;
+    this.options.password = mqttPassword !== undefined && mqttPassword !== '' ? mqttPassword : undefined;
     this.options.protocolVersion = protocolVersion;
 
     this.z2mIsAvailabilityEnabled = false;
@@ -296,7 +294,9 @@ export class Zigbee2MQTT extends EventEmitter {
     this.z2mGroups = [];
 
     this.log = new AnsiLogger({ logName: 'Zigbee2MQTT', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: debug ? LogLevel.DEBUG : LogLevel.INFO });
-    this.log.debug(`Created new instance with host: ${mqttHost} port: ${mqttPort} protocol ${protocolVersion} topic: ${mqttTopic} username: ${mqttUsername} password: ${mqttPassword !== '' ? '*****' : ''}`);
+    this.log.debug(
+      `Created new instance with host: ${mqttHost} port: ${mqttPort} protocol ${protocolVersion} topic: ${mqttTopic} username: ${mqttUsername !== undefined && mqttUsername !== '' ? mqttUsername : 'undefined'} password: ${mqttPassword !== undefined && mqttPassword !== '' ? '*****' : 'undefined'}`,
+    );
   }
 
   public setLogDebug(logDebug: boolean): void {
