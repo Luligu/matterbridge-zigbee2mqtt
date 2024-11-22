@@ -8,11 +8,15 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- [readme]: Updated install script.
+- [readme]: Updated build script.
 - [package]: Updated dependencies.
-- [plugin]: Require Matterbridge 1.6.0.
+- [plugin]: Requires Matterbridge 1.6.0.
 
 ### Fixed
 
+- [thermostat]: Fixed the case when instead of current_heating_setpoint the property is occupied_heating_setpoint.
+- [thermostat]: Fixed the case when instead of current_cooling_setpoint the property is occupied_cooling_setpoint.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">

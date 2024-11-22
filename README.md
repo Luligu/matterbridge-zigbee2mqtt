@@ -83,7 +83,7 @@ On windows:
 cd $HOME\Matterbridge
 git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
 cd matterbridge-zigbee2mqtt
-npm install
+npm ci
 npm run dev:link
 npm run build
 matterbridge -add .\
@@ -95,7 +95,8 @@ On linux:
 cd ~/Matterbridge
 git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
 cd matterbridge-zigbee2mqtt
-npm install
+npm ci
+npm run dev:link
 npm run build
 matterbridge -add ./
 ```
