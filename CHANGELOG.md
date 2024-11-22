@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ## [2.2.2] - 2024-10-22
 
+### Added
+
+- [thermostat]: Added min_temperature_limit and max_temperature_limit converter.
+- [thermostat]: Added min_heat_setpoint_limit and max_heat_setpoint_limit converter.
+
 ### Changed
 
 - [readme]: Updated install script.
