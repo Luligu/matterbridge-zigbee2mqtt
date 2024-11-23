@@ -1,16 +1,18 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+
+import { jest } from '@jest/globals';
+
 import { Matterbridge, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, idn, ign, LogLevel, rs, TimestampFormat, wr } from 'matterbridge/logger';
+import { wait } from 'matterbridge/utils';
+
 import { ZigbeePlatform } from './platform';
-import { jest } from '@jest/globals';
+import { Zigbee2MQTT } from './zigbee2mqtt';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes';
 import path from 'path';
 import fs from 'fs';
-import { Zigbee2MQTT } from './zigbee2mqtt';
-import exp from 'constants';
-import { wait } from '../../matterbridge/dist/utils/utils';
 
 describe('TestPlatform', () => {
   let mockMatterbridge: Matterbridge;
