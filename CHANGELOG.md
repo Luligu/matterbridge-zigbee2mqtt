@@ -4,12 +4,13 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.2.2] - 2024-10-22
+## [2.2.2] - 2024-11-22
 
 ### Added
 
 - [thermostat]: Added min_temperature_limit and max_temperature_limit converter.
 - [thermostat]: Added min_heat_setpoint_limit and max_heat_setpoint_limit converter.
+- [matter]: Added tagList to child endpoints.
 
 ### Changed
 

@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "2.2.2-dev.1",
+  "version": "2.2.2-dev.5",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
@@ -48,9 +48,9 @@
     "start:bridge": "matterbridge -bridge",
     "start:childbridge": "matterbridge -childbridge",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:verbose": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose",
+    "test:verbose": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --verbose",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles --verbose --coverage",
     "lint": "eslint --max-warnings=0 .",
     "lint:fix": "eslint --fix --max-warnings=0 .",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
@@ -86,7 +86,7 @@
     "@eslint/js": "9.15.0",
     "@types/eslint__js": "8.42.3",
     "@types/jest": "29.5.14",
-    "@types/node": "22.9.1",
+    "@types/node": "22.9.3",
     "eslint": "9.15.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-jest": "28.9.0",
@@ -94,7 +94,7 @@
     "jest": "29.7.0",
     "prettier": "3.3.3",
     "ts-jest": "29.2.5",
-    "typescript": "5.6.3",
+    "typescript": "5.7.2",
     "typescript-eslint": "8.15.0"
   }
 }

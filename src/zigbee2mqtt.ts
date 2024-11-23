@@ -4,7 +4,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @date 2023-06-30
- * @version 2.3.2
+ * @version 2.3.3
  *
  * Copyright 2023, 2024, 2025 Luca Liguori.
  *
@@ -257,6 +257,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private z2mVersion: string;
   public z2mDevices: z2mDevice[];
   public z2mGroups: z2mGroup[];
+  loggedEntries = 0;
 
   // Define our MQTT options
   private options: IClientOptions = {
@@ -603,13 +604,13 @@ export class Zigbee2MQTT extends EventEmitter {
       if (data.config.advanced.legacy_api === true) this.log.info(`Message bridge/info advanced.legacy_api is ${data.config.advanced.legacy_api}`);
       if (data.config.advanced.legacy_availability_payload === true) this.log.info(`Message bridge/info advanced.legacy_availability_payload is ${data.config.advanced.legacy_availability_payload}`);
       this.emit('info', this.z2mVersion, this.z2mIsAvailabilityEnabled, this.z2mPermitJoin, this.z2mPermitJoinTimeout);
-      this.writeBufferJSON('bridge-info', payload);
       this.emit('bridge-info', data);
+      if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('bridge-info', payload);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/devices')) {
       this.z2mDevices.splice(0, this.z2mDevices.length);
       const devices: Device[] = this.tryJsonParse(payload.toString());
       const data = this.tryJsonParse(payload.toString());
-      this.writeBufferJSON('bridge-devices', payload);
+      if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('bridge-devices', payload);
       this.emit('bridge-devices', data);
       let index = 1;
       for (const device of devices) {
@@ -708,7 +709,7 @@ export class Zigbee2MQTT extends EventEmitter {
       this.z2mGroups.splice(0, this.z2mGroups.length);
       const groups: Group[] = this.tryJsonParse(payload.toString());
       const data = this.tryJsonParse(payload.toString());
-      this.writeBufferJSON('bridge-groups', payload);
+      if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('bridge-groups', payload);
       this.emit('bridge-groups', data);
       let index = 1;
       for (const group of groups) {
@@ -834,13 +835,19 @@ export class Zigbee2MQTT extends EventEmitter {
         }
         return;
       }
-      /*
-      if (entity.includes('_-_')) {
-        // Eve app test mode!
-        const foundDevice = this.z2mDevices.find((device) => device.friendly_name.includes(entity));
-        entity = foundDevice ? foundDevice.friendly_name : entity;
+
+      // Log the first 1000 payloads
+      if (this.log.logLevel === LogLevel.DEBUG && this.loggedEntries < 1000) {
+        const logEntry = {
+          entity,
+          service,
+          payload: payload.toString(),
+        };
+        const filePath = path.join(this.mqttDataPath, 'bridge-payloads.txt');
+        fs.appendFileSync(filePath, JSON.stringify(logEntry) + '\n');
+        this.loggedEntries++;
       }
-      */
+
       const foundDevice = this.z2mDevices.findIndex((device) => device.ieee_address === entity || device.friendly_name === entity);
       if (foundDevice !== -1) {
         this.handleDeviceMessage(foundDevice, entity, service, payload);
@@ -1015,13 +1022,13 @@ export class Zigbee2MQTT extends EventEmitter {
       const seconds = Math.floor((difference % (1000 * 60)) / 1000);
       return `${seconds} seconds ago`;
     };
-    this.writeBufferJSON('networkmap_' + data.data.type, payload);
+    if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('networkmap_' + data.data.type, payload);
 
     if (data.data.type === 'graphviz') {
-      this.writeFile('networkmap_' + data.data.type + '.txt', data.data.value);
+      if (this.log.logLevel === LogLevel.DEBUG) this.writeFile('networkmap_' + data.data.type + '.txt', data.data.value);
     }
     if (data.data.type === 'plantuml') {
-      this.writeFile('networkmap_' + data.data.type + '.txt', data.data.value);
+      if (this.log.logLevel === LogLevel.DEBUG) this.writeFile('networkmap_' + data.data.type + '.txt', data.data.value);
     }
     if (data.data.type === 'raw') {
       // Log nodes with links

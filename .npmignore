@@ -162,5 +162,6 @@ jest.config.js
 screenshot
 
 # other stuff
+temp/
 TODO.md
 yellow-button.png
