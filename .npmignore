@@ -163,5 +163,6 @@ screenshot
 
 # other stuff
 temp/
+mock/
 TODO.md
 yellow-button.png

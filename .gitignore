@@ -44,7 +44,4 @@ replay_pid*
 
 # zigbee2mqtt
 temp/
-bridge-info.json
-bridge-devices.json
-bridge-groups.json
 TODO.md
