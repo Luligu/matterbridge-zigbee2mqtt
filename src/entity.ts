@@ -154,7 +154,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // Use with  this.addTagList(endpoint, null, NumberTag.One.namespaceId, NumberTag.One.tag, 'Label');
+  // Use with  this.addTagList(endpoint, null, NumberTag.One.namespaceId, NumberTag.One.tag);
   //           this.addTagList(endpoint, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'Label');
   addTagList(endpoint: Endpoint, mfgCode: VendorId | null, namespaceId: number, tag: number, label?: string | null) {
     const descriptor = endpoint.getClusterServer(DescriptorCluster.with(Descriptor.Feature.TagList));
@@ -165,6 +165,7 @@ export class ZigbeeEntity extends EventEmitter {
 
     // tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
 
+    // We have already the feature, just add the new tag
     if (descriptor.attributes.tagList) {
       this.log.debug(`addTagList: adding ${CYAN}tagList${db} mfCode: ${mfgCode}, namespaceId: ${namespaceId}, tag: ${tag}, label: ${label} on endpoint $${endpoint.name}:${endpoint.number}`);
       const tagList = descriptor.attributes.tagList.getLocal();
@@ -172,6 +173,7 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
 
+    // We don't have the feature, we recreate descriptor with the tag
     this.log.debug(`addTagList: creating ${CYAN}tagList${db} mfCode: ${mfgCode}, namespaceId: ${namespaceId}, tag: ${tag}, label: ${label} on endpoint $${endpoint.name}:${endpoint.number}`);
     endpoint.addClusterServer(
       ClusterServer(
@@ -213,7 +215,7 @@ export class ZigbeeEntity extends EventEmitter {
       // Check if the message is a duplicate that can be ingored cause only linkquality and last_seen have changed (action is always passed)
       const now = Date.now();
       if (now - this.lastSeen < 1000 * 60 && deepEqual(this.lastPayload, payload, ['linkquality', 'last_seen', ...this.ignoreFeatures]) && !Object.prototype.hasOwnProperty.call(this.lastPayload, 'action')) {
-        this.log.debug(`*Skipping not changed MQTT message for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`Skipping not changed ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
       this.lastSeen = Date.now();
@@ -228,15 +230,16 @@ export class ZigbeeEntity extends EventEmitter {
         if (Object.prototype.hasOwnProperty.call(payload, key)) {
           // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
           delete payload[key];
+          this.log.debug(`Removed key ${CYAN}${key}${db} from payload`);
         }
       }
 
       if (this.bridgedDevice === undefined) {
-        this.log.debug(`*Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
       if (this.noUpdate) {
-        this.log.debug(`*Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+        this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
       this.log.info(`${db}${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`);
@@ -324,6 +327,9 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
           const { x, y } = value as { x: number; y: number };
           const hsl = color.xyToHsl(x, y);
+          const rgb = color.xyColorToRgbColor(x, y);
+          this.log.debug(`ColorControl xyToHsl ${CYAN}${x}${db} ${CYAN}${y}${db} => h ${CYAN}${hsl.h}${db} s ${CYAN}${hsl.s}${db} l ${CYAN}${hsl.l}${db}`);
+          this.log.debug(`ColorControl xyToRgb ${CYAN}${x}${db} ${CYAN}${y}${db} => r ${CYAN}${rgb.r}${db} g ${CYAN}${rgb.g}${db} b ${CYAN}${rgb.b}${db}`);
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round((hsl.h / 360) * 254));
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round((hsl.s / 100) * 254));
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
