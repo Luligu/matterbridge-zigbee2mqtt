@@ -11,16 +11,7 @@
       "cache_state_send_on_startup": true,
       "channel": 20,
       "elapsed": false,
-      "ext_pan_id": [
-        61,
-        200,
-        45,
-        154,
-        163,
-        42,
-        44,
-        146
-      ],
+      "ext_pan_id": [61, 200, 45, 154, 163, 42, 44, 146],
       "homeassistant_legacy_entity_attributes": false,
       "last_seen": "ISO_8601_local",
       "legacy_api": false,
@@ -31,9 +22,7 @@
       "log_file": "log.log",
       "log_level": "info",
       "log_namespaced_levels": {},
-      "log_output": [
-        "console"
-      ],
+      "log_output": ["console"],
       "log_rotation": false,
       "log_symlink_current": false,
       "log_syslog": {
@@ -248,36 +237,19 @@
         "friendly_name": "Master motion"
       },
       "7": {
-        "devices": [
-          "0xa4c138363dff5c1d/1",
-          "0xa4c138071003495f/11",
-          "0x04cd15fffe0d0ebd/1",
-          "0xa4c1388ad0ebb0a6/1",
-          "0xa4c138a2a00bb8d4/1",
-          "0xa4c138e0a08604f5/1"
-        ],
+        "devices": ["0xa4c138363dff5c1d/1", "0xa4c138071003495f/11", "0x04cd15fffe0d0ebd/1", "0xa4c1388ad0ebb0a6/1", "0xa4c138a2a00bb8d4/1", "0xa4c138e0a08604f5/1"],
         "friendly_name": "Lights"
       },
       "8": {
-        "devices": [
-          "0x54ef44100086d51f/1",
-          "0x54ef4410009716a8/1",
-          "0x54ef4410009716a8/2",
-          "0xcc86ecfffe4e9d25/2",
-          "0xcc86ecfffe4e9d25/1"
-        ],
+        "devices": ["0x54ef44100086d51f/1", "0x54ef4410009716a8/1", "0x54ef4410009716a8/2", "0xcc86ecfffe4e9d25/2", "0xcc86ecfffe4e9d25/1"],
         "friendly_name": "Switches"
       },
       "9": {
-        "devices": [
-          "0x70ac08fffee6dd5e/1"
-        ],
+        "devices": ["0x70ac08fffee6dd5e/1"],
         "friendly_name": "Covers"
       },
       "10": {
-        "devices": [
-          "0xa4c138f402dfba8a/1"
-        ],
+        "devices": ["0xa4c138f402dfba8a/1"],
         "friendly_name": "Thermostats"
       }
     },
@@ -347,9 +319,7 @@
           },
           "debounce_ignore": {
             "description": "Protects unique payload values of specified payload properties from overriding within debounce time",
-            "examples": [
-              "action"
-            ],
+            "examples": ["action"],
             "items": {
               "type": "string"
             },
@@ -364,11 +334,7 @@
           },
           "filtered_attributes": {
             "description": "Filter attributes with regex from published payload.",
-            "examples": [
-              "^temperature$",
-              "^battery$",
-              "^action$"
-            ],
+            "examples": ["^temperature$", "^battery$", "^action$"],
             "items": {
               "type": "string"
             },
@@ -377,9 +343,7 @@
           },
           "filtered_cache": {
             "description": "Filter attributes with regex from being added to the cache, this prevents the attribute from being in the published payload when the value didn't change.",
-            "examples": [
-              "^input_actions$"
-            ],
+            "examples": ["^input_actions$"],
             "items": {
               "type": "string"
             },
@@ -388,10 +352,7 @@
           },
           "filtered_optimistic": {
             "description": "Filter attributes with regex from optimistic publish payload when calling /set. (This has no effect if optimistic is set to false).",
-            "examples": [
-              "^color_(mode|temp)$",
-              "color"
-            ],
+            "examples": ["^color_(mode|temp)$", "color"],
             "items": {
               "type": "string"
             },
@@ -413,10 +374,7 @@
               }
             },
             "title": "Home Assistant",
-            "type": [
-              "object",
-              "null"
-            ]
+            "type": ["object", "null"]
           },
           "icon": {
             "description": "The user-defined device icon for the frontend. It can be a full URL link to an image (e.g. https://SOME.SITE/MODEL123.jpg) (you cannot use a path to a local file) or base64 encoded data URL (e.g. image/svg+xml;base64,PHN2ZyB3aW....R0aD)",
@@ -445,9 +403,7 @@
             "type": "number"
           }
         },
-        "required": [
-          "friendly_name"
-        ],
+        "required": ["friendly_name"],
         "type": "object"
       },
       "group": {
@@ -470,15 +426,10 @@
           "off_state": {
             "default": "auto",
             "description": "Control when to publish state OFF or CLOSE for a group. 'all_members_off': only publish state OFF/CLOSE when all group members are in state OFF/CLOSE,  'last_member_state': publish state OFF whenever one of its members changes to OFF",
-            "enum": [
-              "all_members_off",
-              "last_member_state"
-            ],
+            "enum": ["all_members_off", "last_member_state"],
             "requiresRestart": true,
             "title": "Group off state",
-            "type": [
-              "string"
-            ]
+            "type": ["string"]
           },
           "optimistic": {
             "type": "boolean"
@@ -490,9 +441,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "friendly_name"
-        ],
+        "required": ["friendly_name"],
         "type": "object"
       }
     },
@@ -505,10 +454,7 @@
             "minimum": 1,
             "requiresRestart": true,
             "title": "Adapter concurrency",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "adapter_delay": {
             "description": "Adapter delay",
@@ -516,10 +462,7 @@
             "minimum": 0,
             "requiresRestart": true,
             "title": "Adapter delay",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           },
           "cache_state": {
             "default": true,
@@ -542,11 +485,7 @@
           "channel": {
             "default": 11,
             "description": "Zigbee channel, changing might require re-pairing some devices! (Note: use a ZLL channel: 11, 15, 20, or 25 to avoid problems)",
-            "examples": [
-              15,
-              20,
-              25
-            ],
+            "examples": [15, 20, 25],
             "maximum": 26,
             "minimum": 11,
             "requiresRestart": true,
@@ -580,12 +519,7 @@
           "last_seen": {
             "default": "disable",
             "description": "Add a last_seen attribute to MQTT messages, contains date/time of last Zigbee message",
-            "enum": [
-              "disable",
-              "ISO_8601",
-              "ISO_8601_local",
-              "epoch"
-            ],
+            "enum": ["disable", "ISO_8601", "ISO_8601_local", "epoch"],
             "title": "Last seen",
             "type": "string"
           },
@@ -606,10 +540,7 @@
           "log_debug_namespace_ignore": {
             "default": "",
             "description": "Do not log these namespaces (regex-based) for debug level",
-            "examples": [
-              "^zhc:legacy:fz:(tuya|moes)",
-              "^zhc:legacy:fz:(tuya|moes)|^zh:ember:uart:|^zh:controller"
-            ],
+            "examples": ["^zhc:legacy:fz:(tuya|moes)", "^zhc:legacy:fz:(tuya|moes)|^zh:ember:uart:|^zh:controller"],
             "title": "Log debug namespace ignore",
             "type": "string"
           },
@@ -622,9 +553,7 @@
           },
           "log_directory": {
             "description": "Location of log directory",
-            "examples": [
-              "data/log/%TIMESTAMP%"
-            ],
+            "examples": ["data/log/%TIMESTAMP%"],
             "requiresRestart": true,
             "title": "Log directory",
             "type": "string"
@@ -632,9 +561,7 @@
           "log_file": {
             "default": "log.txt",
             "description": "Log file name, can also contain timestamp",
-            "examples": [
-              "zigbee2mqtt_%TIMESTAMP%.log"
-            ],
+            "examples": ["zigbee2mqtt_%TIMESTAMP%.log"],
             "requiresRestart": true,
             "title": "Log file",
             "type": "string"
@@ -642,24 +569,13 @@
           "log_level": {
             "default": "info",
             "description": "Logging level",
-            "enum": [
-              "error",
-              "warning",
-              "info",
-              "debug",
-              "warn"
-            ],
+            "enum": ["error", "warning", "info", "debug", "warn"],
             "title": "Log level",
             "type": "string"
           },
           "log_namespaced_levels": {
             "additionalProperties": {
-              "enum": [
-                "error",
-                "warning",
-                "info",
-                "debug"
-              ],
+              "enum": ["error", "warning", "info", "debug"],
               "type": "string"
             },
             "default": {},
@@ -681,11 +597,7 @@
           "log_output": {
             "description": "Output location of the log, leave empty to suppress logging",
             "items": {
-              "enum": [
-                "console",
-                "file",
-                "syslog"
-              ],
+              "enum": ["console", "file", "syslog"],
               "type": "string"
             },
             "requiresRestart": true,
@@ -741,9 +653,7 @@
                   "path": {
                     "default": "/dev/log",
                     "description": "The path to the syslog dgram socket (i.e. /dev/log or /var/run/syslog for OS X).",
-                    "examples": [
-                      "/var/run/syslog"
-                    ],
+                    "examples": ["/var/run/syslog"],
                     "title": "Path",
                     "type": "string"
                   },
@@ -762,12 +672,7 @@
                   "protocol": {
                     "default": "udp4",
                     "description": "The network protocol to log over (e.g. tcp4, udp4, tls4, unix, unix-connect, etc).",
-                    "examples": [
-                      "udp4",
-                      "tls4",
-                      "unix",
-                      "unix-connect"
-                    ],
+                    "examples": ["udp4", "tls4", "unix", "unix-connect"],
                     "title": "Protocol",
                     "type": "string"
                   },
@@ -804,11 +709,7 @@
           },
           "output": {
             "description": "Examples when 'state' of a device is published json: topic: 'zigbee2mqtt/my_bulb' payload '{\"state\": \"ON\"}' attribute: topic 'zigbee2mqtt/my_bulb/state' payload 'ON' attribute_and_json: both json and attribute (see above)",
-            "enum": [
-              "attribute_and_json",
-              "attribute",
-              "json"
-            ],
+            "enum": ["attribute_and_json", "attribute", "json"],
             "title": "MQTT output type",
             "type": "string"
           },
@@ -829,9 +730,7 @@
           },
           "timestamp_format": {
             "description": "Log timestamp format",
-            "examples": [
-              "YYYY-MM-DD HH:mm:ss"
-            ],
+            "examples": ["YYYY-MM-DD HH:mm:ss"],
             "requiresRestart": true,
             "title": "Timestamp format",
             "type": "string"
@@ -842,10 +741,7 @@
             "minimum": -128,
             "requiresRestart": true,
             "title": "Transmit power",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           }
         },
         "title": "Advanced",
@@ -933,9 +829,7 @@
       },
       "external_converters": {
         "description": "You can define external converters to e.g. add support for a DiY device",
-        "examples": [
-          "DIYRuZ_FreePad.js"
-        ],
+        "examples": ["DIYRuZ_FreePad.js"],
         "items": {
           "type": "string"
         },
@@ -955,10 +849,7 @@
                 "description": "Enables authentication, disabled by default",
                 "requiresRestart": true,
                 "title": "Auth token",
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": ["string", "null"]
               },
               "base_url": {
                 "default": "/",
@@ -970,17 +861,10 @@
               },
               "host": {
                 "description": "Frontend binding host. Binds to a unix socket when an absolute path is given instead.",
-                "examples": [
-                  "127.0.0.1",
-                  "::1",
-                  "/run/zigbee2mqtt/zigbee2mqtt.sock"
-                ],
+                "examples": ["127.0.0.1", "::1", "/run/zigbee2mqtt/zigbee2mqtt.sock"],
                 "requiresRestart": true,
                 "title": "Bind host",
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": ["string", "null"]
               },
               "port": {
                 "default": 8080,
@@ -993,28 +877,19 @@
                 "description": "SSL Certificate file path for exposing HTTPS. The sibling property 'ssl_key' must be set for HTTPS to be activated.",
                 "requiresRestart": true,
                 "title": "Certificate file path",
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": ["string", "null"]
               },
               "ssl_key": {
                 "description": "SSL key file path for exposing HTTPS. The sibling property 'ssl_cert' must be set for HTTPS to be activated.",
                 "requiresRestart": true,
                 "title": "key file path",
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": ["string", "null"]
               },
               "url": {
                 "description": "URL on which the frontend can be reached, currently only used for the Home Assistant device configuration page",
                 "requiresRestart": true,
                 "title": "URL",
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": ["string", "null"]
               }
             },
             "title": "Frontend (advanced)",
@@ -1047,9 +922,7 @@
             "properties": {
               "discovery_topic": {
                 "description": "Home Assistant discovery topic",
-                "examples": [
-                  "homeassistant"
-                ],
+                "examples": ["homeassistant"],
                 "requiresRestart": true,
                 "title": "Homeassistant discovery topic",
                 "type": "string"
@@ -1068,9 +941,7 @@
               },
               "status_topic": {
                 "description": "Home Assistant status topic",
-                "examples": [
-                  "homeassistant/status"
-                ],
+                "examples": ["homeassistant/status"],
                 "requiresRestart": true,
                 "title": "Home Assistant status topic",
                 "type": "string"
@@ -1143,36 +1014,28 @@
           "base_topic": {
             "default": "zigbee2mqtt",
             "description": "MQTT base topic for Zigbee2MQTT MQTT messages",
-            "examples": [
-              "zigbee2mqtt"
-            ],
+            "examples": ["zigbee2mqtt"],
             "requiresRestart": true,
             "title": "Base topic",
             "type": "string"
           },
           "ca": {
             "description": "Absolute path to SSL/TLS certificate of CA used to sign server and client certificates",
-            "examples": [
-              "/etc/ssl/mqtt-ca.crt"
-            ],
+            "examples": ["/etc/ssl/mqtt-ca.crt"],
             "requiresRestart": true,
             "title": "Certificate authority",
             "type": "string"
           },
           "cert": {
             "description": "Absolute path to SSL/TLS certificate for client-authentication",
-            "examples": [
-              "/etc/ssl/mqtt-client.crt"
-            ],
+            "examples": ["/etc/ssl/mqtt-client.crt"],
             "requiresRestart": true,
             "title": "SSL/TLS certificate",
             "type": "string"
           },
           "client_id": {
             "description": "MQTT client ID",
-            "examples": [
-              "MY_CLIENT_ID"
-            ],
+            "examples": ["MY_CLIENT_ID"],
             "requiresRestart": true,
             "title": "Client ID",
             "type": "string"
@@ -1199,18 +1062,14 @@
           },
           "key": {
             "description": "Absolute path to SSL/TLS key for client-authentication",
-            "examples": [
-              "/etc/ssl/mqtt-client.key"
-            ],
+            "examples": ["/etc/ssl/mqtt-client.key"],
             "requiresRestart": true,
             "title": "SSL/TLS key",
             "type": "string"
           },
           "password": {
             "description": "MQTT server authentication password",
-            "examples": [
-              "ILOVEPELMENI"
-            ],
+            "examples": ["ILOVEPELMENI"],
             "requiresRestart": true,
             "title": "Password",
             "type": "string"
@@ -1224,18 +1083,14 @@
           },
           "server": {
             "description": "MQTT server URL (use mqtts:// for SSL/TLS connection)",
-            "examples": [
-              "mqtt://localhost:1883"
-            ],
+            "examples": ["mqtt://localhost:1883"],
             "requiresRestart": true,
             "title": "MQTT server",
             "type": "string"
           },
           "user": {
             "description": "MQTT server authentication user",
-            "examples": [
-              "johnnysilverhand"
-            ],
+            "examples": ["johnnysilverhand"],
             "requiresRestart": true,
             "title": "User",
             "type": "string"
@@ -1243,20 +1098,13 @@
           "version": {
             "default": 4,
             "description": "MQTT protocol version",
-            "examples": [
-              5
-            ],
+            "examples": [5],
             "requiresRestart": true,
             "title": "Version",
-            "type": [
-              "number",
-              "null"
-            ]
+            "type": ["number", "null"]
           }
         },
-        "required": [
-          "server"
-        ],
+        "required": ["server"],
         "title": "MQTT",
         "type": "object"
       },
@@ -1283,15 +1131,10 @@
           },
           "zigbee_ota_override_index_location": {
             "description": "Location of override OTA index file",
-            "examples": [
-              "index.json"
-            ],
+            "examples": ["index.json"],
             "requiresRestart": true,
             "title": "OTA index override file name",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           }
         },
         "title": "OTA updates",
@@ -1317,28 +1160,14 @@
           "adapter": {
             "default": "auto",
             "description": "Adapter type, not needed unless you are experiencing problems",
-            "enum": [
-              "deconz",
-              "zstack",
-              "zigate",
-              "ezsp",
-              "auto",
-              "ember",
-              "zboss"
-            ],
+            "enum": ["deconz", "zstack", "zigate", "ezsp", "auto", "ember", "zboss"],
             "requiresRestart": true,
             "title": "Adapter",
-            "type": [
-              "string"
-            ]
+            "type": ["string"]
           },
           "baudrate": {
             "description": "Baud rate speed for serial port, this can be anything firmware support but default is 115200 for Z-Stack and EZSP, 38400 for Deconz, however note that some EZSP firmware need 57600",
-            "examples": [
-              38400,
-              57600,
-              115200
-            ],
+            "examples": [38400, 57600, 115200],
             "requiresRestart": true,
             "title": "Baudrate",
             "type": "number"
@@ -1352,15 +1181,10 @@
           },
           "port": {
             "description": "Location of the adapter. To autodetect the port, set null",
-            "examples": [
-              "/dev/ttyACM0"
-            ],
+            "examples": ["/dev/ttyACM0"],
             "requiresRestart": true,
             "title": "Port",
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "rtscts": {
             "description": "RTS / CTS Hardware Flow Control for serial port",
@@ -1382,9 +1206,7 @@
         "type": "array"
       }
     },
-    "required": [
-      "mqtt"
-    ],
+    "required": ["mqtt"],
     "type": "object"
   },
   "coordinator": {
