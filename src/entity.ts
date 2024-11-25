@@ -50,7 +50,6 @@ import {
   Endpoint,
   AtLeastOne,
   getClusterNameById,
-  DoorLockCluster,
   powerSource,
   bridgedNode,
   AirQuality,
@@ -68,11 +67,9 @@ import {
   dimmableLight,
   colorTemperatureLight,
   onOffOutlet,
-  DescriptorCluster,
-  Descriptor,
-  ClusterServer,
-  VendorId,
   EndpointOptions,
+  SwitchesTag,
+  NumberTag,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
@@ -104,7 +101,7 @@ export class ZigbeeEntity extends EventEmitter {
   private lastSeen = 0;
   protected ignoreFeatures: string[] = [];
   protected transition = false;
-  protected propertyMap = new Map<string, { name: string; type: string; endpoint: string; unit?: string; action?: string }>();
+  protected propertyMap = new Map<string, { name: string; type: string; endpoint: string; values?: string; value_min?: number; value_max?: number; unit?: string; action?: string }>();
 
   colorTimeout: NodeJS.Timeout | undefined = undefined;
   thermostatTimeout: NodeJS.Timeout | undefined = undefined;
@@ -146,49 +143,51 @@ export class ZigbeeEntity extends EventEmitter {
     }
     if (this.bridgedDevice?.getClusterServerById(DoorLock.Cluster.id)) {
       this.log.info(`Configuring ${this.bridgedDevice?.deviceName} DoorLock cluster`);
-      const state = this.bridgedDevice?.getClusterServerById(DoorLock.Cluster.id)?.getLockStateAttribute();
+      // const state = this.bridgedDevice?.getClusterServerById(DoorLock.Cluster.id)?.getLockStateAttribute();
+      const state = this.bridgedDevice?.getAttribute(DoorLock.Cluster.id, 'lockState', this.log);
       if (this.bridgedDevice.number) {
-        if (state === DoorLock.LockState.Locked) this.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
-        if (state === DoorLock.LockState.Unlocked) this.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+        if (state === DoorLock.LockState.Locked) this.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+        if (state === DoorLock.LockState.Unlocked) this.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+        // if (state === DoorLock.LockState.Locked) this.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+        // if (state === DoorLock.LockState.Unlocked) this.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
       }
     }
   }
 
-  // Use with  this.addTagList(endpoint, null, NumberTag.One.namespaceId, NumberTag.One.tag);
-  //           this.addTagList(endpoint, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'Label');
-  addTagList(endpoint: Endpoint, mfgCode: VendorId | null, namespaceId: number, tag: number, label?: string | null) {
-    const descriptor = endpoint.getClusterServer(DescriptorCluster.with(Descriptor.Feature.TagList));
-    if (!descriptor) {
-      this.log.error(`addTagList: descriptor cluster not found on endpoint ${endpoint.name}:${endpoint.number}`);
+  /**
+   * Retrieves the value of the specified attribute from the given endpoint and cluster.
+   *
+   * @param {ClusterId} clusterId - The ID of the cluster to retrieve the attribute from.
+   * @param {string} event - The name of the event to trigger.
+   * @param {Record<string, any>} payload - The payload of the event to trigger.
+   * @param {AnsiLogger} [log] - Optional logger for error and info messages.
+   * @param {Endpoint} [endpoint] - Optional the child endpoint to retrieve the attribute from.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  triggerEvent(clusterId: ClusterId, event: string, payload: Record<string, any>, log?: AnsiLogger, endpoint?: Endpoint) {
+    if (!endpoint) endpoint = this.bridgedDevice as Endpoint;
+    if (!endpoint.number) return;
+
+    const clusterServer = endpoint.getClusterServerById(clusterId);
+    if (!clusterServer) {
+      log?.error(`triggerEvent error: Cluster ${clusterId} not found on endpoint ${endpoint.name}:${endpoint.number}`);
       return;
     }
-
-    // tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
-
-    // We have already the feature, just add the new tag
-    if (descriptor.attributes.tagList) {
-      this.log.debug(`addTagList: adding ${CYAN}tagList${db} mfCode: ${mfgCode}, namespaceId: ${namespaceId}, tag: ${tag}, label: ${label} on endpoint $${endpoint.name}:${endpoint.number}`);
-      const tagList = descriptor.attributes.tagList.getLocal();
-      tagList.push({ mfgCode, namespaceId, tag, label });
+    const capitalizedEventName = event.charAt(0).toUpperCase() + event.slice(1);
+    if (!clusterServer.isEventSupportedByName(event) && !clusterServer.isEventSupportedByName(capitalizedEventName)) {
+      if (log) log.error(`triggerEvent error: Attribute ${event} not found on Cluster ${clusterServer.name} on endpoint ${endpoint.name}:${endpoint.number}`);
       return;
     }
-
-    // We don't have the feature, we recreate descriptor with the tag
-    this.log.debug(`addTagList: creating ${CYAN}tagList${db} mfCode: ${mfgCode}, namespaceId: ${namespaceId}, tag: ${tag}, label: ${label} on endpoint $${endpoint.name}:${endpoint.number}`);
-    endpoint.addClusterServer(
-      ClusterServer(
-        DescriptorCluster.with(Descriptor.Feature.TagList),
-        {
-          tagList: [{ mfgCode, namespaceId, tag, label }],
-          deviceTypeList: [...descriptor.attributes.deviceTypeList.getLocal()],
-          serverList: [...descriptor.attributes.serverList.getLocal()],
-          clientList: [...descriptor.attributes.clientList.getLocal()],
-          partsList: [...descriptor.attributes.partsList.getLocal()],
-        },
-        {},
-        {},
-      ),
-    );
+    // Find the getter method
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(clusterServer as any)[`trigger${capitalizedEventName}Event`]) {
+      log?.error(`triggerEvent error: Trigger trigger${capitalizedEventName}Event not found on Cluster ${clusterServer.name} on endpoint ${endpoint.name}:${endpoint.number}`);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type
+    const trigger = (clusterServer as any)[`trigger${capitalizedEventName}Event`] as (payload: Record<string, any>) => {};
+    trigger(payload);
+    log?.info(`${db}Trigger event ${hk}${clusterServer.name}.${capitalizedEventName}${db} on endpoint ${or}${endpoint.name}:${endpoint.number}${db}`);
   }
 
   constructor(platform: ZigbeePlatform, entity: BridgeDevice | BridgeGroup) {
@@ -793,6 +792,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     const names: string[] = [];
     const properties: string[] = [];
     const units: string[] = [];
+    const value_mins: number[] = [];
+    const value_maxs: number[] = [];
+    const values: string[] = [];
     device.definition?.exposes.forEach((expose) => {
       if (expose.features) {
         // Specific features with type
@@ -802,7 +804,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
           endpoints.push(expose.endpoint || '');
           names.push(feature.name);
           properties.push(feature.property);
-          units.push(feature.unit || '');
+          units.push(feature.unit ?? '');
+          value_mins.push(feature.value_min ?? NaN);
+          value_maxs.push(feature.value_max ?? NaN);
+          values.push(feature.values ? feature.values.join('|') : '');
         });
       } else {
         // Generic features without type
@@ -812,7 +817,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
         if (device.power_source === 'Battery' && expose.property === 'voltage') expose.property = 'battery_voltage';
         names.push(expose.name || '');
         properties.push(expose.property);
-        units.push(expose.unit || '');
+        units.push(expose.unit ?? '');
+        value_mins.push(expose.value_min ?? NaN);
+        value_maxs.push(expose.value_max ?? NaN);
+        values.push(expose.values ? expose.values.join('|') : '');
         if (expose.name === 'action' && expose.values) {
           this.actions.push(...expose.values);
         }
@@ -822,7 +830,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
       types.push('');
       names.push(option.name || '');
       properties.push(option.property);
-      units.push(option.unit || '');
+      units.push(option.unit ?? '');
+      value_mins.push(option.value_min ?? NaN);
+      value_maxs.push(option.value_max ?? NaN);
+      values.push(option.values ? option.values.join('|') : '');
       endpoints.push(option.endpoint || '');
     });
     if (platform.switchList.includes(device.friendly_name)) {
@@ -869,16 +880,25 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const endpoint = endpoints[index];
       const property = properties[index];
       const unit = units[index];
+      const value_min = value_mins[index];
+      const value_max = value_maxs[index];
+      const value = values[index];
       const z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);
       if (z2m) {
         this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
-        this.propertyMap.set(property, { name, type, endpoint, unit });
+        this.propertyMap.set(property, { name, type, endpoint, value_min, value_max, values: value, unit });
         if (endpoint === '') {
           if (!this.bridgedDevice) this.bridgedDevice = this.createDevice([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           else this.bridgedDevice.addDeviceTypeWithClusterServer([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
         } else {
           if (!this.bridgedDevice) this.bridgedDevice = this.createDevice([bridgedNode]);
-          /* const child = */ this.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)] /* , undefined, this.log.logLevel === LogLevel.DEBUG*/);
+          const child = this.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], undefined, this.log.logLevel === LogLevel.DEBUG);
+          if (endpoint === 'l1') this.bridgedDevice.addTagList(child, null, NumberTag.One.namespaceId, NumberTag.One.tag, 'endpoint ' + endpoint);
+          if (endpoint === 'l2') this.bridgedDevice.addTagList(child, null, NumberTag.Two.namespaceId, NumberTag.Two.tag, 'endpoint ' + endpoint);
+          if (endpoint === 'l3') this.bridgedDevice.addTagList(child, null, NumberTag.Three.namespaceId, NumberTag.Three.tag, 'endpoint ' + endpoint);
+          if (endpoint === 'l4') this.bridgedDevice.addTagList(child, null, NumberTag.Four.namespaceId, NumberTag.Four.tag, 'endpoint ' + endpoint);
+          if (endpoint === 'l5') this.bridgedDevice.addTagList(child, null, NumberTag.Five.namespaceId, NumberTag.Five.tag, 'endpoint ' + endpoint);
+          if (endpoint === 'l6') this.bridgedDevice.addTagList(child, null, NumberTag.Six.namespaceId, NumberTag.Six.tag, 'endpoint ' + endpoint);
           /* 
           if (endpoint === 'l1') this.addTagList(child, null, NumberTag.One.namespaceId, NumberTag.One.tag, 'endpoint ' + endpoint);
           if (endpoint === 'l1') this.addTagList(child, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'endpoint ' + endpoint);
@@ -909,7 +929,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
             this.propertyMap.set('action_' + actionsMap[a], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a] });
             this.log.info(`-- Button ${count}: ${hk}${switchMap[a]}${nf} <=> ${zb}${actionsMap[a]}${nf}`);
           }
-          this.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters] /* , undefined, this.log.logLevel === LogLevel.DEBUG*/);
+          const button = this.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters], undefined, this.log.logLevel === LogLevel.DEBUG);
+          this.bridgedDevice.addTagList(button, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'switch_' + count);
         } else {
           for (let i = 0; i < this.actions.length; i += 3) {
             const actionsMap: string[] = [];
@@ -918,7 +939,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
               this.propertyMap.set('action_' + actionsMap[a - i], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a - i] });
               this.log.info(`-- Button ${count}: ${hk}${switchMap[a - i]}${nf} <=> ${zb}${actionsMap[a - i]}${nf}`);
             }
-            this.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters] /* , undefined, this.log.logLevel === LogLevel.DEBUG*/);
+            const button = this.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters], undefined, this.log.logLevel === LogLevel.DEBUG);
+            this.bridgedDevice.addTagList(button, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'switch_' + count);
             count++;
           }
         }
@@ -976,14 +998,36 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Configure ColorControlCluster
     if (this.bridgedDevice && this.bridgedDevice.hasClusterServer(ColorControl.Complete)) {
-      this.log.debug(`Configuring device ${this.ien}${device.friendly_name}${rs}${db} ColorControlCluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')}`);
+      this.log.debug(`Configuring device ${this.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')}`);
       this.bridgedDevice.configureColorControlCluster(names.includes('color_hs') || names.includes('color_xy'), false, names.includes('color_temp'));
+    }
+
+    // Configure ThermostatCluster
+    if (this.bridgedDevice && this.bridgedDevice.hasClusterServer(Thermostat.Complete)) {
+      const heat = this.propertyMap.get('occupied_heating_setpoint') || this.propertyMap.get('current_heating_setpoint');
+      const cool = this.propertyMap.get('occupied_cooling_setpoint') || this.propertyMap.get('current_cooling_setpoint');
+      const minHeating = heat && heat.value_min !== undefined && !isNaN(heat.value_min) ? heat.value_min : 0;
+      const maxHeating = heat && heat.value_max !== undefined && !isNaN(heat.value_max) ? heat.value_max : 50;
+      const minCooling = cool && cool.value_min !== undefined && !isNaN(cool.value_min) ? cool.value_min : 0;
+      const maxCooling = cool && cool.value_max !== undefined && !isNaN(cool.value_max) ? cool.value_max : 50;
+      this.log.debug(
+        `Configuring device ${this.ien}${device.friendly_name}${rs}${db} Thermostat cluster with heating ${CYAN}${heat ? 'supported' : 'not supported'}${db} cooling ${CYAN}${cool ? 'supported' : 'not supported'}${db} ` +
+          `minHeating ${CYAN}${minHeating}${db} maxHeating ${CYAN}${maxHeating}${db} minCooling ${CYAN}${minCooling}${db} maxCooling ${CYAN}${maxCooling}${db}`,
+      );
+      if (heat && !cool) {
+        this.propertyMap.delete('running_state'); // Remove running_state if only heating is supported cause it's not supported by the cluster without AutoMode
+        this.bridgedDevice.addClusterServer(this.bridgedDevice.getDefaultHeatingThermostatClusterServer(undefined, undefined, minHeating, maxHeating));
+      } else if (!heat && cool) {
+        this.propertyMap.delete('running_state'); // Remove running_state if only cooling is supported cause it's not supported by the cluster without AutoMode
+        this.bridgedDevice.addClusterServer(this.bridgedDevice.getDefaultCoolingThermostatClusterServer(undefined, undefined, minCooling, maxCooling));
+      } else if (heat && cool) {
+        this.bridgedDevice.addClusterServer(this.bridgedDevice.getDefaultThermostatClusterServer(undefined, undefined, undefined, undefined, minHeating, maxHeating, minCooling, maxCooling));
+      }
     }
 
     /* Verify that all required server clusters are present in the main endpoint and in the child endpoints */
     if (this.bridgedDevice) {
-      const deviceTypes = this.bridgedDevice.getDeviceTypes();
-      deviceTypes.forEach((deviceType) => {
+      this.bridgedDevice.getDeviceTypes().forEach((deviceType) => {
         deviceType.requiredServerClusters.forEach((clusterId) => {
           if (!this.bridgedDevice) return;
           if (!this.bridgedDevice.getClusterServerById(clusterId)) {
@@ -994,10 +1038,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
     }
     if (this.bridgedDevice) {
-      const childEndpoints = this.bridgedDevice.getChildEndpoints();
-      childEndpoints.forEach((childEndpoint) => {
-        const deviceTypes = childEndpoint.getDeviceTypes();
-        deviceTypes.forEach((deviceType) => {
+      this.bridgedDevice.getChildEndpoints().forEach((childEndpoint) => {
+        childEndpoint.getDeviceTypes().forEach((deviceType) => {
           deviceType.requiredServerClusters.forEach((clusterId) => {
             if (!this.bridgedDevice) return;
             if (!childEndpoint.getClusterServerById(clusterId)) {
@@ -1010,9 +1052,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
     if (!this.bridgedDevice) return;
 
-    // Properties
+    // Log properties
     this.propertyMap.forEach((value, key) => {
-      this.log.debug(`Property ${CYAN}${key}${db} name ${CYAN}${value.name}${db} type ${CYAN}${value.type === '' ? 'generic' : value.type}${db} endpoint ${CYAN}${value.endpoint === '' ? 'main' : value.endpoint}${db}`);
+      this.log.debug(
+        `Property ${CYAN}${key}${db} name ${CYAN}${value.name}${db} type ${CYAN}${value.type === '' ? 'generic' : value.type}${db} values ${CYAN}${value.values}${db} ` +
+          `value_min ${CYAN}${value.value_min}${db} value_max ${CYAN}${value.value_max}${db} unit ${CYAN}${value.unit}${db} endpoint ${CYAN}${value.endpoint === '' ? 'main' : value.endpoint}${db}`,
+      );
     });
 
     // Command handlers
@@ -1198,24 +1243,26 @@ export class ZigbeeDevice extends ZigbeeEntity {
             this.noUpdate = false;
           }, 10 * 1000);
         });
-        thermostat.subscribeOccupiedHeatingSetpointAttribute(async (value) => {
-          this.log.debug(`Subscribe occupiedHeatingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
-          if (this.propertyMap.has('current_heating_setpoint')) this.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
-          else if (this.propertyMap.has('occupied_heating_setpoint')) this.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { occupied_heating_setpoint: Math.round(value / 100) });
-          if (this.bridgedDevice) this.noUpdate = true;
-          this.thermostatTimeout = setTimeout(() => {
-            if (this.bridgedDevice) this.noUpdate = false;
-          }, 10 * 1000);
-        });
-        thermostat.subscribeOccupiedCoolingSetpointAttribute(async (value) => {
-          this.log.debug(`Subscribe occupiedCoolingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
-          if (this.propertyMap.has('current_cooling_setpoint')) this.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_cooling_setpoint: Math.round(value / 100) });
-          else if (this.propertyMap.has('occupied_cooling_setpoint')) this.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: Math.round(value / 100) });
-          if (this.bridgedDevice) this.noUpdate = true;
-          this.thermostatTimeout = setTimeout(() => {
-            if (this.bridgedDevice) this.noUpdate = false;
-          }, 10 * 1000);
-        });
+        if (thermostat.subscribeOccupiedHeatingSetpointAttribute)
+          thermostat.subscribeOccupiedHeatingSetpointAttribute(async (value) => {
+            this.log.debug(`Subscribe occupiedHeatingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
+            if (this.propertyMap.has('current_heating_setpoint')) this.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
+            else if (this.propertyMap.has('occupied_heating_setpoint')) this.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { occupied_heating_setpoint: Math.round(value / 100) });
+            if (this.bridgedDevice) this.noUpdate = true;
+            this.thermostatTimeout = setTimeout(() => {
+              if (this.bridgedDevice) this.noUpdate = false;
+            }, 10 * 1000);
+          });
+        if (thermostat.subscribeOccupiedCoolingSetpointAttribute)
+          thermostat.subscribeOccupiedCoolingSetpointAttribute(async (value) => {
+            this.log.debug(`Subscribe occupiedCoolingSetpoint called for ${this.ien}${device.friendly_name}${rs}${db} with:`, value);
+            if (this.propertyMap.has('current_cooling_setpoint')) this.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_cooling_setpoint: Math.round(value / 100) });
+            else if (this.propertyMap.has('occupied_cooling_setpoint')) this.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: Math.round(value / 100) });
+            if (this.bridgedDevice) this.noUpdate = true;
+            this.thermostatTimeout = setTimeout(() => {
+              if (this.bridgedDevice) this.noUpdate = false;
+            }, 10 * 1000);
+          });
       }
     }
   }

@@ -8,8 +8,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- [thermostat]: Added min_temperature_limit and max_temperature_limit converter.
-- [thermostat]: Added min_heat_setpoint_limit and max_heat_setpoint_limit converter.
+- [thermostat]: Added min_temperature_limit and max_temperature_limit converter to thermostats.
+- [thermostat]: Added min_heat_setpoint_limit and max_heat_setpoint_limit converter to thermostats.
+- [thermostat]: Added configuration for heat only and cool only thermostats.
 - [matter]: Added tagList to child endpoints.
 
 ### Changed
@@ -18,7 +19,7 @@ All notable changes to this project will be documented in this file.
 - [readme]: Updated install script.
 - [readme]: Updated build script.
 - [package]: Updated dependencies.
-- [plugin]: Requires Matterbridge 1.6.1.
+- [plugin]: Requires Matterbridge 1.6.2.
 
 ### Fixed
 
