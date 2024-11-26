@@ -1,0 +1,123 @@
+[
+  {
+    "friendly_name": "At home",
+    "id": 1,
+    "members": [],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Is dark",
+    "id": 2,
+    "members": [],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Is night",
+    "id": 3,
+    "members": [],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Sleeping",
+    "id": 4,
+    "members": [],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Guests",
+    "id": 5,
+    "members": [],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Master motion",
+    "id": 6,
+    "members": [],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Lights",
+    "id": 7,
+    "members": [
+      {
+        "endpoint": 1,
+        "ieee_address": "0xa4c138363dff5c1d"
+      },
+      {
+        "endpoint": 11,
+        "ieee_address": "0xa4c138071003495f"
+      },
+      {
+        "endpoint": 1,
+        "ieee_address": "0x04cd15fffe0d0ebd"
+      },
+      {
+        "endpoint": 1,
+        "ieee_address": "0xa4c1388ad0ebb0a6"
+      },
+      {
+        "endpoint": 1,
+        "ieee_address": "0xa4c138a2a00bb8d4"
+      },
+      {
+        "endpoint": 1,
+        "ieee_address": "0xa4c138e0a08604f5"
+      }
+    ],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Switches",
+    "id": 8,
+    "members": [
+      {
+        "endpoint": 1,
+        "ieee_address": "0x54ef44100086d51f"
+      },
+      {
+        "endpoint": 1,
+        "ieee_address": "0x54ef4410009716a8"
+      },
+      {
+        "endpoint": 2,
+        "ieee_address": "0x54ef4410009716a8"
+      },
+      {
+        "endpoint": 2,
+        "ieee_address": "0xcc86ecfffe4e9d25"
+      },
+      {
+        "endpoint": 1,
+        "ieee_address": "0xcc86ecfffe4e9d25"
+      }
+    ],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Covers",
+    "id": 9,
+    "members": [
+      {
+        "endpoint": 1,
+        "ieee_address": "0x70ac08fffee6dd5e"
+      }
+    ],
+    "scenes": []
+  },
+  {
+    "friendly_name": "Thermostats",
+    "id": 10,
+    "members": [
+      {
+        "endpoint": 1,
+        "ieee_address": "0xa4c138f402dfba8a"
+      }
+    ],
+    "scenes": [
+      {
+        "id": 0,
+        "name": "Heat 37"
+      }
+    ]
+  }
+]

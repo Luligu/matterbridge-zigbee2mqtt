@@ -4,6 +4,32 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.2] - 2024-11-26
+
+### Added
+
+- [thermostat]: Added min_temperature_limit and max_temperature_limit converter to thermostats.
+- [thermostat]: Added min_heat_setpoint_limit and max_heat_setpoint_limit converter to thermostats.
+- [thermostat]: Added configuration for heat only and cool only thermostats.
+- [matter]: Added tagList to child endpoints.
+
+### Changed
+
+- [mqtt]: Username and password are passed like undefined unless set.
+- [readme]: Updated install script.
+- [readme]: Updated build script.
+- [package]: Updated dependencies.
+- [plugin]: Requires Matterbridge 1.6.2.
+
+### Fixed
+
+- [thermostat]: Fixed the case when instead of current_heating_setpoint the property is occupied_heating_setpoint.
+- [thermostat]: Fixed the case when instead of current_cooling_setpoint the property is occupied_cooling_setpoint.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.2.1] - 2024-10-11
 
 ### Fixed
