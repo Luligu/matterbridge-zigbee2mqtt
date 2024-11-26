@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Endpoint, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
@@ -73,6 +73,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public z2mBridgeGroups: BridgeGroup[] | undefined;
   private z2mDeviceAvailability = new Map<string, boolean>();
   private availabilityTimer: NodeJS.Timeout | undefined;
+
+  /*
+  async createMutableDevice(definition: DeviceTypeDefinition | AtLeastOne<DeviceTypeDefinition>, options: EndpointOptions = {}, debug = false): Promise<MatterbridgeDevice> {
+    let device: MatterbridgeDevice;
+    const matterbridge = await import('matterbridge');
+    if ('edge' in this.matterbridge && this.matterbridge.edge === true && 'MatterbridgeEndpoint' in matterbridge) {
+      // Dynamically resolve the MatterbridgeEndpoint class from the imported module and instantiate it without throwing a TypeScript error for old versions of Matterbridge
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      device = new (matterbridge as any).MatterbridgeEndpoint(definition, options, debug) as MatterbridgeDevice;
+    } else device = new MatterbridgeDevice(definition, options, debug);
+    return device;
+  }
+  */
 
   constructor(matterbridge: Matterbridge, log: AnsiLogger, config: PlatformConfig) {
     super(matterbridge, log, config);
@@ -511,10 +524,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug(`Registering device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
     let matterDevice: ZigbeeDevice | undefined;
     try {
-      matterDevice = new ZigbeeDevice(this, device);
-      if (matterDevice.bridgedDevice && !(matterDevice.bridgedDevice instanceof Endpoint)) this.log.error(`Device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address} is not instance of endpoint`);
-      if (matterDevice.bridgedDevice && matterDevice.bridgedDevice instanceof Endpoint) {
-        await this.registerDevice(matterDevice.bridgedDevice as unknown as MatterbridgeDevice);
+      matterDevice = await ZigbeeDevice.create(this, device);
+      // if (matterDevice.bridgedDevice && !(matterDevice.bridgedDevice instanceof Endpoint)) this.log.error(`Device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address} is not instance of endpoint`);
+      if (matterDevice.bridgedDevice /* && matterDevice.bridgedDevice instanceof Endpoint*/) {
+        await this.registerDevice(matterDevice.bridgedDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
         this.zigbeeEntities.push(matterDevice);
         this.log.debug(`Registered device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
@@ -532,10 +545,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug(`Registering group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
     let matterGroup: ZigbeeGroup | undefined;
     try {
-      matterGroup = new ZigbeeGroup(this, group);
-      if (matterGroup.bridgedDevice && !(matterGroup.bridgedDevice instanceof Endpoint)) this.log.error(`Group ${dn}${group.friendly_name}${er} ID: ${group.id} is not instance of endpoint`);
-      if (matterGroup.bridgedDevice && matterGroup.bridgedDevice instanceof Endpoint) {
-        await this.registerDevice(matterGroup.bridgedDevice as unknown as MatterbridgeDevice);
+      matterGroup = await ZigbeeGroup.create(this, group);
+      // if (matterGroup.bridgedDevice && !(matterGroup.bridgedDevice instanceof Endpoint)) this.log.error(`Group ${dn}${group.friendly_name}${er} ID: ${group.id} is not instance of endpoint`);
+      if (matterGroup.bridgedDevice /* && matterGroup.bridgedDevice instanceof Endpoint*/) {
+        await this.registerDevice(matterGroup.bridgedDevice);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
         this.zigbeeEntities.push(matterGroup);
         this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
@@ -550,7 +563,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     const entity = this.zigbeeEntities.find((entity) => entity.entityName === friendly_name);
     if (entity) {
       this.log.info(`Removing device: ${friendly_name}`);
-      await this.unregisterDevice(entity.bridgedDevice as unknown as MatterbridgeDevice);
+      await this.unregisterDevice(entity.bridgedDevice as MatterbridgeDevice);
       this.zigbeeEntities = this.zigbeeEntities.filter((entity) => entity.entityName !== friendly_name);
       this.bridgedDevices = this.bridgedDevices.filter((device) => device.deviceName !== friendly_name);
     }
