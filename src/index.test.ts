@@ -44,7 +44,7 @@ describe('initializePlugin', () => {
       'type': 'DynamicPlatform',
       'topic': 'zigbee2mqtt',
       'host': 'localhost',
-      'port': -1883,
+      'port': 1883,
       'protocolVersion': 5,
       'username': undefined,
       'password': undefined,
