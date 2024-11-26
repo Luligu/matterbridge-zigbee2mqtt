@@ -140,58 +140,20 @@ export class ZigbeeEntity extends EventEmitter {
     return this.bridgedDevice;
   }
 
-  configure() {
+  async configure() {
     if (this.bridgedDevice?.getClusterServerById(WindowCovering.Cluster.id)) {
       this.log.info(`Configuring ${this.bridgedDevice?.deviceName} WindowCovering cluster`);
-      this.bridgedDevice?.setWindowCoveringTargetAsCurrentAndStopped();
+      await this.bridgedDevice?.setWindowCoveringTargetAsCurrentAndStopped();
     }
     if (this.bridgedDevice?.getClusterServerById(DoorLock.Cluster.id)) {
       this.log.info(`Configuring ${this.bridgedDevice?.deviceName} DoorLock cluster`);
       // const state = this.bridgedDevice?.getClusterServerById(DoorLock.Cluster.id)?.getLockStateAttribute();
       const state = this.bridgedDevice?.getAttribute(DoorLock.Cluster.id, 'lockState', this.log);
       if (this.bridgedDevice.number) {
-        if (state === DoorLock.LockState.Locked) this.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
-        if (state === DoorLock.LockState.Unlocked) this.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
-        // if (state === DoorLock.LockState.Locked) this.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
-        // if (state === DoorLock.LockState.Unlocked) this.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+        if (state === DoorLock.LockState.Locked) this.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+        if (state === DoorLock.LockState.Unlocked) this.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
       }
     }
-  }
-
-  /**
-   * Retrieves the value of the specified attribute from the given endpoint and cluster.
-   *
-   * @param {ClusterId} clusterId - The ID of the cluster to retrieve the attribute from.
-   * @param {string} event - The name of the event to trigger.
-   * @param {Record<string, any>} payload - The payload of the event to trigger.
-   * @param {AnsiLogger} [log] - Optional logger for error and info messages.
-   * @param {Endpoint} [endpoint] - Optional the child endpoint to retrieve the attribute from.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  triggerEvent(clusterId: ClusterId, event: string, payload: Record<string, any>, log?: AnsiLogger, endpoint?: Endpoint) {
-    if (!endpoint) endpoint = this.bridgedDevice as Endpoint;
-    if (!endpoint.number) return;
-
-    const clusterServer = endpoint.getClusterServerById(clusterId);
-    if (!clusterServer) {
-      log?.error(`triggerEvent error: Cluster ${clusterId} not found on endpoint ${endpoint.name}:${endpoint.number}`);
-      return;
-    }
-    const capitalizedEventName = event.charAt(0).toUpperCase() + event.slice(1);
-    if (!clusterServer.isEventSupportedByName(event) && !clusterServer.isEventSupportedByName(capitalizedEventName)) {
-      if (log) log.error(`triggerEvent error: Attribute ${event} not found on Cluster ${clusterServer.name} on endpoint ${endpoint.name}:${endpoint.number}`);
-      return;
-    }
-    // Find the getter method
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (!(clusterServer as any)[`trigger${capitalizedEventName}Event`]) {
-      log?.error(`triggerEvent error: Trigger trigger${capitalizedEventName}Event not found on Cluster ${clusterServer.name} on endpoint ${endpoint.name}:${endpoint.number}`);
-      return;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type
-    const trigger = (clusterServer as any)[`trigger${capitalizedEventName}Event`] as (payload: Record<string, any>) => {};
-    trigger(payload);
-    log?.info(`${db}Trigger event ${hk}${clusterServer.name}.${capitalizedEventName}${db} on endpoint ${or}${endpoint.name}:${endpoint.number}${db}`);
   }
 
   constructor(platform: ZigbeePlatform, entity: BridgeDevice | BridgeGroup) {
@@ -396,7 +358,8 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
     }
-    const localValue = cluster.attributes[attributeName].getLocal();
+    // const localValue = cluster.attributes[attributeName].getLocal();
+    const localValue = this.bridgedDevice?.getAttribute(ClusterId(clusterId), attributeName, this.log, deviceEndpoint);
     if (typeof value === 'object' ? deepEqual(value, localValue) : value === localValue) {
       this.log.debug(
         `*Skip update endpoint ${this.eidn}${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
@@ -409,7 +372,8 @@ export class ZigbeeEntity extends EventEmitter {
         `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {
-      cluster.attributes[attributeName].setLocal(value);
+      // cluster.attributes[attributeName].setLocal(value);
+      this.bridgedDevice?.setAttribute(ClusterId(clusterId), attributeName, value, this.log, deviceEndpoint);
     } catch (error) {
       this.log.error(`Error setting attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${er}.${hk}${attributeName}${er} to ${value}: ${error}`);
     }
