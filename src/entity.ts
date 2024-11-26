@@ -95,7 +95,6 @@ export class ZigbeeEntity extends EventEmitter {
   public actions: string[] = [];
   protected en = '';
   protected ien = '';
-  // public bridgedDevice: BridgedBaseDevice | undefined;
   public bridgedDevice: MatterbridgeDevice | undefined;
   public eidn = `${or}`;
   private lastPayload: Payload = {};
@@ -111,7 +110,23 @@ export class ZigbeeEntity extends EventEmitter {
   public isRouter = false;
   protected noUpdate = false;
 
-  createMutableDevice(definition: DeviceTypeDefinition | AtLeastOne<DeviceTypeDefinition>, includeServerList: ClusterId[] = [], options?: EndpointOptions, debug?: boolean) {
+  /**
+   * Creates a mutable device with the specified definition and includes the specified server list.
+   *
+   * @param {DeviceTypeDefinition | AtLeastOne<DeviceTypeDefinition>} definition - The device type definition.
+   * @param {ClusterId[]} [includeServerList=[]] - The list of server clusters to include.
+   * @param {EndpointOptions} [options] - Optional endpoint options.
+   * @param {boolean} [debug] - Optional debug flag.
+   * @returns {MatterbridgeDevice} The created mutable device.
+   *
+   * @remarks
+   * This method creates a mutable device based on the provided definition. It adds the specified server clusters
+   * to the device and configures the device with basic information and power source clusters. If the device is a
+   * coordinator, it sets up the basic information cluster with coordinator-specific details. If the device is a
+   * group, it sets up the basic information cluster with group-specific details. The method also configures the
+   * power source cluster based on the device's power source.
+   */
+  createMutableDevice(definition: DeviceTypeDefinition | AtLeastOne<DeviceTypeDefinition>, includeServerList: ClusterId[] = [], options?: EndpointOptions, debug?: boolean): MatterbridgeDevice {
     if (this.platform.matterbridge.edge === true) {
       this.bridgedDevice = new MatterbridgeEndpoint(definition, options, debug) as unknown as MatterbridgeDevice;
     } else {
@@ -140,7 +155,18 @@ export class ZigbeeEntity extends EventEmitter {
     return this.bridgedDevice;
   }
 
-  async configure() {
+  /**
+   * Configures the device by setting up the WindowCovering and DoorLock clusters if they are present.
+   *
+   * @returns {Promise<void>} A promise that resolves when the configuration is complete.
+   *
+   * @remarks
+   * This method configures the device by checking for the presence of the WindowCovering and DoorLock clusters.
+   * If the WindowCovering cluster is present, it sets the target as the current position and stops any ongoing
+   * movement. If the DoorLock cluster is present, it retrieves the lock state and triggers the appropriate lock
+   * operation event based on the current state.
+   */
+  async configure(): Promise<void> {
     if (this.bridgedDevice?.getClusterServerById(WindowCovering.Cluster.id)) {
       this.log.info(`Configuring ${this.bridgedDevice?.deviceName} WindowCovering cluster`);
       await this.bridgedDevice?.setWindowCoveringTargetAsCurrentAndStopped();
@@ -307,10 +333,6 @@ export class ZigbeeEntity extends EventEmitter {
       if (this.bridgedDevice?.number !== undefined) {
         this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', true, this.log);
         this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: true }, this.log);
-        // this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
-        // if (this.bridgedDevice.number) this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
-        // this.log.info(`${db}Set accessory attribute ${hk}BridgedDeviceBasicInformation.reachable: true`);
-        // this.log.info(`${db}Trigger accessory event ${hk}ReachableChangedEvent: true`);
       }
     });
 
@@ -319,10 +341,6 @@ export class ZigbeeEntity extends EventEmitter {
       if (this.bridgedDevice?.number !== undefined) {
         this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
         this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
-        // this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
-        // if (this.bridgedDevice.number) this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: false });
-        //  this.log.info(`${db}Set accessory attribute ${hk}BridgedDeviceBasicInformation.reachable: false`);
-        // this.log.info(`${db}Trigger accessory event ${hk}ReachableChangedEvent: false`);
       }
     });
   }
@@ -416,7 +434,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
     if (group.members.length === 0) {
       // Create a virtual device for the empty group to use in automations
       this.log.debug(`Group: ${gn}${group.friendly_name}${rs}${db} is a ${CYAN}virtual${db} group`);
-      this.bridgedDevice = this.createMutableDevice([onOffSwitch], [...onOffSwitch.requiredServerClusters], undefined, this.log.logLevel === LogLevel.DEBUG);
+      this.bridgedDevice = this.createMutableDevice([onOffSwitch], [...onOffSwitch.requiredServerClusters], { uniqueStorageKey: group.friendly_name }, this.log.logLevel === LogLevel.DEBUG);
       isSwitch = true;
       this.propertyMap.set('state', { name: 'state', type: 'switch', endpoint: '' });
     } else {
@@ -495,7 +513,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         this.propertyMap.set('system_mode', { name: 'system_mode', type: 'climate', endpoint: '' });
       }
       if (!deviceType) return;
-      this.bridgedDevice = this.createMutableDevice([deviceType], [...deviceType.requiredServerClusters], undefined, this.log.logLevel === LogLevel.DEBUG);
+      this.bridgedDevice = this.createMutableDevice([deviceType], [...deviceType.requiredServerClusters], { uniqueStorageKey: group.friendly_name }, this.log.logLevel === LogLevel.DEBUG);
     }
     if (!this.bridgedDevice) return;
 
@@ -753,7 +771,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     if (device.friendly_name === 'Coordinator' || (device.model_id === 'ti.router' && device.manufacturer === 'TexasInstruments') || (device.model_id.startsWith('SLZB-') && device.manufacturer === 'SMLIGHT')) {
-      this.bridgedDevice = this.createMutableDevice([DeviceTypes.DOOR_LOCK], [Identify.Cluster.id, DoorLock.Cluster.id], undefined, this.log.logLevel === LogLevel.DEBUG);
+      this.bridgedDevice = this.createMutableDevice([DeviceTypes.DOOR_LOCK], [Identify.Cluster.id, DoorLock.Cluster.id], { uniqueStorageKey: device.friendly_name }, this.log.logLevel === LogLevel.DEBUG);
       this.bridgedDevice.addFixedLabel('type', 'lock');
       this.isRouter = true;
     }
@@ -860,10 +878,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
         this.log.debug(`Device ${this.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
         this.propertyMap.set(property, { name, type, endpoint, value_min, value_max, values: value, unit });
         if (endpoint === '') {
-          if (!this.bridgedDevice) this.bridgedDevice = this.createMutableDevice([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], undefined, this.log.logLevel === LogLevel.DEBUG);
+          if (!this.bridgedDevice) this.bridgedDevice = this.createMutableDevice([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], { uniqueStorageKey: device.friendly_name }, this.log.logLevel === LogLevel.DEBUG);
           else this.bridgedDevice.addDeviceTypeWithClusterServer([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
         } else {
-          if (!this.bridgedDevice) this.bridgedDevice = this.createMutableDevice([bridgedNode], undefined, undefined, this.log.logLevel === LogLevel.DEBUG);
+          if (!this.bridgedDevice) this.bridgedDevice = this.createMutableDevice([bridgedNode], undefined, { uniqueStorageKey: device.friendly_name }, this.log.logLevel === LogLevel.DEBUG);
           const child = this.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], undefined, this.log.logLevel === LogLevel.DEBUG);
           if (endpoint === 'l1') this.bridgedDevice.addTagList(child, null, NumberTag.One.namespaceId, NumberTag.One.tag, 'endpoint ' + endpoint);
           if (endpoint === 'l2') this.bridgedDevice.addTagList(child, null, NumberTag.Two.namespaceId, NumberTag.Two.tag, 'endpoint ' + endpoint);
@@ -888,7 +906,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if (name === 'action' && this.actions.length) {
         this.log.info(`Device ${this.ien}${device.friendly_name}${rs}${nf} has actions mapped to these switches on sub endpoints:`);
         this.log.info('   controller events      <=> zigbee2mqtt actions');
-        if (!this.bridgedDevice) this.bridgedDevice = this.createMutableDevice([bridgedNode], undefined, undefined, this.log.logLevel === LogLevel.DEBUG);
+        if (!this.bridgedDevice) this.bridgedDevice = this.createMutableDevice([bridgedNode], undefined, { uniqueStorageKey: device.friendly_name }, this.log.logLevel === LogLevel.DEBUG);
         this.hasEndpoints = true;
         // Mapping actions
         const switchMap = ['Single Press', 'Double Press', 'Long Press  '];
