@@ -305,20 +305,24 @@ export class ZigbeeEntity extends EventEmitter {
     this.platform.z2m.on('ONLINE-' + this.entityName, () => {
       this.log.info(`ONLINE message for device ${this.ien}${this.entityName}${rs}`);
       if (this.bridgedDevice?.number !== undefined) {
-        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
-        if (this.bridgedDevice.number) this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
-        this.log.info(`${db}Set accessory attribute ${hk}BridgedDeviceBasicInformation.reachable: true`);
-        this.log.info(`${db}Trigger accessory event ${hk}ReachableChangedEvent: true`);
+        this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', true, this.log);
+        this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: true }, this.log);
+        // this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(true);
+        // if (this.bridgedDevice.number) this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: true });
+        // this.log.info(`${db}Set accessory attribute ${hk}BridgedDeviceBasicInformation.reachable: true`);
+        // this.log.info(`${db}Trigger accessory event ${hk}ReachableChangedEvent: true`);
       }
     });
 
     this.platform.z2m.on('OFFLINE-' + this.entityName, () => {
       this.log.warn(`OFFLINE message for device ${this.ien}${this.entityName}${rs}`);
       if (this.bridgedDevice?.number !== undefined) {
-        this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
-        if (this.bridgedDevice.number) this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: false });
-        this.log.info(`${db}Set accessory attribute ${hk}BridgedDeviceBasicInformation.reachable: false`);
-        this.log.info(`${db}Trigger accessory event ${hk}ReachableChangedEvent: false`);
+        this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
+        this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+        // this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.setReachableAttribute(false);
+        // if (this.bridgedDevice.number) this.bridgedDevice?.getClusterServerById(BridgedDeviceBasicInformation.Cluster.id)?.triggerReachableChangedEvent({ reachableNewValue: false });
+        //  this.log.info(`${db}Set accessory attribute ${hk}BridgedDeviceBasicInformation.reachable: false`);
+        // this.log.info(`${db}Trigger accessory event ${hk}ReachableChangedEvent: false`);
       }
     });
   }
@@ -359,7 +363,7 @@ export class ZigbeeEntity extends EventEmitter {
       }
     }
     // const localValue = cluster.attributes[attributeName].getLocal();
-    const localValue = this.bridgedDevice?.getAttribute(ClusterId(clusterId), attributeName, this.log, deviceEndpoint);
+    const localValue = this.bridgedDevice?.getAttribute(ClusterId(clusterId), attributeName, undefined, deviceEndpoint);
     if (typeof value === 'object' ? deepEqual(value, localValue) : value === localValue) {
       this.log.debug(
         `*Skip update endpoint ${this.eidn}${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
@@ -373,7 +377,7 @@ export class ZigbeeEntity extends EventEmitter {
     );
     try {
       // cluster.attributes[attributeName].setLocal(value);
-      this.bridgedDevice?.setAttribute(ClusterId(clusterId), attributeName, value, this.log, deviceEndpoint);
+      this.bridgedDevice?.setAttribute(ClusterId(clusterId), attributeName, value, undefined, deviceEndpoint);
     } catch (error) {
       this.log.error(`Error setting attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${er}.${hk}${attributeName}${er} to ${value}: ${error}`);
     }
