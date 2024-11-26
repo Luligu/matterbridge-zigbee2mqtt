@@ -4,7 +4,7 @@
 
 import { jest } from '@jest/globals';
 
-import { Matterbridge, PlatformConfig } from 'matterbridge';
+import { Matterbridge, MatterbridgeDevice, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, wr, debugStringify, or, hk, zb } from 'matterbridge/logger';
 import { wait } from 'matterbridge/utils';
 
@@ -21,20 +21,39 @@ describe('TestPlatform', () => {
 
   let loggerLogSpy: jest.SpiedFunction<(level: LogLevel, message: string, ...parameters: any[]) => void>;
   let consoleLogSpy: jest.SpiedFunction<(...args: any[]) => void>;
+
   let z2mStartSpy: jest.SpiedFunction<() => Promise<void>>;
   let z2mStopSpy: jest.SpiedFunction<() => Promise<void>>;
   let z2mSubscribeSpy: jest.SpiedFunction<(topic: string) => Promise<void>>;
   let z2mPublishSpy: jest.SpiedFunction<(topic: string, message: string, queue: boolean) => Promise<void>>;
+
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
 
   beforeAll(() => {
     mockMatterbridge = {
-      addBridgedDevice: jest.fn(),
+      addBridgedDevice: jest.fn(async (pluginName: string, device: MatterbridgeDevice) => {
+        // console.error('addBridgedDevice called');
+      }),
+      addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
+        device.number = 100;
+        // console.error('addBridgedEndpoint called');
+      }),
+      removeBridgedDevice: jest.fn(async (pluginName: string, device: MatterbridgeDevice) => {
+        // console.error('removeBridgedDevice called');
+      }),
+      removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
+        // console.error('removeBridgedEndpoint called');
+      }),
+      removeAllBridgedDevices: jest.fn(async (pluginName: string) => {
+        // console.error('removeAllBridgedDevices called');
+      }),
+      removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {
+        // console.error('removeAllBridgedEndpoints called');
+      }),
       matterbridgeDirectory: '',
       matterbridgePluginDirectory: 'temp',
       systemInformation: { ipv4Address: undefined },
       matterbridgeVersion: '1.6.2',
-      removeAllBridgedDevices: jest.fn(),
     } as unknown as Matterbridge;
     mockConfig = {
       'name': 'matterbridge-zigbee2mqtt',
@@ -294,6 +313,31 @@ describe('TestPlatform', () => {
     // expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}Update endpoint ${or}MA-colortemperaturelight:undefined${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${zb}100${db} to ${zb}100${db}`));
 
     await wait(200);
+  });
+
+  it('should add NewGroup', async () => {
+    const entity = 'NewGroup';
+    const payload = { data: { friendly_name: entity, id: 15 }, status: 'ok', transaction: '8j6s7-10' };
+    (z2mPlatform.z2m as any).messageHandler('zigbee2mqtt/bridge/response/group/add', Buffer.from(JSON.stringify(payload)));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`zigbee2MQTT sent group_add friendly_name: ${entity} id ${payload.data.id} status ${payload.status}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Registering group: ${entity}`));
+  });
+
+  it('should unregister At home', async () => {
+    const entity = 'At home';
+    const payload = { data: { force: false, id: entity }, status: 'ok', transaction: '8j6s7-10' };
+    (z2mPlatform.z2m as any).messageHandler('zigbee2mqtt/bridge/response/group/remove', Buffer.from(JSON.stringify(payload)));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`zigbee2MQTT sent group_remove friendly_name: ${payload.data.id} status ${payload.status}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Removing device: ${entity}`));
+  });
+
+  it('should rename Sleeping', async () => {
+    const entity = 'Sleeping';
+    const payload = { data: { from: entity, to: 'Is dark' }, status: 'ok', transaction: '8j6s7-10' };
+    (z2mPlatform.z2m as any).messageHandler('zigbee2mqtt/bridge/response/group/rename', Buffer.from(JSON.stringify(payload)));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`zigbee2MQTT sent group_rename from: ${payload.data.from} to ${payload.data.to} status ${payload.status}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Removing device: ${payload.data.from}`));
+    // expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Registering group: ${payload.data.to}`));
   });
 
   it('should call onConfigure', async () => {

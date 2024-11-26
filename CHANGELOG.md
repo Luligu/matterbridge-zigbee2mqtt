@@ -4,7 +4,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.2.2] - 2024-11-22
+## [2.2.2] - 2024-11-26
 
 ### Added
 
