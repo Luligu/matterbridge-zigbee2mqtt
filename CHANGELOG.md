@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - [matterbridge]: Preliminary update to support Matterbridge edge (matter.js new API).
+- [zigbeeEntity]: Add create async to ZigbeeDevice and ZigbeeGroup.
 
 ### Changed
 

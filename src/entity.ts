@@ -70,6 +70,7 @@ import {
   EndpointOptions,
   SwitchesTag,
   NumberTag,
+  VendorId,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
@@ -273,6 +274,13 @@ export class ZigbeeEntity extends EventEmitter {
     });
   }
 
+  /**
+   * Destroys the ZigbeeEntity instance by clearing any active timeouts.
+   *
+   * @remarks
+   * This method is used to clean up the ZigbeeEntity instance by clearing any active timeouts for color and thermostat operations.
+   * It ensures that no further actions are taken on these timeouts after the entity is destroyed.
+   */
   destroy() {
     if (this.colorTimeout) clearTimeout(this.colorTimeout);
     this.colorTimeout = undefined;
@@ -356,6 +364,22 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
+  /**
+   * Updates the attribute of a cluster on a device endpoint if the value has changed.
+   *
+   * @param {Endpoint} deviceEndpoint - The device endpoint to update.
+   * @param {string | undefined} childEndpointName - The name of the child endpoint, if any.
+   * @param {number} clusterId - The ID of the cluster to update.
+   * @param {string} attributeName - The name of the attribute to update.
+   * @param {PayloadValue} value - The new value of the attribute.
+   * @param {string[]} [lookup] - Optional lookup array for converting string values to indices.
+   *
+   * @remarks
+   * This method checks if the specified attribute of a cluster on a device endpoint has changed. If the attribute
+   * has changed, it updates the attribute with the new value. If a lookup array is provided, it converts string
+   * values to their corresponding indices in the lookup array. The method logs the update process and handles any
+   * errors that occur during the update.
+   */
   protected updateAttributeIfChanged(deviceEndpoint: Endpoint, childEndpointName: string | undefined, clusterId: number, attributeName: string, value: PayloadValue, lookup?: string[]): void {
     if (childEndpointName && childEndpointName !== '') {
       deviceEndpoint = this.bridgedDevice?.getChildEndpointByName(childEndpointName) ?? deviceEndpoint;
@@ -363,13 +387,13 @@ export class ZigbeeEntity extends EventEmitter {
     const cluster = deviceEndpoint.getClusterServerById(ClusterId(clusterId));
     if (cluster === undefined) {
       this.log.debug(
-        `*Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter exposing all features?`,
+        `Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} cluster ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db} not found: is z2m converter exposing all features?`,
       );
       return;
     }
     if (!cluster.isAttributeSupportedByName(attributeName)) {
       this.log.debug(
-        `***Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} not found`,
+        `Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} error attribute ${hk}${clusterId}${db}-${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} not found`,
       );
       return;
     }
@@ -378,17 +402,16 @@ export class ZigbeeEntity extends EventEmitter {
         value = lookup.indexOf(value);
       } else {
         this.log.debug(
-          `***Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
+          `Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
             `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} value ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db} not found in lookup ${debugStringify(lookup)}`,
         );
         return;
       }
     }
-    // const localValue = cluster.attributes[attributeName].getLocal();
     const localValue = this.bridgedDevice?.getAttribute(ClusterId(clusterId), attributeName, undefined, deviceEndpoint);
     if (typeof value === 'object' ? deepEqual(value, localValue) : value === localValue) {
       this.log.debug(
-        `*Skip update endpoint ${this.eidn}${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
+        `Skip update endpoint ${this.eidn}${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
           `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} already ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
       );
       return;
@@ -398,13 +421,24 @@ export class ZigbeeEntity extends EventEmitter {
         `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {
-      // cluster.attributes[attributeName].setLocal(value);
       this.bridgedDevice?.setAttribute(ClusterId(clusterId), attributeName, value, undefined, deviceEndpoint);
     } catch (error) {
       this.log.error(`Error setting attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${er}.${hk}${attributeName}${er} to ${value}: ${error}`);
     }
   }
 
+  /**
+   * Publishes a command to the specified entity with the given payload.
+   *
+   * @param {string} command - The command to execute.
+   * @param {string} entityName - The name of the entity to publish the command to.
+   * @param {Payload} payload - The payload of the command.
+   *
+   * @remarks
+   * This method logs the execution of the command and publishes the command to the specified entity.
+   * If the entity name starts with 'bridge/request', it publishes the payload without a 'set' suffix.
+   * Otherwise, it publishes the payload with a 'set' suffix.
+   */
   protected publishCommand(command: string, entityName: string, payload: Payload) {
     this.log.debug(`executeCommand ${command} called for ${this.ien}${entityName}${rs}${db} payload: ${debugStringify(payload)}`);
     if (entityName.startsWith('bridge/request')) {
@@ -415,11 +449,34 @@ export class ZigbeeEntity extends EventEmitter {
   }
 }
 
+/**
+ * Represents a Zigbee group entity.
+ *
+ * @class
+ * @extends {ZigbeeEntity}
+ */
 export class ZigbeeGroup extends ZigbeeEntity {
+  /**
+   * Creates an instance of ZigbeeGroup.
+   *
+   * @param {ZigbeePlatform} platform - The Zigbee platform instance.
+   * @param {BridgeGroup} group - The bridge group instance.
+   */
   private constructor(platform: ZigbeePlatform, group: BridgeGroup) {
     super(platform, group);
   }
 
+  /**
+   * Creates a new ZigbeeGroup instance.
+   *
+   * @param {ZigbeePlatform} platform - The Zigbee platform instance.
+   * @param {BridgeGroup} group - The bridge group instance.
+   * @returns {Promise<ZigbeeGroup>} A promise that resolves to the created ZigbeeGroup instance.
+   *
+   * @remarks
+   * This method initializes a new ZigbeeGroup instance, sets up its properties, and configures the device
+   * based on the group members. It also adds command handlers for the group.
+   */
   static async create(platform: ZigbeePlatform, group: BridgeGroup): Promise<ZigbeeGroup> {
     const zigbeeGroup = new ZigbeeGroup(platform, group);
 
@@ -534,7 +591,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     // Command handlers
     if (isSwitch || isLight) {
-      zigbeeGroup.bridgedDevice.addFixedLabel('type', 'switch');
+      await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'switch');
       zigbeeGroup.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
         zigbeeGroup.log.warn(`Command identify called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
         // logEndpoint(zigbeeGroup.bridgedDevice!);
@@ -553,7 +610,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       });
     }
     if (isLight) {
-      zigbeeGroup.bridgedDevice.addFixedLabel('type', 'light');
+      await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'light');
       if (zigbeeGroup.bridgedDevice.hasClusterServer(LevelControl.Complete)) {
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevel', async ({ request: { level }, attributes: { currentLevel } }) => {
           zigbeeGroup.log.debug(`Command moveToLevel called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${level} attributes: ${currentLevel}`);
@@ -608,7 +665,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       }
     }
     if (isCover) {
-      zigbeeGroup.bridgedDevice.addFixedLabel('type', 'cover');
+      await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'cover');
       zigbeeGroup.bridgedDevice.addCommandHandler('upOrOpen', async (data) => {
         zigbeeGroup.log.debug(`Command upOrOpen called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} attribute: ${data.attributes.currentPositionLiftPercent100ths?.getLocal()}`);
         data.attributes.currentPositionLiftPercent100ths?.setLocal(0);
@@ -640,7 +697,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       });
     }
     if (isThermostat) {
-      zigbeeGroup.bridgedDevice.addFixedLabel('type', 'climate');
+      await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'climate');
       zigbeeGroup.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'systemMode',
@@ -774,11 +831,34 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activeCurrent', converter: (value) => { return value * 1000 } },
 ];
 
+/**
+ * Represents a Zigbee device entity.
+ *
+ * @class
+ * @extends {ZigbeeEntity}
+ */
 export class ZigbeeDevice extends ZigbeeEntity {
+  /**
+   * Represents a Zigbee device entity.
+   *
+   * @class
+   * @extends {ZigbeeEntity}
+   */
   private constructor(platform: ZigbeePlatform, device: BridgeDevice) {
     super(platform, device);
   }
 
+  /**
+   * Creates a new ZigbeeDevice instance.
+   *
+   * @param {ZigbeePlatform} platform - The Zigbee platform instance.
+   * @param {BridgeDevice} device - The bridge device instance.
+   * @returns {Promise<ZigbeeDevice>} A promise that resolves to the created ZigbeeDevice instance.
+   *
+   * @remarks
+   * This method initializes a new ZigbeeDevice instance, sets up its properties, and configures the device
+   * based on the device definition and options. It also adds command handlers for the device.
+   */
   static async create(platform: ZigbeePlatform, device: BridgeDevice): Promise<ZigbeeDevice> {
     const zigbeeDevice = new ZigbeeDevice(platform, device);
 
@@ -789,7 +869,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     if (device.friendly_name === 'Coordinator' || (device.model_id === 'ti.router' && device.manufacturer === 'TexasInstruments') || (device.model_id.startsWith('SLZB-') && device.manufacturer === 'SMLIGHT')) {
       zigbeeDevice.bridgedDevice = await zigbeeDevice.createMutableDevice([DeviceTypes.DOOR_LOCK], [Identify.Cluster.id, DoorLock.Cluster.id], { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
-      zigbeeDevice.bridgedDevice.addFixedLabel('type', 'lock');
+      await zigbeeDevice.bridgedDevice.addFixedLabel('type', 'lock');
       zigbeeDevice.isRouter = true;
     }
 
@@ -899,20 +979,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
           else zigbeeDevice.bridgedDevice.addDeviceTypeWithClusterServer([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
         } else {
           if (!zigbeeDevice.bridgedDevice) zigbeeDevice.bridgedDevice = await zigbeeDevice.createMutableDevice([bridgedNode], undefined, { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
-          const child = zigbeeDevice.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], undefined, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
-          if (endpoint === 'l1') zigbeeDevice.bridgedDevice.addTagList(child, null, NumberTag.One.namespaceId, NumberTag.One.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l2') zigbeeDevice.bridgedDevice.addTagList(child, null, NumberTag.Two.namespaceId, NumberTag.Two.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l3') zigbeeDevice.bridgedDevice.addTagList(child, null, NumberTag.Three.namespaceId, NumberTag.Three.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l4') zigbeeDevice.bridgedDevice.addTagList(child, null, NumberTag.Four.namespaceId, NumberTag.Four.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l5') zigbeeDevice.bridgedDevice.addTagList(child, null, NumberTag.Five.namespaceId, NumberTag.Five.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l6') zigbeeDevice.bridgedDevice.addTagList(child, null, NumberTag.Six.namespaceId, NumberTag.Six.tag, 'endpoint ' + endpoint);
-          /* 
-          if (endpoint === 'l1') zigbeeDevice.addTagList(child, null, NumberTag.One.namespaceId, NumberTag.One.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l1') zigbeeDevice.addTagList(child, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l2') zigbeeDevice.addTagList(child, null, NumberTag.Two.namespaceId, NumberTag.Two.tag, 'endpoint ' + endpoint);
-          if (endpoint === 'l2') zigbeeDevice.addTagList(child, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'endpoint ' + endpoint);
-          */
-          zigbeeDevice.bridgedDevice.addFixedLabel('composed', type);
+          const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+          if (endpoint === 'l1') tagList.push({ mfgCode: null, namespaceId: NumberTag.One.namespaceId, tag: NumberTag.One.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l2') tagList.push({ mfgCode: null, namespaceId: NumberTag.Two.namespaceId, tag: NumberTag.Two.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l3') tagList.push({ mfgCode: null, namespaceId: NumberTag.Three.namespaceId, tag: NumberTag.Three.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l4') tagList.push({ mfgCode: null, namespaceId: NumberTag.Four.namespaceId, tag: NumberTag.Four.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l5') tagList.push({ mfgCode: null, namespaceId: NumberTag.Five.namespaceId, tag: NumberTag.Five.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l6') tagList.push({ mfgCode: null, namespaceId: NumberTag.Six.namespaceId, tag: NumberTag.Six.tag, label: 'endpoint ' + endpoint });
+          tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'endpoint ' + endpoint });
+          zigbeeDevice.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], { tagList }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
+          await zigbeeDevice.bridgedDevice.addFixedLabel('composed', type);
           zigbeeDevice.hasEndpoints = true;
         }
       } else {
@@ -936,8 +1012,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.propertyMap.set('action_' + actionsMap[a], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a] });
             zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a]}${nf} <=> ${zb}${actionsMap[a]}${nf}`);
           }
-          const button = zigbeeDevice.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters], undefined, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
-          zigbeeDevice.bridgedDevice.addTagList(button, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'switch_' + count);
+          const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+          tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
+          zigbeeDevice.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters], { tagList } as EndpointOptions, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
         } else {
           for (let i = 0; i < zigbeeDevice.actions.length; i += 3) {
             const actionsMap: string[] = [];
@@ -946,12 +1023,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
               zigbeeDevice.propertyMap.set('action_' + actionsMap[a - i], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a - i] });
               zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a - i]}${nf} <=> ${zb}${actionsMap[a - i]}${nf}`);
             }
-            const button = zigbeeDevice.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters], undefined, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
-            zigbeeDevice.bridgedDevice.addTagList(button, null, SwitchesTag.Custom.namespaceId, SwitchesTag.Custom.tag, 'switch_' + count);
+            const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+            tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
+            zigbeeDevice.bridgedDevice.addChildDeviceTypeWithClusterServer('switch_' + count, [DeviceTypes.GENERIC_SWITCH], [...DeviceTypes.GENERIC_SWITCH.requiredServerClusters], { tagList } as EndpointOptions, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
             count++;
           }
         }
-        zigbeeDevice.bridgedDevice.addFixedLabel('composed', 'button');
+        await zigbeeDevice.bridgedDevice.addFixedLabel('composed', 'button');
       }
     }
 
