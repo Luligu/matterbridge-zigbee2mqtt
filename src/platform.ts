@@ -22,7 +22,7 @@
  */
 
 import { BridgedDeviceBasicInformation, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er } from 'matterbridge/logger';
+import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
 import path from 'path';
@@ -74,25 +74,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private z2mDeviceAvailability = new Map<string, boolean>();
   private availabilityTimer: NodeJS.Timeout | undefined;
 
-  /*
-  async createMutableDevice(definition: DeviceTypeDefinition | AtLeastOne<DeviceTypeDefinition>, options: EndpointOptions = {}, debug = false): Promise<MatterbridgeDevice> {
-    let device: MatterbridgeDevice;
-    const matterbridge = await import('matterbridge');
-    if ('edge' in this.matterbridge && this.matterbridge.edge === true && 'MatterbridgeEndpoint' in matterbridge) {
-      // Dynamically resolve the MatterbridgeEndpoint class from the imported module and instantiate it without throwing a TypeScript error for old versions of Matterbridge
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      device = new (matterbridge as any).MatterbridgeEndpoint(definition, options, debug) as MatterbridgeDevice;
-    } else device = new MatterbridgeDevice(definition, options, debug);
-    return device;
-  }
-  */
-
   constructor(matterbridge: Matterbridge, log: AnsiLogger, config: PlatformConfig) {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.6.2')) {
-      throw new Error(`This plugin requires Matterbridge version >= "1.6.2". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.6.3')) {
+      throw new Error(`This plugin requires Matterbridge version >= "1.6.3". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
     }
 
     // this.log.debug(`Config:')}${rs}`, config);
@@ -253,15 +240,16 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.info(`zigbee2MQTT sent permit_join device: ${device} time: ${time} status: ${status}`);
       for (const zigbeeEntity of this.zigbeeEntities) {
         if (zigbeeEntity.isRouter && (device === undefined || device === zigbeeEntity.bridgedDevice?.deviceName)) {
+          // Coordinator or dedicated routers
           this.log.info(`*- ${zigbeeEntity.bridgedDevice?.deviceName} ${zigbeeEntity.bridgedDevice?.number} (${zigbeeEntity.bridgedDevice?.name})`);
           if (zigbeeEntity.device && status) {
-            zigbeeEntity.bridgedDevice?.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Unlocked);
-            zigbeeEntity.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+            zigbeeEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
+            zigbeeEntity.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
             this.log.info(`Device ${zigbeeEntity.entityName} unlocked`);
           }
           if (zigbeeEntity.device && !status) {
-            zigbeeEntity.bridgedDevice?.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Locked);
-            zigbeeEntity.bridgedDevice?.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+            zigbeeEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
+            zigbeeEntity.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
             this.log.info(`Device ${zigbeeEntity.entityName} locked`);
           }
         }
@@ -396,12 +384,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (bridgedEntity.isRouter && bridgedEntity.bridgedDevice) {
         this.log.info(`Configuring router ${bridgedEntity.bridgedDevice?.deviceName}.`);
         if (this.z2mBridgeInfo?.permit_join) {
-          bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Unlocked);
+          bridgedEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
           if (bridgedEntity.bridgedDevice.number)
-            bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+            bridgedEntity.bridgedDevice?.triggerEvent(DoorLockCluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
         } else {
-          bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.setLockStateAttribute(DoorLock.LockState.Locked);
-          if (bridgedEntity.bridgedDevice.number) bridgedEntity.bridgedDevice.getClusterServer(DoorLockCluster)?.triggerLockOperationEvent({ lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null });
+          bridgedEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
+          if (bridgedEntity.bridgedDevice.number) bridgedEntity.bridgedDevice?.triggerEvent(DoorLockCluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
         }
       }
     }
@@ -462,7 +450,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (this.permitJoinCallBack && topic.startsWith('bridge/request')) await this.permitJoinCallBack('', message === '{"value":true}');
     } else {
       await this.z2m.publish(this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic), message);
-      this.log.info(`MQTT publish topic: ${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)} message: ${message}`);
+      this.log.info(`MQTT publish topic: ${CYAN}${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)}${nf} payload: ${CYAN}${message}${nf}`);
     }
   }
 
@@ -525,8 +513,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     let matterDevice: ZigbeeDevice | undefined;
     try {
       matterDevice = await ZigbeeDevice.create(this, device);
-      // if (matterDevice.bridgedDevice && !(matterDevice.bridgedDevice instanceof Endpoint)) this.log.error(`Device ${dn}${device.friendly_name}${er} ID: ${device.ieee_address} is not instance of endpoint`);
-      if (matterDevice.bridgedDevice /* && matterDevice.bridgedDevice instanceof Endpoint*/) {
+      if (matterDevice.bridgedDevice) {
         await this.registerDevice(matterDevice.bridgedDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
         this.zigbeeEntities.push(matterDevice);
@@ -546,8 +533,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     let matterGroup: ZigbeeGroup | undefined;
     try {
       matterGroup = await ZigbeeGroup.create(this, group);
-      // if (matterGroup.bridgedDevice && !(matterGroup.bridgedDevice instanceof Endpoint)) this.log.error(`Group ${dn}${group.friendly_name}${er} ID: ${group.id} is not instance of endpoint`);
-      if (matterGroup.bridgedDevice /* && matterGroup.bridgedDevice instanceof Endpoint*/) {
+      if (matterGroup.bridgedDevice) {
         await this.registerDevice(matterGroup.bridgedDevice);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
         this.zigbeeEntities.push(matterGroup);
