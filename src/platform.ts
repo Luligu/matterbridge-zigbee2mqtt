@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformationCluster, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { BridgedDeviceBasicInformation, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
@@ -573,8 +573,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (this.bridgedDevices.length === 0) return;
     this.log.info(`Setting availability for ${this.bridgedDevices.length} devices to ${available}`);
     for (const bridgedDevice of this.bridgedDevices) {
-      bridgedDevice.getClusterServer(BridgedDeviceBasicInformationCluster)?.setReachableAttribute(available);
-      if (bridgedDevice.number) bridgedDevice.getClusterServer(BridgedDeviceBasicInformationCluster)?.triggerReachableChangedEvent({ reachableNewValue: available });
+      bridgedDevice.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', available, this.log);
+      if (bridgedDevice.maybeNumber) bridgedDevice.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: available }, this.log);
     }
   }
 }

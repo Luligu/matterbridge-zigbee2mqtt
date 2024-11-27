@@ -71,6 +71,8 @@ import {
   SwitchesTag,
   NumberTag,
   VendorId,
+  coverDevice,
+  thermostatDevice,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
@@ -259,7 +261,7 @@ export class ZigbeeEntity extends EventEmitter {
 
     this.platform.z2m.on('ONLINE-' + this.entityName, () => {
       this.log.info(`ONLINE message for device ${this.ien}${this.entityName}${rs}`);
-      if (this.bridgedDevice?.number !== undefined) {
+      if (this.bridgedDevice?.maybeNumber !== undefined) {
         this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', true, this.log);
         this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: true }, this.log);
       }
@@ -267,7 +269,7 @@ export class ZigbeeEntity extends EventEmitter {
 
     this.platform.z2m.on('OFFLINE-' + this.entityName, () => {
       this.log.warn(`OFFLINE message for device ${this.ien}${this.entityName}${rs}`);
-      if (this.bridgedDevice?.number !== undefined) {
+      if (this.bridgedDevice?.maybeNumber !== undefined) {
         this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
         this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
       }
@@ -566,13 +568,13 @@ export class ZigbeeGroup extends ZigbeeEntity {
         zigbeeGroup.propertyMap.set('color', { name: 'color', type: 'light', endpoint: '' });
       }
       if (isCover) {
-        deviceType = DeviceTypes.WINDOW_COVERING;
+        deviceType = coverDevice;
         zigbeeGroup.propertyMap.set('state', { name: 'state', type: 'cover', endpoint: '' });
         zigbeeGroup.propertyMap.set('position', { name: 'position', type: 'cover', endpoint: '' });
         zigbeeGroup.propertyMap.set('moving', { name: 'moving', type: 'cover', endpoint: '' });
       }
       if (isThermostat) {
-        deviceType = DeviceTypes.THERMOSTAT;
+        deviceType = thermostatDevice;
         zigbeeGroup.propertyMap.set('local_temperature', { name: 'local_temperature', type: 'climate', endpoint: '' });
         zigbeeGroup.propertyMap.set('current_heating_setpoint', { name: 'current_heating_setpoint', type: 'climate', endpoint: '' });
         zigbeeGroup.propertyMap.set('current_cooling_setpoint', { name: 'current_cooling_setpoint', type: 'climate', endpoint: '' });
