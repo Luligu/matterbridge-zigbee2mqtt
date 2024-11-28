@@ -221,6 +221,8 @@ interface DeviceDefinition {
 
 interface DefinitionExposeFeature {
   name: string;
+  description?: string;
+  category?: string;
   label: string;
   endpoint?: string;
   property: string;
@@ -237,6 +239,8 @@ interface DefinitionExposeFeature {
 interface DefinitionExpose {
   type: string;
   name?: string;
+  description?: string;
+  category?: string;
   label?: string;
   features?: DefinitionExposeFeature[];
   endpoint?: string;

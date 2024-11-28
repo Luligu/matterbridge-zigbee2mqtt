@@ -101,6 +101,12 @@ import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
 
+/**
+ * Represents a Zigbee entity: a group or a device.
+ *
+ * @class
+ * @extends {EventEmitter}
+ */
 export class ZigbeeEntity extends EventEmitter {
   public log: AnsiLogger;
   public serial = '';
@@ -119,7 +125,7 @@ export class ZigbeeEntity extends EventEmitter {
   private lastSeen = 0;
   protected ignoreFeatures: string[] = [];
   protected transition = false;
-  protected propertyMap = new Map<string, { name: string; type: string; endpoint: string; values?: string; value_min?: number; value_max?: number; unit?: string; action?: string }>();
+  protected propertyMap = new Map<string, { name: string; type: string; endpoint: string; values?: string; value_min?: number; value_max?: number; unit?: string; category?: string; description?: string; label?: string; action?: string }>();
 
   // We save the device types and cluster servers and clients to avoid multiple lookups
   protected readonly deviceTypes = new Map<number, DeviceTypeDefinition>();
@@ -133,6 +139,12 @@ export class ZigbeeEntity extends EventEmitter {
   public isRouter = false;
   protected noUpdate = false;
 
+  /**
+   * Creates an instance of ZigbeeEntity.
+   *
+   * @param {ZigbeePlatform} platform - The Zigbee platform instance.
+   * @param {BridgeDevice | BridgeGroup} entity - The bridge device or group instance received from zigbee2mqtt.
+   */
   constructor(platform: ZigbeePlatform, entity: BridgeDevice | BridgeGroup) {
     super();
 
@@ -197,6 +209,13 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') key = 'battery_voltage';
 
         // Modify illuminance and illuminance_lux
+        if (key === 'illuminance' && this.isDevice && this.device && this.device.definition && ['RTCGQ14LM'].includes(this.device.definition.model)) {
+          key = 'illuminance_lux';
+        }
+        if (key === 'illuminance' && typeof value === 'number' && this.isDevice && this.device && this.device.definition && ['ZG-204ZL', 'ZG-205Z/A'].includes(this.device.definition.model)) {
+          value = value * 10;
+        }
+        /*
         if (key === 'illuminance' && this.isDevice && this.device?.definition?.model === 'ZG-204ZL') {
           key = 'illuminance_lux';
           value = Math.pow(10, typeof value === 'number' ? value / 10000 : 0);
@@ -210,6 +229,7 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'illuminance' && !('illuminance_lux' in payload)) {
           key = 'illuminance_lux';
         }
+        */
 
         // Lookup the property in the propertyMap and ZigbeeToMatter table
         const propertyMap = this.propertyMap.get(key);
@@ -561,12 +581,21 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
+  /**
+   * Logs the property map of the Zigbee entity.
+   *
+   * @remarks
+   * This method iterates over the property map of the Zigbee entity and logs each property's details,
+   * including its name, type, values, minimum and maximum values, unit, and endpoint.
+   */
+  // zigbeeDevice.propertyMap.set(property, { name, type, endpoint, category, description, label, unit, value_min, value_max, values: value });
   protected logPropertyMap() {
     // Log properties
     this.propertyMap.forEach((value, key) => {
       this.log.debug(
-        `Property ${CYAN}${key}${db} name ${CYAN}${value.name}${db} type ${CYAN}${value.type === '' ? 'generic' : value.type}${db} values ${CYAN}${value.values}${db} ` +
-          `value_min ${CYAN}${value.value_min}${db} value_max ${CYAN}${value.value_max}${db} unit ${CYAN}${value.unit}${db} endpoint ${CYAN}${value.endpoint === '' ? 'main' : value.endpoint}${db}`,
+        `Property ${CYAN}${key}${db} name ${CYAN}${value.name}${db} type ${CYAN}${value.type === '' ? 'generic' : value.type}${db} endpoint ${CYAN}${value.endpoint === '' ? 'main' : value.endpoint}${db} ` +
+          `category ${CYAN}${value.category}${db} description ${CYAN}${value.description}${db} label ${CYAN}${value.label}${db} unit ${CYAN}${value.unit}${db} ` +
+          `values ${CYAN}${value.values}${db} value_min ${CYAN}${value.value_min}${db} value_max ${CYAN}${value.value_max}${db}`,
       );
     });
   }
@@ -719,7 +748,8 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     // Add command handlers
     if (isSwitch || isLight) {
-      await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'switch');
+      if (isSwitch) await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'switch');
+      if (isLight) await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'light');
       zigbeeGroup.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
         zigbeeGroup.log.warn(`Command identify called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
         // logEndpoint(zigbeeGroup.bridgedDevice!);
@@ -738,7 +768,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
       });
     }
     if (isLight) {
-      await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'light');
       if (useBrightness) {
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevel', async ({ request: { level } }) => {
           zigbeeGroup.log.debug(`Command moveToLevel called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${level}`);
@@ -841,7 +870,8 @@ export class ZigbeeGroup extends ZigbeeEntity {
         (newValue: number, oldValue: number) => {
           zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedHeatingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
           zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedHeatingSetpoint to ${newValue / 100}`);
-          zigbeeGroup.publishCommand('OccupiedHeatingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
+          zigbeeGroup.publishCommand('CurrentHeatingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
+          zigbeeGroup.publishCommand('OccupiedHeatingSetpoint', group.friendly_name, { occupied_heating_setpoint: Math.round(newValue / 100) });
           zigbeeGroup.noUpdate = true;
           zigbeeGroup.thermostatTimeout = setTimeout(() => {
             zigbeeGroup.noUpdate = false;
@@ -855,7 +885,8 @@ export class ZigbeeGroup extends ZigbeeEntity {
         (newValue: number, oldValue: number) => {
           zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedCoolingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
           zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedCoolingSetpoint to ${newValue / 100}`);
-          zigbeeGroup.publishCommand('OccupiedCoolingSetpoint', group.friendly_name, { current_cooling_setpoint: Math.round(newValue / 100) });
+          zigbeeGroup.publishCommand('CurrentCoolingSetpoint', group.friendly_name, { current_cooling_setpoint: Math.round(newValue / 100) });
+          zigbeeGroup.publishCommand('OccupiedCoolingSetpoint', group.friendly_name, { occupied_cooling_setpoint: Math.round(newValue / 100) });
           zigbeeGroup.noUpdate = true;
           zigbeeGroup.thermostatTimeout = setTimeout(() => {
             zigbeeGroup.noUpdate = false;
@@ -910,7 +941,7 @@ export const z2ms: ZigbeeToMatter[] = [
 
   { type: '', name: 'presence', property: 'presence', deviceType: occupanceySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
   { type: '', name: 'occupancy', property: 'occupancy', deviceType: occupanceySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
-  { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue' },
+  { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(value, 0xfffe), 0)) } },
   { type: '', name: 'illuminance_lux', property: 'illuminance_lux', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(10000 * Math.log10(value), 0xfffe), 0)) } },
   { type: '', name: 'contact', property: 'contact', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
   { type: '', name: 'water_leak', property: 'water_leak', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
@@ -1007,6 +1038,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     const endpoints: string[] = [];
     const names: string[] = [];
     const properties: string[] = [];
+    const categories: string[] = [];
+    const descriptions: string[] = [];
+    const labels: string[] = [];
     const units: string[] = [];
     const value_mins: number[] = [];
     const value_maxs: number[] = [];
@@ -1020,6 +1054,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
           endpoints.push(expose.endpoint || '');
           names.push(feature.name);
           properties.push(feature.property);
+          categories.push(feature.category ?? '');
+          descriptions.push(feature.description ?? '');
+          labels.push(feature.label ?? '');
           units.push(feature.unit ?? '');
           value_mins.push(feature.value_min ?? NaN);
           value_maxs.push(feature.value_max ?? NaN);
@@ -1027,12 +1064,33 @@ export class ZigbeeDevice extends ZigbeeEntity {
         });
       } else {
         // Generic features without type
-        types.push('');
-        endpoints.push(expose.endpoint || '');
+        // Change voltage to battery_voltage for battery powered devices
         if (device.power_source === 'Battery' && expose.name === 'voltage') expose.name = 'battery_voltage';
         if (device.power_source === 'Battery' && expose.property === 'voltage') expose.property = 'battery_voltage';
+        // Fix illuminance and illuminance_lux for light sensors:
+        // illuminance is raw value (use like it is)
+        // illuminance_lux is in lux (convert with log10)
+        // illuminance has description "Raw measured illuminance"
+        // illuminance_lux has description "Measured illuminance in lux"
+        if (expose.description === 'Raw measured illuminance') {
+          expose.name = 'illuminance';
+          expose.property = 'illuminance';
+          expose.label = 'Illuminance';
+          expose.unit = '';
+        }
+        if (expose.description === 'Measured illuminance in lux') {
+          expose.name = 'illuminance_lux';
+          expose.property = 'illuminance_lux';
+          expose.label = 'Illuminance (lux)';
+          expose.unit = 'lx';
+        }
+        types.push('');
+        endpoints.push(expose.endpoint || '');
         names.push(expose.name || '');
         properties.push(expose.property);
+        categories.push(expose.category ?? '');
+        descriptions.push(expose.description ?? '');
+        labels.push(expose.label ?? '');
         units.push(expose.unit ?? '');
         value_mins.push(expose.value_min ?? NaN);
         value_maxs.push(expose.value_max ?? NaN);
@@ -1044,13 +1102,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
     });
     device.definition?.options.forEach((option) => {
       types.push('');
+      endpoints.push(option.endpoint || '');
       names.push(option.name || '');
       properties.push(option.property);
+      categories.push(option.category ?? '');
+      descriptions.push(option.description ?? '');
+      labels.push(option.label ?? '');
       units.push(option.unit ?? '');
       value_mins.push(option.value_min ?? NaN);
       value_maxs.push(option.value_max ?? NaN);
       values.push(option.values ? option.values.join('|') : '');
-      endpoints.push(option.endpoint || '');
     });
     if (platform.switchList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
@@ -1076,6 +1137,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - endpoints[${endpoints.length}]: ${debugStringify(endpoints)}`);
     zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - names[${names.length}]: ${debugStringify(names)}`);
     zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - properties[${properties.length}]: ${debugStringify(properties)}`);
+    zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - categories[${categories.length}]: ${debugStringify(categories)}`);
+    zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - descriptions[${descriptions.length}]: ${debugStringify(descriptions)}`);
+    zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - labels[${labels.length}]: ${debugStringify(labels)}`);
     zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - units[${units.length}]: ${debugStringify(units)}`);
     */
 
@@ -1096,16 +1160,18 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const endpoint = endpoints[index];
       const property = properties[index];
       const unit = units[index];
+      const category = categories[index];
+      const description = descriptions[index];
+      const label = labels[index];
       const value_min = value_mins[index];
       const value_max = value_maxs[index];
       const value = values[index];
       const z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);
       if (z2m) {
         zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
-        zigbeeDevice.propertyMap.set(property, { name, type, endpoint, value_min, value_max, values: value, unit });
+        zigbeeDevice.propertyMap.set(property, { name, type, endpoint, category, description, label, unit, value_min, value_max, values: value });
         if (endpoint === '') {
           if (!zigbeeDevice.bridgedDevice) zigbeeDevice.bridgedDevice = await zigbeeDevice.createMutableDevice([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
-          // else zigbeeDevice.bridgedDevice.addDeviceTypeWithClusterServer([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
           else zigbeeDevice.addMutableDeviceTypesAndClusterServers([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
         } else {
           if (!zigbeeDevice.bridgedDevice) zigbeeDevice.bridgedDevice = await zigbeeDevice.createMutableDevice([bridgedNode], undefined, { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
@@ -1118,7 +1184,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (endpoint === 'l6') tagList.push({ mfgCode: null, namespaceId: NumberTag.Six.namespaceId, tag: NumberTag.Six.tag, label: 'endpoint ' + endpoint });
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'endpoint ' + endpoint });
           zigbeeDevice.bridgedDevice.addChildDeviceTypeWithClusterServer(endpoint, [z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], { tagList }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
-          await zigbeeDevice.bridgedDevice.addFixedLabel('composed', type);
+          if (!zigbeeDevice.hasEndpoints) await zigbeeDevice.bridgedDevice.addFixedLabel('composed', type);
           zigbeeDevice.hasEndpoints = true;
         }
       } else {
@@ -1171,9 +1237,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     // Add illuminance_lux
+    /*
     if (zigbeeDevice.propertyMap.has('illuminance') && !zigbeeDevice.propertyMap.has('illuminance_lux')) {
       zigbeeDevice.propertyMap.set('illuminance_lux', { name: 'illuminance_lux', type: '', endpoint: '' });
     }
+    */
 
     // Remove superset device Types
     if (zigbeeDevice.bridgedDevice) {
