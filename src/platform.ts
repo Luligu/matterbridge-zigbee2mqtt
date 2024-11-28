@@ -244,12 +244,22 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           this.log.info(`*- ${zigbeeEntity.bridgedDevice?.deviceName} ${zigbeeEntity.bridgedDevice?.number} (${zigbeeEntity.bridgedDevice?.name})`);
           if (zigbeeEntity.device && status) {
             zigbeeEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
-            zigbeeEntity.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+            zigbeeEntity.bridgedDevice?.triggerEvent(
+              DoorLock.Cluster.id,
+              'lockOperation',
+              { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
+              this.log,
+            );
             this.log.info(`Device ${zigbeeEntity.entityName} unlocked`);
           }
           if (zigbeeEntity.device && !status) {
             zigbeeEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
-            zigbeeEntity.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+            zigbeeEntity.bridgedDevice?.triggerEvent(
+              DoorLock.Cluster.id,
+              'lockOperation',
+              { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
+              this.log,
+            );
             this.log.info(`Device ${zigbeeEntity.entityName} locked`);
           }
         }
@@ -386,10 +396,21 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         if (this.z2mBridgeInfo?.permit_join) {
           bridgedEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
           if (bridgedEntity.bridgedDevice.number)
-            bridgedEntity.bridgedDevice?.triggerEvent(DoorLockCluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+            bridgedEntity.bridgedDevice?.triggerEvent(
+              DoorLockCluster.id,
+              'lockOperation',
+              { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
+              this.log,
+            );
         } else {
           bridgedEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
-          if (bridgedEntity.bridgedDevice.number) bridgedEntity.bridgedDevice?.triggerEvent(DoorLockCluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+          if (bridgedEntity.bridgedDevice.number)
+            bridgedEntity.bridgedDevice?.triggerEvent(
+              DoorLockCluster.id,
+              'lockOperation',
+              { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
+              this.log,
+            );
         }
       }
     }
@@ -535,6 +556,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       matterGroup = await ZigbeeGroup.create(this, group);
       if (matterGroup.bridgedDevice) {
         await this.registerDevice(matterGroup.bridgedDevice);
+        // console.error('Plugin:', matterGroup.bridgedDevice.plugin);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
         this.zigbeeEntities.push(matterGroup);
         this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);

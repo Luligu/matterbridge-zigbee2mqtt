@@ -233,7 +233,11 @@ export class ZigbeeEntity extends EventEmitter {
 
         // Lookup the property in the propertyMap and ZigbeeToMatter table
         const propertyMap = this.propertyMap.get(key);
-        if (propertyMap) this.log.debug(`Payload entry ${CYAN}${key}${db} => name: ${CYAN}${propertyMap.name}${db} type: ${CYAN}${propertyMap.type === '' ? 'generic' : propertyMap.type}${db} ` + `endpoint: ${CYAN}${propertyMap.endpoint === '' ? 'main' : propertyMap.endpoint}${db}`);
+        if (propertyMap)
+          this.log.debug(
+            `Payload entry ${CYAN}${key}${db} => name: ${CYAN}${propertyMap.name}${db} type: ${CYAN}${propertyMap.type === '' ? 'generic' : propertyMap.type}${db} ` +
+              `endpoint: ${CYAN}${propertyMap.endpoint === '' ? 'main' : propertyMap.endpoint}${db}`,
+          );
         else this.log.debug(`*Payload entry ${CYAN}${key}${db} not found in propertyMap`);
         let z2m: ZigbeeToMatter | undefined;
         z2m = z2ms.find((z2m) => z2m.type === propertyMap?.type && z2m.property === propertyMap?.name);
@@ -373,7 +377,13 @@ export class ZigbeeEntity extends EventEmitter {
     if (this.isDevice && this.device && this.device.friendly_name === 'Coordinator') {
       this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(this.device.friendly_name, this.serial, 0xfff1, 'zigbee2MQTT', 'Coordinator');
     } else if (this.isDevice && this.device) {
-      this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(this.device.friendly_name, this.serial, 0xfff1, this.device.definition ? this.device.definition.vendor : this.device.manufacturer, this.device.definition ? this.device.definition.model : this.device.model_id);
+      this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(
+        this.device.friendly_name,
+        this.serial,
+        0xfff1,
+        this.device.definition ? this.device.definition.vendor : this.device.manufacturer,
+        this.device.definition ? this.device.definition.model : this.device.model_id,
+      );
     } else if (this.isGroup && this.group) {
       this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(this.group.friendly_name, this.serial, 0xfff1, 'zigbee2MQTT', 'Group');
     }
@@ -491,8 +501,20 @@ export class ZigbeeEntity extends EventEmitter {
       // const state = this.bridgedDevice?.getClusterServerById(DoorLock.Cluster.id)?.getLockStateAttribute();
       const state = this.bridgedDevice?.getAttribute(DoorLock.Cluster.id, 'lockState', this.log);
       if (this.bridgedDevice.number) {
-        if (state === DoorLock.LockState.Locked) this.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
-        if (state === DoorLock.LockState.Unlocked) this.bridgedDevice?.triggerEvent(DoorLock.Cluster.id, 'lockOperation', { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null }, this.log);
+        if (state === DoorLock.LockState.Locked)
+          this.bridgedDevice?.triggerEvent(
+            DoorLock.Cluster.id,
+            'lockOperation',
+            { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
+            this.log,
+          );
+        if (state === DoorLock.LockState.Unlocked)
+          this.bridgedDevice?.triggerEvent(
+            DoorLock.Cluster.id,
+            'lockOperation',
+            { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
+            this.log,
+          );
       }
     }
   }
@@ -1168,10 +1190,18 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const value = values[index];
       const z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);
       if (z2m) {
-        zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`);
+        zigbeeDevice.log.debug(
+          `Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`,
+        );
         zigbeeDevice.propertyMap.set(property, { name, type, endpoint, category, description, label, unit, value_min, value_max, values: value });
         if (endpoint === '') {
-          if (!zigbeeDevice.bridgedDevice) zigbeeDevice.bridgedDevice = await zigbeeDevice.createMutableDevice([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
+          if (!zigbeeDevice.bridgedDevice)
+            zigbeeDevice.bridgedDevice = await zigbeeDevice.createMutableDevice(
+              [z2m.deviceType],
+              [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)],
+              { uniqueStorageKey: device.friendly_name },
+              zigbeeDevice.log.logLevel === LogLevel.DEBUG,
+            );
           else zigbeeDevice.addMutableDeviceTypesAndClusterServers([z2m.deviceType], [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)]);
         } else {
           if (!zigbeeDevice.bridgedDevice) zigbeeDevice.bridgedDevice = await zigbeeDevice.createMutableDevice([bridgedNode], undefined, { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
