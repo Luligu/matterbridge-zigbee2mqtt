@@ -9,13 +9,14 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - [matterbridge]: Verified to work with Matterbridge edge (matter.js new API).
-- [covers]: Add position movement to the controller.
+- [covers]: Add position movement updates to the controller.
 - [covers]: Fix group cover at controller.
 - [zigbeeEntity]: Add create async to ZigbeeDevice and ZigbeeGroup.
 
 ### Changed
 
 - [package]: Updated dependencies.
+- [plugin]: Requires Matterbridge 1.6.5.
 
 ### Fixed
 

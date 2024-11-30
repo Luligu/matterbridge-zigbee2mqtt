@@ -63,7 +63,7 @@
     "updateDependencies": "npx npm-check-updates -u && npm install && npm link matterbridge && npm run build",
     "prepublishOnly": "npm pkg delete devDependencies && npm pkg delete scripts && npm install --omit=dev && npm shrinkwrap",
     "npmPack": "npm run cleanBuild && copy package.json package.log && npm pkg delete devDependencies && npm pkg delete scripts && npm install --omit=dev && npm shrinkwrap && npm pack && copy package.log package.json && npm run deepCleanBuild",
-    "npmPublishDev": "npm run cleanBuild && copy package.json package.log && npm pkg delete devDependencies && npm pkg delete scripts && npm install --omit=dev && npm shrinkwrap && npm publish --tag dev && copy package.log package.json && npm run cleanBuild",
+    "npmPublishDev": "npm run cleanBuild && copy package.json package.log && npm pkg delete devDependencies && npm pkg delete scripts && npm install --omit=dev && npm shrinkwrap && npm publish --tag dev && copy package.log package.json && npm run deepCleanBuild",
     "matterbridge:add": "matterbridge -add .\\",
     "matterbridge:remove": "matterbridge -remove .\\",
     "matterbridge:enable": "matterbridge -enable .\\",
