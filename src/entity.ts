@@ -90,7 +90,7 @@ import {
   AtLeastOne,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
-import { deepCopy, deepEqual } from 'matterbridge/utils';
+import { deepCopy, deepEqual, isValidNumber } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
 
 import EventEmitter from 'events';
@@ -246,23 +246,12 @@ export class ZigbeeEntity extends EventEmitter {
         }
 
         // WindowCovering
-        if (key === 'state' && this.isGroup && this.bridgedDevice.hasClusterServer(WindowCovering.Complete)) {
-          if (value === 'OPEN') {
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', 0);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', 0);
-          }
-          if (value === 'CLOSE') {
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', 10000);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', 10000);
-          }
-        }
         // Zigbee2MQTT cover: 0 = open, 100 = closed
         // Matter WindowCovering: 0 = open 10000 = closed
-        if (key === 'position' && color.isValidNumber(value, 0, 100)) {
+        if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', value * 100);
         }
-        if (key === 'moving') {
+        if (key === 'moving' && this.isDevice) {
           if (value === 'UP') {
             const status = WindowCovering.MovementStatus.Opening;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
@@ -1492,12 +1481,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (zigbeeDevice.bridgedDevice.getClusterServerById(WindowCoveringCluster.id)) {
       zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', async () => {
         zigbeeDevice.log.debug(`Command upOrOpen called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(0);
+        if (zigbeeDevice.isDevice && zigbeeDevice.propertyMap.has('position')) zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 0, zigbeeDevice.log);
+        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(0);
         zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: 'OPEN' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', async () => {
         zigbeeDevice.log.debug(`Command downOrClose called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(10000);
+        if (zigbeeDevice.isDevice && zigbeeDevice.propertyMap.has('position')) zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 10000, zigbeeDevice.log);
+        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(10000);
         zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: 'CLOSE' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', async () => {
@@ -1507,8 +1498,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue } }) => {
         zigbeeDevice.log.debug(`Command goToLiftPercentage called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request liftPercent100thsValue: ${liftPercent100thsValue}`);
-        await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(liftPercent100thsValue);
-        zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: 100 - liftPercent100thsValue / 100 });
+        if (zigbeeDevice.isDevice && zigbeeDevice.propertyMap.has('position')) zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', liftPercent100thsValue, zigbeeDevice.log);
+        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(liftPercent100thsValue);
+        zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: liftPercent100thsValue / 100 });
       });
     }
     if (zigbeeDevice.bridgedDevice.getClusterServerById(DoorLockCluster.id)) {

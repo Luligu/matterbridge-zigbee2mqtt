@@ -4,11 +4,13 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.2.3] - 2024-11-XX
+## [2.3.0] - 2024-12-01
 
 ### Added
 
-- [matterbridge]: Preliminary update to support Matterbridge edge (matter.js new API).
+- [matterbridge]: Verified to work with Matterbridge edge (matter.js new API).
+- [covers]: Add position movement to the controller.
+- [covers]: Fix group cover at controller.
 - [zigbeeEntity]: Add create async to ZigbeeDevice and ZigbeeGroup.
 
 ### Changed
