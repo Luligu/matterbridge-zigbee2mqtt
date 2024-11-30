@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "2.2.3-dev.4",
+  "version": "2.2.3-dev.5",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
@@ -83,11 +83,11 @@
     "node-persist-manager": "1.0.8"
   },
   "devDependencies": {
-    "@eslint/js": "9.15.0",
+    "@eslint/js": "9.16.0",
     "@types/eslint__js": "8.42.3",
     "@types/jest": "29.5.14",
-    "@types/node": "22.10.0",
-    "eslint": "9.15.0",
+    "@types/node": "22.10.1",
+    "eslint": "9.16.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-jest": "28.9.0",
     "eslint-plugin-prettier": "5.2.1",

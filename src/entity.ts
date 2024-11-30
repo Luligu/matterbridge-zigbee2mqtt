@@ -46,7 +46,6 @@ import {
   ThermostatCluster,
   Thermostat,
   Endpoint,
-  AtLeastOne,
   getClusterNameById,
   powerSource,
   bridgedNode,
@@ -76,7 +75,7 @@ import {
   ClusterClientObj,
   dimmableOutlet,
   doorLockDevice,
-  occupanceySensor,
+  occupancySensor,
   lightSensor,
   contactSensor,
   temperatureSensor,
@@ -88,8 +87,9 @@ import {
   WindowCoveringCluster,
   DoorLockCluster,
   Semtag,
+  AtLeastOne,
 } from 'matterbridge';
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er } from 'matterbridge/logger';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
 import { deepCopy, deepEqual } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
 
@@ -376,7 +376,7 @@ export class ZigbeeEntity extends EventEmitter {
     if (!this.bridgedDevice) throw new Error('No bridged device');
     // Add BridgedDeviceBasicInformation cluster and device type
     this.bridgedDevice.addDeviceType(bridgedNode);
-    this.bridgedDevice.addClusterServer(this.getBridgedDeviceBasicInformation() as unknown as ClusterServerObj);
+    this.bridgedDevice.addClusterServer(this.getBridgedDeviceBasicInformation());
     return this.bridgedDevice;
   }
 
@@ -419,7 +419,7 @@ export class ZigbeeEntity extends EventEmitter {
       for (const clusterId of deviceType.requiredServerClusters) {
         if (!endpoint.getClusterServerById(clusterId)) {
           endpoint.addClusterServerFromList(endpoint, [clusterId]);
-          this.log.warn(`Device type ${deviceType.name} (0x${deviceType.code.toString(16)}) requires cluster server ${getClusterNameById(clusterId)} (0x${clusterId.toString(16)}) but it is not present on endpoint`);
+          this.log.warn(`Endpoint with device type ${deviceType.name} (0x${deviceType.code.toString(16)}) requires cluster server ${getClusterNameById(clusterId)} (0x${clusterId.toString(16)}) but it is not present on endpoint`);
         }
       }
     }
@@ -430,7 +430,7 @@ export class ZigbeeEntity extends EventEmitter {
         for (const clusterId of deviceType.requiredServerClusters) {
           if (!childEndpoint.getClusterServerById(clusterId)) {
             endpoint.addClusterServerFromList(childEndpoint, [clusterId]);
-            this.log.warn(`Device type ${deviceType.name} (0x${deviceType.code.toString(16)}) requires cluster server ${getClusterNameById(clusterId)} (0x${clusterId.toString(16)}) but it is not present on child endpoint`);
+            this.log.warn(`Child endpoint with device type ${deviceType.name} (0x${deviceType.code.toString(16)}) requires cluster server ${getClusterNameById(clusterId)} (0x${clusterId.toString(16)}) but it is not present on child endpoint`);
           }
         }
       }
@@ -523,14 +523,14 @@ export class ZigbeeEntity extends EventEmitter {
     const localValue = this.bridgedDevice?.getAttribute(ClusterId(clusterId), attributeName, undefined, deviceEndpoint);
     if (typeof value === 'object' ? deepEqual(value, localValue) : value === localValue) {
       this.log.debug(
-        `Skip update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
-          `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} already ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
+        `Skip update endpoint ${deviceEndpoint.name}:${deviceEndpoint.number}${childEndpointName ? ' (' + childEndpointName + ')' : ''} ` +
+          `attribute ${getClusterNameById(ClusterId(clusterId))}.${attributeName} already ${typeof value === 'object' ? debugStringify(value) : value}`,
       );
       return;
     }
     this.log.info(
       `${db}Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.number}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
-        `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} from ${zb}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${zb}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
+        `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} from ${YELLOW}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${YELLOW}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {
       this.bridgedDevice?.setAttribute(ClusterId(clusterId), attributeName, value, undefined, deviceEndpoint);
@@ -917,8 +917,8 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'min_heat_setpoint_limit', property: 'min_heat_setpoint_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'minHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
   { type: '', name: 'max_heat_setpoint_limit', property: 'max_heat_setpoint_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'maxHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
 
-  { type: '', name: 'presence', property: 'presence', deviceType: occupanceySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
-  { type: '', name: 'occupancy', property: 'occupancy', deviceType: occupanceySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
+  { type: '', name: 'presence', property: 'presence', deviceType: occupancySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
+  { type: '', name: 'occupancy', property: 'occupancy', deviceType: occupancySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
   { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(value, 0xfffe), 0)) } },
   { type: '', name: 'illuminance_lux', property: 'illuminance_lux', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(10000 * Math.log10(value), 0xfffe), 0)) } },
   { type: '', name: 'contact', property: 'contact', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
@@ -1235,6 +1235,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
       device.deviceTypes.forEach((deviceType) => {
         deviceTypesMap.set(deviceType.code, deviceType);
       });
+      if (deviceTypesMap.has(onOffSwitch.code) && deviceTypesMap.has(dimmableSwitch.code)) deviceTypesMap.delete(onOffSwitch.code);
+      if (deviceTypesMap.has(dimmableSwitch.code) && deviceTypesMap.has(colorTemperatureSwitch.code)) deviceTypesMap.delete(dimmableSwitch.code);
+      if (deviceTypesMap.has(onOffOutlet.code) && deviceTypesMap.has(dimmableOutlet.code)) deviceTypesMap.delete(onOffOutlet.code);
       if (deviceTypesMap.has(onOffLight.code) && deviceTypesMap.has(dimmableLight.code)) deviceTypesMap.delete(onOffLight.code);
       if (deviceTypesMap.has(dimmableLight.code) && deviceTypesMap.has(colorTemperatureLight.code)) deviceTypesMap.delete(dimmableLight.code);
       device.deviceTypes = Array.from(deviceTypesMap.values()); /* .sort((a, b) => b.code - a.code);*/
