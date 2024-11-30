@@ -256,15 +256,23 @@ export class ZigbeeEntity extends EventEmitter {
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', 10000);
           }
         }
-        if (key === 'position') {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', typeof value === 'number' ? 10000 - value * 100 : 0);
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', typeof value === 'number' ? 10000 - value * 100 : 0);
+        // Zigbee2MQTT cover: 0 = open, 100 = closed
+        // Matter WindowCovering: 0 = open 10000 = closed
+        if (key === 'position' && color.isValidNumber(value, 0, 100)) {
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', value * 100);
         }
         if (key === 'moving') {
-          const status = value === 'UP' ? WindowCovering.MovementStatus.Opening : value === 'DOWN' ? WindowCovering.MovementStatus.Closing : WindowCovering.MovementStatus.Stopped;
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-          if (value === 'STOP') {
-            const position = this.bridgedDevice.getClusterServerById(WindowCovering.Cluster.id)?.getCurrentPositionLiftPercent100thsAttribute();
+          if (value === 'UP') {
+            const status = WindowCovering.MovementStatus.Opening;
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+          } else if (value === 'DOWN') {
+            const status = WindowCovering.MovementStatus.Closing;
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+          } else if (value === 'STOP') {
+            const status = WindowCovering.MovementStatus.Stopped;
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            const position = this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
           }
@@ -903,7 +911,9 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: 'light', name: 'color_hs', property: 'color_hs', deviceType: colorTemperatureLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_xy', property: 'color_xy', deviceType: colorTemperatureLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
   { type: 'light', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'cover', name: 'state', property: 'state', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
+  { type: 'cover', name: 'state', property: 'state', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'targetPositionLiftPercent100ths' },
+  { type: 'cover', name: 'moving', property: 'moving', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'operationalStatus' },
+  { type: 'cover', name: 'position', property: 'position', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
   { type: 'lock', name: 'state', property: 'state', deviceType: doorLockDevice, cluster: DoorLock.Cluster.id, attribute: 'lockState', converter: (value) => { return value === 'LOCK' ? DoorLock.LockState.Locked : DoorLock.LockState.Unlocked } },
   { type: 'climate', name: 'local_temperature', property: 'local_temperature', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'localTemperature', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
   { type: 'climate', name: 'current_heating_setpoint', property: 'current_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
