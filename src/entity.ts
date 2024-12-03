@@ -1343,6 +1343,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Verify the device
     if (!zigbeeDevice.verifyMutableDevice(zigbeeDevice.bridgedDevice)) return zigbeeDevice;
 
+    // Clear the mutable device from memory
+    zigbeeDevice.mutableDevice.clear();
+
     // Log properties
     zigbeeDevice.logPropertyMap();
 

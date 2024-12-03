@@ -53,7 +53,7 @@ describe('TestPlatform', () => {
       matterbridgeDirectory: '',
       matterbridgePluginDirectory: 'temp',
       systemInformation: { ipv4Address: undefined },
-      matterbridgeVersion: '1.6.3',
+      matterbridgeVersion: '1.6.5',
     } as unknown as Matterbridge;
     mockConfig = {
       'name': 'matterbridge-zigbee2mqtt',
