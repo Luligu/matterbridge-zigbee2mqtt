@@ -1224,11 +1224,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.propertyMap.set('battery_voltage', { name: 'battery_voltage', type: '', endpoint: '' });
     }
 
+    // Handle when the device has only child endpoints
     if (!zigbeeDevice.mutableDevice.has('')) zigbeeDevice.mutableDevice.set('', { tagList: [], deviceTypes: [bridgedNode, powerSource], clusterServersIds: [], clusterServersObjs: [], clusterClientsIds: [], clusterClientsObjs: [] });
     const mainEndpoint = zigbeeDevice.mutableDevice.get('');
     if (!mainEndpoint) return zigbeeDevice;
 
-    // Remove superset device Types and order them
+    // Remove duplicates and superset device Types on all endpoints
     for (const device of zigbeeDevice.mutableDevice.values()) {
       const deviceTypesMap = new Map<number, DeviceTypeDefinition>();
       device.deviceTypes.forEach((deviceType) => {
@@ -1257,7 +1258,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.bridgedDevice.configureColorControlCluster(names.includes('color_hs') || names.includes('color_xy'), false, names.includes('color_temp'));
     }
 
-    // Configure ThermostatCluster
+    // Configure ThermostatCluster: Auto or Heating only or Cooling only. Set also min and max if available
     if (mainEndpoint.clusterServersIds.includes(Thermostat.Cluster.id)) {
       const heat = zigbeeDevice.propertyMap.get('occupied_heating_setpoint') || zigbeeDevice.propertyMap.get('current_heating_setpoint');
       const cool = zigbeeDevice.propertyMap.get('occupied_cooling_setpoint') || zigbeeDevice.propertyMap.get('current_cooling_setpoint');
@@ -1280,9 +1281,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
       }
     }
 
-    // Filter out duplicate server clusters and server clusters objects
+    // Filter out duplicate clusters and clusters objects
     for (const [endpoint, device] of zigbeeDevice.mutableDevice) {
-      // Filter out duplicate server clusters and server clusters objects
+      // Filter out duplicate server clusters and server clusters objects. Remove the cluster server id when a cluster server object is present.
       const deviceClusterServersMap = new Map<ClusterId, ClusterId>();
       device.clusterServersIds.forEach((clusterServer) => {
         deviceClusterServersMap.set(clusterServer, clusterServer);
@@ -1295,7 +1296,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       device.clusterServersIds = Array.from(deviceClusterServersMap.values());
       device.clusterServersObjs = Array.from(deviceClusterServersObjMap.values());
 
-      // Filter out duplicate client clusters and client clusters objects
+      // Filter out duplicate client clusters and client clusters objects. Remove the cluster client id when a cluster client object is present.
       const deviceClusterClientsMap = new Map<ClusterId, ClusterId>();
       device.clusterClientsIds.forEach((clusterClient) => {
         deviceClusterClientsMap.set(clusterClient, clusterClient);
@@ -1307,18 +1308,21 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
       device.clusterClientsIds = Array.from(deviceClusterClientsMap.values());
       device.clusterClientsObjs = Array.from(deviceClusterClientsObjMap.values());
+
       zigbeeDevice.log.debug(
         `Device ${zigbeeDevice.ien}${zigbeeDevice.device?.friendly_name}${rs}${db} endpoint: ${ign}${endpoint === '' ? 'main' : endpoint}${rs}${db} => ` +
           `${nf}tagList: ${debugStringify(device.tagList)} deviceTypes: ${debugStringify(device.deviceTypes)} clusterServersIds: ${debugStringify(device.clusterServersIds)}`,
       );
     }
 
-    // Add the clusters to the main endpoint
+    // Add the cluster objects to the main endpoint
     mainEndpoint.clusterServersObjs.forEach((clusterServerObj) => {
       zigbeeDevice.bridgedDevice?.addClusterServer(clusterServerObj);
     });
+    // Add the cluster ids to the main endpoint
     zigbeeDevice.bridgedDevice.addClusterServerFromList(zigbeeDevice.bridgedDevice, mainEndpoint.clusterServersIds);
     zigbeeDevice.bridgedDevice.addRequiredClusterServers(zigbeeDevice.bridgedDevice);
+    // Add the Fixed Label cluster to the main endpoint
     if (zigbeeDevice.composedType !== '') await zigbeeDevice.bridgedDevice.addFixedLabel('composed', zigbeeDevice.composedType);
 
     // Create the child endpoints

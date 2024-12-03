@@ -17,6 +17,8 @@ Matterbridge zigbee2mqtt is a matterbridge production-level plugin that expose a
 
 No hub or dedicated hardware needed.
 
+Interested in super fast and autonomous automations for zigbee2mqtt? Try this: https://github.com/Luligu/zigbee2mqtt-automations
+
 If you like this project and find it useful, please consider giving it a star on GitHub at https://github.com/Luligu/matterbridge-zigbee2mqtt and sponsoring it.
 
 ## Prerequisites
