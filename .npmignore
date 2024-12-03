@@ -162,6 +162,7 @@ jest.config.js
 screenshot
 
 # other stuff
+tsconfig.production.json
 temp/
 mock/
 TODO.md
