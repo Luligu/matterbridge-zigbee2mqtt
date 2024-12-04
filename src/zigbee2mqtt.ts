@@ -388,7 +388,7 @@ export class Zigbee2MQTT extends EventEmitter {
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         this.mqttClient.on('message', (topic: string, payload: Buffer, packet: IPublishPacket) => {
-          // this.log.debug(`classZigbee2MQTT=>Event message topic: ${topic} payload: ${payload.toString()} packet: ${stringify(packet, true)}`);
+          // this.log.debug(`classZigbee2MQTT=>Event message topic: ${topic} payload: ${payload.toString()} packet: ${debugStringify(packet)}`);
           this.messageHandler(topic, payload);
         });
 
