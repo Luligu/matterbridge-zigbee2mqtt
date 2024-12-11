@@ -4,6 +4,26 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.1] - 2024-12-12
+
+### Added
+
+- [matterbridge]: Verified to work with Matterbridge edge (matter.js new API).
+- [covers]: Add position movement updates to the controller.
+- [covers]: Fix group cover at controller.
+- [zigbeeEntity]: Add create async to ZigbeeDevice and ZigbeeGroup.
+
+### Changed
+
+- [package]: Updated dependencies.
+- [plugin]: Requires Matterbridge 1.6.5.
+
+### Fixed
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.3.0] - 2024-12-04
 
 ### Added
