@@ -8,15 +8,13 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- [matterbridge]: Verified to work with Matterbridge edge (matter.js new API).
-- [covers]: Add position movement updates to the controller.
-- [covers]: Fix group cover at controller.
-- [zigbeeEntity]: Add create async to ZigbeeDevice and ZigbeeGroup.
+- [colorControl] Update ColorControl cluster
+- [levelControl] Update currentLevel to minLevel
 
 ### Changed
 
 - [package]: Updated dependencies.
-- [plugin]: Requires Matterbridge 1.6.5.
+- [plugin]: Requires Matterbridge 1.6.6.
 
 ### Fixed
 
