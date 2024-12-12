@@ -269,20 +269,32 @@ export class ZigbeeEntity extends EventEmitter {
 
         // ColorControl colorTemperatureMired and colorMode
         if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp') {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorTemperatureMireds', Math.max(147, Math.min(500, typeof value === 'number' ? value : 0)));
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorTemperatureMireds', Math.max(147, Math.min(500, typeof value === 'number' ? value : 0)));
         }
-
         // ColorControl currentHue, currentSaturation and colorMode
+        if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'hs') {
+          const { hue, saturation } = value as { hue: number; saturation: number };
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round((hue / 360) * 254));
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round((saturation / 100) * 254));
+        }
+        // ColorControl currentX, currentY and colorMode
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
+          /* not supported by Apple Home so we convert xy to hue and saturation
+          const { x, y } = value as { x: number; y: number };
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentX', Math.max(Math.min(Math.round(x * 65536), 65279), 0));
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentY', Math.max(Math.min(Math.round(y * 65536), 65279), 0));
+          */
           const { x, y } = value as { x: number; y: number };
           const hsl = color.xyToHsl(x, y);
           const rgb = color.xyColorToRgbColor(x, y);
           this.log.debug(`ColorControl xyToHsl ${CYAN}${x}${db} ${CYAN}${y}${db} => h ${CYAN}${hsl.h}${db} s ${CYAN}${hsl.s}${db} l ${CYAN}${hsl.l}${db}`);
           this.log.debug(`ColorControl xyToRgb ${CYAN}${x}${db} ${CYAN}${y}${db} => r ${CYAN}${rgb.r}${db} g ${CYAN}${rgb.g}${db} b ${CYAN}${rgb.b}${db}`);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round((hsl.h / 360) * 254));
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round((hsl.s / 100) * 254));
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
         }
       });
     });
