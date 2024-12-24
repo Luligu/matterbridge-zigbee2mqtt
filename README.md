@@ -106,7 +106,7 @@ matterbridge -add ./
 Then start Matterbridge
 
 ```
-matterbridge -bridge
+matterbridge
 ```
 
 # Config file
@@ -174,7 +174,7 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 }
 ```
 
-By default matterbridge uses hostname in order to make entities unique, however in some cases
+By default matterbridge-zigbee2mqtt uses hostname in order to make entities unique, however in some cases
 you may not want this behavior. You can use "postfixHostname" boolean flag to disable this behavior:
 
 ```json
@@ -217,8 +217,6 @@ The latest release also supports all clusters in the multi endpoints devices (e.
 
 Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
-We discoverd that Matter support in Home Assistant includes some clusters not supported by other ecosystems. These clusters like EveHistory have been added so with HA you can see Voltage, Current, Consumption and TotalConsumption (screenshot https://github.com/Luligu/matterbridge/blob/main/screenshot/Screenshot%20HA%20sm-dc-power-m.png).
-
 ## Unsupported devices
 
 If one of your devices is not supported out of the box, open an issue and we will try to support it if possible.
@@ -254,16 +252,13 @@ For general controller issues check the Matterbridge Known issues section
 
 ## Apple Home
 
-## Home Assistant (Matter Server is still in Beta)
+## Home Assistant
 
 ## Google Home
 
 ## Alexa
 
-In the plugin config add each switch device to the lightList or outletList if they don't show up like switch (Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize).
+In the plugin config add each switch device to the lightList or outletList. Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize.
 
 ## SmartThings
 
-## eWeLink
-
-## Tuya/Smart Life

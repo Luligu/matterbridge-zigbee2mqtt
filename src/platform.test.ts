@@ -31,29 +31,33 @@ describe('TestPlatform', () => {
 
   beforeAll(() => {
     mockMatterbridge = {
+      matterbridgeDirectory: './jest/matterbridge',
+      matterbridgePluginDirectory: './jest/plugins',
+      systemInformation: { ipv4Address: undefined },
+      matterbridgeVersion: '1.6.7',
+      getDevices: jest.fn(() => {
+        // console.log('getDevices called');
+        return [];
+      }),
       addBridgedDevice: jest.fn(async (pluginName: string, device: MatterbridgeDevice) => {
-        // console.error('addBridgedDevice called');
+        // console.log('addBridgedDevice called');
       }),
       addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
-        device.number = 100;
-        // console.error('addBridgedEndpoint called');
+        // console.log('addBridgedEndpoint called');
+        // await aggregator.add(device);
       }),
       removeBridgedDevice: jest.fn(async (pluginName: string, device: MatterbridgeDevice) => {
-        // console.error('removeBridgedDevice called');
+        // console.log('removeBridgedDevice called');
       }),
       removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
-        // console.error('removeBridgedEndpoint called');
+        // console.log('removeBridgedEndpoint called');
       }),
       removeAllBridgedDevices: jest.fn(async (pluginName: string) => {
-        // console.error('removeAllBridgedDevices called');
+        // console.log('removeAllBridgedDevices called');
       }),
       removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {
-        // console.error('removeAllBridgedEndpoints called');
+        // console.log('removeAllBridgedEndpoints called');
       }),
-      matterbridgeDirectory: '',
-      matterbridgePluginDirectory: 'temp',
-      systemInformation: { ipv4Address: undefined },
-      matterbridgeVersion: '1.6.6',
     } as unknown as Matterbridge;
     mockConfig = {
       'name': 'matterbridge-zigbee2mqtt',

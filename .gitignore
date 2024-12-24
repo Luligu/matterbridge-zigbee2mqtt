@@ -44,4 +44,5 @@ replay_pid*
 
 # zigbee2mqtt
 temp/
+jest/
 TODO.md
