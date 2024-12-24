@@ -165,5 +165,6 @@ screenshot
 tsconfig.production.json
 temp/
 mock/
+jest/
 TODO.md
 yellow-button.png

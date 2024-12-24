@@ -4,6 +4,19 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.2] - 2024-12-24
+
+### Changed
+
+- [package]: Updated package.
+- [package]: Updated dependencies.
+- [plugin]: Use platform white and black list.
+- [platform]: Use platform endpoint number check.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.3.1] - 2024-12-12
 
 ### Added
