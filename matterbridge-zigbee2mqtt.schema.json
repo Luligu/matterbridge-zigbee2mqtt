@@ -2,7 +2,11 @@
   "title": "Matterbridge zigbee2mqtt plugin",
   "description": "matterbridge-zigbee2mqtt v. 2.0.17 by https://github.com/Luligu",
   "type": "object",
-  "required": ["host", "port", "topic"],
+  "required": [
+    "host",
+    "port",
+    "topic"
+  ],
   "properties": {
     "name": {
       "description": "Plugin name",
@@ -46,36 +50,42 @@
       "description": "The devices in the list will not be exposed.",
       "type": "array",
       "items": {
-        "type": "string"
-      }
+        "type": "string",
+        "default": "device or group name"
+      },
+      "selectFrom": "name"
     },
     "whiteList": {
       "description": "Only the devices in the list will be exposed.",
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "selectFrom": "name"
     },
     "switchList": {
       "description": "The devices in the list will be exposed like switches (don't use it for Alexa, use lightList or outletList instead).",
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "selectFrom": "name"
     },
     "lightList": {
       "description": "The devices in the list will be exposed like lights.",
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "selectFrom": "name"
     },
     "outletList": {
       "description": "The devices in the list will be exposed like outlets.",
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "selectFrom": "name"
     },
     "featureBlackList": {
       "description": "The features in the list will not be exposed for all devices.",
