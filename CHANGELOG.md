@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - [selectDevice]: Added selectDevice to get the device names from a list in the config editor.
+- [configUrl]: Added configUrl to get a link from the frontend Devices page.
 
 ### Changed
 

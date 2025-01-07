@@ -520,6 +520,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterDevice = await ZigbeeDevice.create(this, device);
       if (matterDevice.bridgedDevice) {
+        matterDevice.bridgedDevice.configUrl = `http://${this.mqttHost}:8080/#/device/${device.ieee_address}/info`;
         await this.registerDevice(matterDevice.bridgedDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
         this.zigbeeEntities.push(matterDevice);
@@ -541,8 +542,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterGroup = await ZigbeeGroup.create(this, group);
       if (matterGroup.bridgedDevice) {
+        matterGroup.bridgedDevice.configUrl = `http://${this.mqttHost}:8080/#/group/${group.id}`;
         await this.registerDevice(matterGroup.bridgedDevice);
-        // console.error('Plugin:', matterGroup.bridgedDevice.plugin);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
         this.zigbeeEntities.push(matterGroup);
         this.log.debug(`Registered group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
