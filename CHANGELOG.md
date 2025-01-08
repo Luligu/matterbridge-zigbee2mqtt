@@ -4,6 +4,22 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2025-01-08
+
+### Added
+
+- [selectDevice]: Added selectDevice to get the device names from a list in the config editor.
+- [configUrl]: Added configUrl to get a link to the zigbee2mqtt frontend from the Matterbridge frontend Devices page.
+
+### Changed
+
+- [illuminace_lux]: Follow removal of illuminace_lux https://github.com/Koenkk/zigbee-herdsman-converters/pull/8304
+- [package]: Updated dependencies.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.3.2] - 2024-12-24
 
 ### Changed

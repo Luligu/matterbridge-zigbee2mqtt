@@ -209,14 +209,6 @@ export class ZigbeeEntity extends EventEmitter {
         // Modify voltage to battery_voltage
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') key = 'battery_voltage';
 
-        // Modify illuminance and illuminance_lux
-        if (key === 'illuminance' && this.isDevice && this.device && this.device.definition && ['RTCGQ14LM'].includes(this.device.definition.model)) {
-          key = 'illuminance_lux';
-        }
-        if (key === 'illuminance' && typeof value === 'number' && this.isDevice && this.device && this.device.definition && ['ZG-204ZL', 'ZG-205Z/A'].includes(this.device.definition.model)) {
-          value = value * 10;
-        }
-
         // Lookup the property in the propertyMap and ZigbeeToMatter table
         const propertyMap = this.propertyMap.get(key);
         if (propertyMap) {
@@ -930,8 +922,7 @@ export const z2ms: ZigbeeToMatter[] = [
 
   { type: '', name: 'presence', property: 'presence', deviceType: occupancySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
   { type: '', name: 'occupancy', property: 'occupancy', deviceType: occupancySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
-  { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(value, 0xfffe), 0)) } },
-  { type: '', name: 'illuminance_lux', property: 'illuminance_lux', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(10000 * Math.log10(value), 0xfffe), 0)) } },
+  { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(10000 * Math.log10(value), 0xfffe), 0)) } },
   { type: '', name: 'contact', property: 'contact', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
   { type: '', name: 'water_leak', property: 'water_leak', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
   { type: '', name: 'vibration', property: 'vibration', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
