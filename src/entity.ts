@@ -1102,12 +1102,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Set the device entity select
     platform.selectEntity.set('last_seen', { name: 'last_seen', description: 'Last seen', icon: 'hub' });
     for (const [index, property] of properties.entries()) {
-      zigbeeDevice.log.warn(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
+      zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
       if (!platform.selectDevice.get(device.ieee_address)) {
         platform.selectDevice.set(device.ieee_address, { serial: device.ieee_address, name: device.friendly_name, icon: 'wifi', entities: [] });
       }
 
-      zigbeeDevice.log.warn(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select entity ${property} (${descriptions[index]})`);
+      zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select entity ${property} (${descriptions[index]})`);
       if (endpoints[index] === '') platform.selectEntity.set(property, { name: property, description: descriptions[index], icon: 'hub' });
       platform.selectDevice.get(device.ieee_address)?.entities?.push({ name: property, description: descriptions[index], icon: 'hub' });
     }
@@ -1128,12 +1128,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     */
 
     for (const [index, name] of names.entries()) {
-      if (platform.featureBlackList.includes(name)) {
-        zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} is globally blacklisted`);
+      if (platform.featureBlackList.includes(name) || platform.featureBlackList.includes(properties[index])) {
+        zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} property ${properties[index]} is globally blacklisted`);
         continue;
       }
-      if (platform.deviceFeatureBlackList[device.friendly_name]?.includes(name)) {
-        zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} is blacklisted`);
+      if (platform.deviceFeatureBlackList[device.friendly_name]?.includes(name) || platform.deviceFeatureBlackList[device.friendly_name]?.includes(properties[index])) {
+        zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} property ${properties[index]} is blacklisted`);
         continue;
       }
       if (name === 'transition') {

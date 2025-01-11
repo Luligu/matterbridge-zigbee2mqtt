@@ -4,11 +4,21 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] - 2025-01-11
+
+### Fixed
+
+- [endpoint]: Fixed blacklist of child endpoints.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.4.1] - 2025-01-11
 
 ### Added
 
-- [selectEntity]: Added selectEntity to get the components names from a list in the config editor.
+- [selectEntity]: Added selectEntity to get the features names from a list in the config editor.
 - [configUrl]: Added zigbeeFrontend in the config to prefix configUrl to get a link to the zigbee2mqtt frontend from the Matterbridge frontend Devices page. This allows to open the device configuration from the frontend.
 
 ### Changed
