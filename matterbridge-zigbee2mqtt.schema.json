@@ -46,6 +46,11 @@
       "type": "string",
       "default": "zigbee2mqtt"
     },
+    "zigbeeFrontend": {
+      "description": "Zigbee frontend host to prefix the configUrl",
+      "type": "string",
+      "default": "http://localhost:8080"
+    },
     "blackList": {
       "description": "The devices in the list will not be exposed.",
       "type": "array",
@@ -53,14 +58,17 @@
         "type": "string",
         "default": "device or group name"
       },
+      "uniqueItems": true,
       "selectFrom": "name"
     },
     "whiteList": {
       "description": "Only the devices in the list will be exposed.",
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "string",
+        "default": "device or group name"
       },
+      "uniqueItems": true,
       "selectFrom": "name"
     },
     "switchList": {
@@ -69,6 +77,7 @@
       "items": {
         "type": "string"
       },
+      "uniqueItems": true,
       "selectFrom": "name"
     },
     "lightList": {
@@ -77,6 +86,7 @@
       "items": {
         "type": "string"
       },
+      "uniqueItems": true,
       "selectFrom": "name"
     },
     "outletList": {
@@ -85,6 +95,7 @@
       "items": {
         "type": "string"
       },
+      "uniqueItems": true,
       "selectFrom": "name"
     },
     "featureBlackList": {
@@ -92,16 +103,23 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "uniqueItems": true,
+      "selectEntityFrom": "name"
     },
     "deviceFeatureBlackList": {
-      "description": "List of features not to be exposed for a single device. Enter in the first field the name of the device and in the second field add all the features to exclude.",
+      "description": "List of features not to be exposed for a single device. Enter in the first field the name of the device and in the list add all the features to exclude.",
       "type": "object",
+      "uniqueItems": true,
+      "selectFrom": "name",
       "additionalProperties": {
+        "description": "List of features not to be exposed for this device. Enter the feature (i.e. device_temperature) to exclude.",
         "type": "array",
         "items": {
           "type": "string"
-        }
+        },
+        "uniqueItems": true,
+        "selectDeviceEntityFrom": "name"
       }
     },
     "postfixHostname": {

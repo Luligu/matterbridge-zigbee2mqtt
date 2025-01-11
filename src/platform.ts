@@ -76,8 +76,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.7.1')) {
-      throw new Error(`This plugin requires Matterbridge version >= "1.7.1". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.7.2')) {
+      throw new Error(`This plugin requires Matterbridge version >= "1.7.2". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
     }
 
     // this.log.debug(`Config:')}${rs}`, config);
@@ -511,8 +511,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   private async registerZigbeeDevice(device: BridgeDevice): Promise<ZigbeeDevice | undefined> {
-    this.selectDevice.set(device.ieee_address, { serial: device.ieee_address, name: device.friendly_name });
-    if (!this.validateDeviceWhiteBlackList(device.friendly_name)) {
+    this.selectDevice.set(device.ieee_address, { serial: device.ieee_address, name: device.friendly_name, icon: 'wifi', entities: [] });
+    if (!this.validateDevice(device.friendly_name)) {
       return undefined;
     }
     this.log.debug(`Registering device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
@@ -520,7 +520,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterDevice = await ZigbeeDevice.create(this, device);
       if (matterDevice.bridgedDevice) {
-        matterDevice.bridgedDevice.configUrl = `http://${this.mqttHost}:8080/#/device/${device.ieee_address}/info`;
+        matterDevice.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/device/${device.ieee_address}/info`;
         await this.registerDevice(matterDevice.bridgedDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
         this.zigbeeEntities.push(matterDevice);
@@ -533,8 +533,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   public async registerZigbeeGroup(group: BridgeGroup): Promise<ZigbeeGroup | undefined> {
-    this.selectDevice.set(`group-${group.id}`, { serial: `group-${group.id}`, name: group.friendly_name });
-    if (!this.validateDeviceWhiteBlackList(group.friendly_name)) {
+    this.selectDevice.set(`group-${group.id}`, { serial: `group-${group.id}`, name: group.friendly_name, icon: 'wifi' });
+    if (!this.validateDevice(group.friendly_name)) {
       return undefined;
     }
     this.log.debug(`Registering group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
@@ -542,7 +542,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterGroup = await ZigbeeGroup.create(this, group);
       if (matterGroup.bridgedDevice) {
-        matterGroup.bridgedDevice.configUrl = `http://${this.mqttHost}:8080/#/group/${group.id}`;
+        matterGroup.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/group/${group.id}`;
         await this.registerDevice(matterGroup.bridgedDevice);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
         this.zigbeeEntities.push(matterGroup);

@@ -618,6 +618,12 @@ export class ZigbeeGroup extends ZigbeeEntity {
       zigbeeGroup.serial = `group-${group.id}`.slice(0, 32);
     }
 
+    // Set the device entity select
+    zigbeeGroup.log.warn(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device ${group.id} (${group.friendly_name})`);
+    if (!platform.selectDevice.get(`group-${group.id}`)) {
+      platform.selectDevice.set(`group-${group.id}`, { serial: `group-${group.id}`, name: group.friendly_name, icon: 'wifi', entities: [] });
+    }
+
     let useState = false;
     let useBrightness = false;
     let useColor = false;
@@ -1048,23 +1054,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         if (device.power_source === 'Battery' && expose.name === 'voltage') expose.name = 'battery_voltage';
         if (device.power_source === 'Battery' && expose.property === 'voltage') expose.property = 'battery_voltage';
 
-        // Fix illuminance and illuminance_lux for light sensors:
-        // illuminance is raw value (use like it is)
-        // illuminance_lux is in lux (convert with log10)
-        // illuminance has description "Raw measured illuminance"
-        // illuminance_lux has description "Measured illuminance in lux"
-        if (expose.description === 'Raw measured illuminance') {
-          expose.name = 'illuminance';
-          expose.property = 'illuminance';
-          expose.label = 'Illuminance';
-          expose.unit = '';
-        }
-        if (expose.description === 'Measured illuminance in lux') {
-          expose.name = 'illuminance_lux';
-          expose.property = 'illuminance_lux';
-          expose.label = 'Illuminance (lux)';
-          expose.unit = 'lx';
-        }
         types.push('');
         endpoints.push(expose.endpoint || '');
         names.push(expose.name || '');
@@ -1110,6 +1099,20 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
     }
 
+    // Set the device entity select
+    platform.selectEntity.set('last_seen', { name: 'last_seen', description: 'Last seen', icon: 'hub' });
+    for (const [index, property] of properties.entries()) {
+      zigbeeDevice.log.warn(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
+      if (!platform.selectDevice.get(device.ieee_address)) {
+        platform.selectDevice.set(device.ieee_address, { serial: device.ieee_address, name: device.friendly_name, icon: 'wifi', entities: [] });
+      }
+
+      zigbeeDevice.log.warn(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select entity ${property} (${descriptions[index]})`);
+      if (endpoints[index] === '') platform.selectEntity.set(property, { name: property, description: descriptions[index], icon: 'hub' });
+      platform.selectDevice.get(device.ieee_address)?.entities?.push({ name: property, description: descriptions[index], icon: 'hub' });
+    }
+
+    // Set the global and devic based feature blacklist
     if (platform.featureBlackList) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.featureBlackList];
     if (platform.deviceFeatureBlackList[device.friendly_name]) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.deviceFeatureBlackList[device.friendly_name]];
 
