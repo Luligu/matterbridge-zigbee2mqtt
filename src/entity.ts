@@ -45,7 +45,6 @@ import {
   BridgedDeviceBasicInformation,
   ThermostatCluster,
   Thermostat,
-  Endpoint,
   getClusterNameById,
   powerSource,
   bridgedNode,
@@ -493,7 +492,7 @@ export class ZigbeeEntity extends EventEmitter {
    * values to their corresponding indices in the lookup array. The method logs the update process and handles any
    * errors that occur during the update.
    */
-  protected updateAttributeIfChanged(deviceEndpoint: Endpoint, childEndpointName: string | undefined, clusterId: number, attributeName: string, value: PayloadValue, lookup?: string[]): void {
+  protected updateAttributeIfChanged(deviceEndpoint: MatterbridgeEndpoint, childEndpointName: string | undefined, clusterId: number, attributeName: string, value: PayloadValue, lookup?: string[]): void {
     if (childEndpointName && childEndpointName !== '') {
       deviceEndpoint = this.bridgedDevice?.getChildEndpointByName(childEndpointName) ?? deviceEndpoint;
     }
