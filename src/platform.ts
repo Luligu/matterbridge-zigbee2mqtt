@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformation, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDevice, MatterbridgeDynamicPlatform, PlatformConfig } from 'matterbridge';
+import { BridgedDeviceBasicInformation, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
@@ -40,7 +40,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private permitJoinCallBack: ((entityName: string, permit: boolean) => Promise<void>) | undefined = undefined;
 
   // platform
-  public bridgedDevices: MatterbridgeDevice[] = [];
+  public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
   private injectTimer: NodeJS.Timeout | undefined;
 
@@ -76,8 +76,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('1.7.3')) {
-      throw new Error(`This plugin requires Matterbridge version >= "1.7.3". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('2.1.0')) {
+      throw new Error(`This plugin requires Matterbridge version >= "2.1.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
     }
 
     // this.log.debug(`Config:')}${rs}`, config);
@@ -558,7 +558,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     const entity = this.zigbeeEntities.find((entity) => entity.entityName === friendly_name);
     if (entity) {
       this.log.info(`Removing device: ${friendly_name}`);
-      await this.unregisterDevice(entity.bridgedDevice as MatterbridgeDevice);
+      await this.unregisterDevice(entity.bridgedDevice as MatterbridgeEndpoint);
       this.zigbeeEntities = this.zigbeeEntities.filter((entity) => entity.entityName !== friendly_name);
       this.bridgedDevices = this.bridgedDevices.filter((device) => device.deviceName !== friendly_name);
     }
