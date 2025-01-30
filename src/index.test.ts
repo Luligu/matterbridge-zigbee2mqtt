@@ -115,7 +115,7 @@ describe('initializePlugin', () => {
 
   it('should return an instance of TestPlatform', () => {
     const result = initializePlugin(mockMatterbridge, mockLog, mockConfig);
-
     expect(result).toBeInstanceOf(ZigbeePlatform);
+    result.onShutdown();
   });
 });

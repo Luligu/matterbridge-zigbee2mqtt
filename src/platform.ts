@@ -21,10 +21,10 @@
  * limitations under the License. *
  */
 
-import { BridgedDeviceBasicInformation, DoorLock, DoorLockCluster, Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
+import { Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
-
+import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
 import path from 'path';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup /* , BridgedBaseDevice*/ } from './entity.js';
@@ -237,7 +237,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
           // Coordinator or dedicated routers
           this.log.info(`*- ${zigbeeEntity.bridgedDevice?.deviceName} ${zigbeeEntity.bridgedDevice?.number} (${zigbeeEntity.bridgedDevice?.name})`);
           if (zigbeeEntity.device && status) {
-            zigbeeEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
+            zigbeeEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
             zigbeeEntity.bridgedDevice?.triggerEvent(
               DoorLock.Cluster.id,
               'lockOperation',
@@ -247,7 +247,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
             this.log.info(`Device ${zigbeeEntity.entityName} unlocked`);
           }
           if (zigbeeEntity.device && !status) {
-            zigbeeEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
+            zigbeeEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
             zigbeeEntity.bridgedDevice?.triggerEvent(
               DoorLock.Cluster.id,
               'lockOperation',
@@ -389,19 +389,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (bridgedEntity.isRouter && bridgedEntity.bridgedDevice) {
         this.log.info(`Configuring router ${bridgedEntity.bridgedDevice?.deviceName}.`);
         if (this.z2mBridgeInfo?.permit_join) {
-          bridgedEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
+          bridgedEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
           if (bridgedEntity.bridgedDevice.number)
             bridgedEntity.bridgedDevice?.triggerEvent(
-              DoorLockCluster.id,
+              DoorLock.Cluster.id,
               'lockOperation',
               { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
               this.log,
             );
         } else {
-          bridgedEntity.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
+          bridgedEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
           if (bridgedEntity.bridgedDevice.number)
             bridgedEntity.bridgedDevice?.triggerEvent(
-              DoorLockCluster.id,
+              DoorLock.Cluster.id,
               'lockOperation',
               { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
               this.log,

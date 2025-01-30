@@ -27,44 +27,13 @@ import {
   colorTemperatureSwitch,
   dimmableSwitch,
   onOffSwitch,
-  OnOff,
-  LevelControl,
-  ColorControl,
-  ColorControlCluster,
-  TemperatureMeasurement,
-  BooleanState,
-  RelativeHumidityMeasurement,
-  PressureMeasurement,
-  OccupancySensing,
-  IlluminanceMeasurement,
-  PowerSource,
-  ClusterId,
-  WindowCovering,
-  DoorLock,
-  BridgedDeviceBasicInformation,
-  ThermostatCluster,
-  Thermostat,
-  getClusterNameById,
   powerSource,
   bridgedNode,
-  AirQuality,
-  TotalVolatileOrganicCompoundsConcentrationMeasurement,
-  CarbonDioxideConcentrationMeasurement,
-  CarbonMonoxideConcentrationMeasurement,
-  FormaldehydeConcentrationMeasurement,
-  Pm1ConcentrationMeasurement,
-  Pm25ConcentrationMeasurement,
-  Pm10ConcentrationMeasurement,
   electricalSensor,
-  ElectricalEnergyMeasurement,
-  ElectricalPowerMeasurement,
   onOffLight,
   dimmableLight,
   colorTemperatureLight,
   onOffOutlet,
-  SwitchesTag,
-  NumberTag,
-  VendorId,
   coverDevice,
   thermostatDevice,
   MatterbridgeEndpoint,
@@ -77,17 +46,48 @@ import {
   humiditySensor,
   pressureSensor,
   genericSwitch,
+} from 'matterbridge';
+import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
+import { deepCopy, deepEqual, isValidNumber } from 'matterbridge/utils';
+import * as color from 'matterbridge/utils';
+import { AtLeastOne, SwitchesTag, NumberTag } from 'matterbridge/matter';
+import { getClusterNameById, ClusterId, VendorId, Semtag } from 'matterbridge/matter/types';
+import {
+  ElectricalEnergyMeasurement,
+  ElectricalPowerMeasurement,
   OnOffCluster,
   LevelControlCluster,
   WindowCoveringCluster,
   DoorLockCluster,
-  Semtag,
-  AtLeastOne,
-} from 'matterbridge';
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
-import { deepCopy, deepEqual, isValidNumber } from 'matterbridge/utils';
-import { Behavior, PowerSourceBehavior } from 'matterbridge/matter';
-import * as color from 'matterbridge/utils';
+  BridgedDeviceBasicInformation,
+  OnOff,
+  LevelControl,
+  ColorControl,
+  ColorControlCluster,
+  TemperatureMeasurement,
+  BooleanState,
+  RelativeHumidityMeasurement,
+  PressureMeasurement,
+  OccupancySensing,
+  IlluminanceMeasurement,
+  PowerSource,
+  WindowCovering,
+  DoorLock,
+  ThermostatCluster,
+  Thermostat,
+  AirQuality,
+  TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  CarbonDioxideConcentrationMeasurement,
+  CarbonMonoxideConcentrationMeasurement,
+  FormaldehydeConcentrationMeasurement,
+  Pm1ConcentrationMeasurement,
+  Pm25ConcentrationMeasurement,
+  Pm10ConcentrationMeasurement,
+} from 'matterbridge/matter/clusters';
+
+// @matter
+import { Behavior } from 'matterbridge/matter';
+import { PowerSourceBehavior } from 'matterbridge/matter/behaviors';
 
 import EventEmitter from 'events';
 import { hostname } from 'os';
@@ -465,6 +465,7 @@ export class ZigbeeEntity extends EventEmitter {
    * errors that occur during the update.
    */
   protected updateAttributeIfChanged(deviceEndpoint: MatterbridgeEndpoint, childEndpointName: string | undefined, clusterId: number, attributeName: string, value: PayloadValue, lookup?: string[]): void {
+    if (value === undefined) return;
     if (childEndpointName && childEndpointName !== '') {
       deviceEndpoint = this.bridgedDevice?.getChildEndpointByName(childEndpointName) ?? deviceEndpoint;
     }
@@ -505,7 +506,7 @@ export class ZigbeeEntity extends EventEmitter {
         `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} from ${YELLOW}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${YELLOW}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
     try {
-      deviceEndpoint.setAttribute(ClusterId(clusterId), attributeName, value, undefined);
+      deviceEndpoint.setAttribute(ClusterId(clusterId), attributeName, value);
     } catch (error) {
       this.log.error(`Error setting attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${er}.${hk}${attributeName}${er} to ${value}: ${error}`);
     }
