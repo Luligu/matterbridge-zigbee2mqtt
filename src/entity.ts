@@ -591,7 +591,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
 
     // Set the device entity select
-    zigbeeGroup.log.warn(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device ${group.id} (${group.friendly_name})`);
+    // zigbeeGroup.log.warn(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device ${group.id} (${group.friendly_name})`);
     if (!platform.selectDevice.get(`group-${group.id}`)) {
       platform.selectDevice.set(`group-${group.id}`, { serial: `group-${group.id}`, name: group.friendly_name, icon: 'wifi', entities: [] });
     }
