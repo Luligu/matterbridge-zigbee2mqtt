@@ -56,7 +56,7 @@
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "clean": "npx rimraf tsconfig.tsbuildinfo ./dist",
-    "cleanBuild": "npm run clean && tsc",
+    "cleanBuild": "npm run clean && npm run build",
     "deepClean": "npx rimraf tsconfig.tsbuildinfo package-lock.json npm-shrinkwrap.json ./dist ./node_modules",
     "deepCleanBuild": "npm run deepClean && npm install && npm link matterbridge && npm run build",
     "checkDependencies": "npx npm-check-updates",
