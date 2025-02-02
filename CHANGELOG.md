@@ -4,11 +4,12 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
-## [2.4.4-dev.2] - 2025-02-01
+## [2.4.4] - 2025-02-02
 
-### Fixed
+### Changed
 
 - [plugin]: Requires Matterbridge 2.1.0.
+- [package]: Updated package.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
@@ -17,7 +18,7 @@ All notable changes to this project will be documented in this file.
 
 ## [2.4.3] - 2025-01-20
 
-### Fixed
+### Changed
 
 - [plugin]: Requires Matterbridge 1.7.3.
 - [package]: Updated dependencies.
