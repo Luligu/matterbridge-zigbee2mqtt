@@ -5,7 +5,7 @@
 
 import { jest } from '@jest/globals';
 
-import { Matterbridge, MatterbridgeDevice, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
+import { Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, wr, debugStringify, or, hk, zb, YELLOW } from 'matterbridge/logger';
 import { wait } from 'matterbridge/utils';
 
@@ -35,7 +35,7 @@ describe('TestPlatform', () => {
       matterbridgeDirectory: './jest/matterbridge',
       matterbridgePluginDirectory: './jest/plugins',
       systemInformation: { ipv4Address: undefined },
-      matterbridgeVersion: '1.7.3',
+      matterbridgeVersion: '2.1.0',
       getDevices: jest.fn(() => {
         // console.log('getDevices called');
         return [];
@@ -44,21 +44,12 @@ describe('TestPlatform', () => {
         // console.log('getDevices called');
         return [];
       }),
-      addBridgedDevice: jest.fn(async (pluginName: string, device: MatterbridgeDevice) => {
-        // console.log('addBridgedDevice called');
-      }),
       addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
         // console.log('addBridgedEndpoint called');
         // await aggregator.add(device);
       }),
-      removeBridgedDevice: jest.fn(async (pluginName: string, device: MatterbridgeDevice) => {
-        // console.log('removeBridgedDevice called');
-      }),
       removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
         // console.log('removeBridgedEndpoint called');
-      }),
-      removeAllBridgedDevices: jest.fn(async (pluginName: string) => {
-        // console.log('removeAllBridgedDevices called');
       }),
       removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {
         // console.log('removeAllBridgedEndpoints called');
