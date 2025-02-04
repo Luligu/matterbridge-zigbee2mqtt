@@ -85,10 +85,6 @@ import {
   Pm10ConcentrationMeasurement,
 } from 'matterbridge/matter/clusters';
 
-// @matter
-import { Behavior } from 'matterbridge/matter';
-import { PowerSourceBehavior } from 'matterbridge/matter/behaviors';
-
 import EventEmitter from 'events';
 import { hostname } from 'os';
 
@@ -99,10 +95,6 @@ import { Payload, PayloadValue } from './payloadTypes.js';
 interface BehaviorOptions {
   clusterId: ClusterId;
   options: Record<string, boolean | number | bigint | string | object | null>;
-}
-
-function require<T extends Behavior.Type>(type: T, options: Behavior.Options<T>) {
-  return { clusterId: ClusterId(1), options };
 }
 
 /**
@@ -262,6 +254,14 @@ export class ZigbeeEntity extends EventEmitter {
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
           }
+        }
+
+        // Thermostat current_heating_setpoint is published and exposed like it is current_heating_setpoint and current_cooling_setpoint
+        if (key === 'current_heating_setpoint' && 'system_mode' in payload && payload['system_mode'] === 'heat' && isValidNumber(value)) {
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, Thermostat.Cluster.id, 'occupiedHeatingSetpoint', value * 100);
+        }
+        if (key === 'current_heating_setpoint' && 'system_mode' in payload && payload['system_mode'] === 'cool' && isValidNumber(value)) {
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, Thermostat.Cluster.id, 'occupiedCoolingSetpoint', value * 100);
         }
 
         // ColorControl colorTemperatureMired and colorMode
@@ -886,10 +886,11 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: 'cover', name: 'position', property: 'position', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
   { type: 'lock', name: 'state', property: 'state', deviceType: doorLockDevice, cluster: DoorLock.Cluster.id, attribute: 'lockState', converter: (value) => { return value === 'LOCK' ? DoorLock.LockState.Locked : DoorLock.LockState.Unlocked } },
   { type: 'climate', name: 'local_temperature', property: 'local_temperature', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'localTemperature', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'climate', name: 'current_heating_setpoint', property: 'current_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'climate', name: 'current_cooling_setpoint', property: 'current_cooling_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'current_heating_setpoint', property: 'current_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint' },
   { type: 'climate', name: 'occupied_heating_setpoint', property: 'occupied_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
   { type: 'climate', name: 'occupied_cooling_setpoint', property: 'occupied_cooling_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'unoccupied_heating_setpoint', property: 'unoccupied_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'unoccupied_cooling_setpoint', property: 'unoccupied_cooling_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
   { type: 'climate', name: 'running_state', property: 'running_state', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'thermostatRunningMode', valueLookup: ['idle', '', '', 'cool', 'heat'] },
   { type: 'climate', name: 'system_mode', property: 'system_mode', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'systemMode', valueLookup: ['off', 'auto', '', 'cool', 'heat'] },
   { type: '', name: 'min_temperature_limit', property: 'min_temperature_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'minHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
@@ -1224,56 +1225,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Create the mutable device for the main endpoint
     zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint([...(mainEndpoint.deviceTypes as AtLeastOne<DeviceTypeDefinition>), bridgedNode, powerSource], { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
 
-    // Add BridgedDeviceBasicInformation cluster
+    // Add BridgedDeviceBasicInformation cluster directly to the main endpoint
     zigbeeDevice.addBridgedDeviceBasicInformation();
 
     // Add PowerSource cluster
     zigbeeDevice.addPowerSource();
     mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(PowerSource.Cluster.id), 1);
-    // ClusterBehavior.for(PowerSource.Cluster);
-    const options = require(PowerSourceBehavior.with(PowerSource.Feature.Wired), {
-      wiredCurrentType: PowerSource.WiredCurrentType.Ac,
-      description: 'AC Power',
-      status: PowerSource.PowerSourceStatus.Active,
-      order: 0,
-      endpointList: [],
-    });
-    mainEndpoint.clusterServersOptions.push(options);
-
-    // Configure ColorControlCluster
-    if (mainEndpoint.clusterServersIds.includes(ColorControl.Cluster.id)) {
-      zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')}`);
-      if (!names.includes('color_hs') && !names.includes('color_xy')) {
-        zigbeeDevice.bridgedDevice.createCtColorControlClusterServer();
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ColorControl.Cluster.id), 1);
-      }
-    }
-
-    // Configure ThermostatCluster: Auto or Heating only or Cooling only. Set also min and max if available
-    if (mainEndpoint.clusterServersIds.includes(Thermostat.Cluster.id)) {
-      const heat = zigbeeDevice.propertyMap.get('occupied_heating_setpoint') || zigbeeDevice.propertyMap.get('current_heating_setpoint');
-      const cool = zigbeeDevice.propertyMap.get('occupied_cooling_setpoint') || zigbeeDevice.propertyMap.get('current_cooling_setpoint');
-      const minHeating = heat && heat.value_min !== undefined && !isNaN(heat.value_min) ? heat.value_min : 0;
-      const maxHeating = heat && heat.value_max !== undefined && !isNaN(heat.value_max) ? heat.value_max : 50;
-      const minCooling = cool && cool.value_min !== undefined && !isNaN(cool.value_min) ? cool.value_min : 0;
-      const maxCooling = cool && cool.value_max !== undefined && !isNaN(cool.value_max) ? cool.value_max : 50;
-      zigbeeDevice.log.debug(
-        `Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} Thermostat cluster with heating ${CYAN}${heat ? 'supported' : 'not supported'}${db} cooling ${CYAN}${cool ? 'supported' : 'not supported'}${db} ` +
-          `minHeating ${CYAN}${minHeating}${db} maxHeating ${CYAN}${maxHeating}${db} minCooling ${CYAN}${minCooling}${db} maxCooling ${CYAN}${maxCooling}${db}`,
-      );
-      if (heat && !cool) {
-        zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only heating is supported cause it's not supported by the cluster without AutoMode
-        zigbeeDevice.bridgedDevice.createDefaultHeatingThermostatClusterServer(undefined, undefined, minHeating, maxHeating);
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
-      } else if (!heat && cool) {
-        zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only cooling is supported cause it's not supported by the cluster without AutoMode
-        zigbeeDevice.bridgedDevice.createDefaultCoolingThermostatClusterServer(undefined, undefined, minCooling, maxCooling);
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
-      } else if (heat && cool) {
-        zigbeeDevice.bridgedDevice.createDefaultThermostatClusterServer(undefined, undefined, undefined, undefined, minHeating, maxHeating, minCooling, maxCooling);
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
-      }
-    }
 
     // Filter out duplicate clusters and clusters objects
     for (const [endpoint, device] of zigbeeDevice.mutableDevice) {
@@ -1309,9 +1266,48 @@ export class ZigbeeDevice extends ZigbeeEntity {
       );
     }
 
+    // Configure ColorControlCluster
+    if (mainEndpoint.clusterServersIds.includes(ColorControl.Cluster.id)) {
+      zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')}`);
+      if (!names.includes('color_hs') && !names.includes('color_xy')) {
+        zigbeeDevice.bridgedDevice.createCtColorControlClusterServer();
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ColorControl.Cluster.id), 1);
+      }
+    }
+
+    // Configure ThermostatCluster: Auto or Heating only or Cooling only. Set also min and max if available
+    if (mainEndpoint.clusterServersIds.includes(Thermostat.Cluster.id)) {
+      const system_mode = zigbeeDevice.propertyMap.get('system_mode');
+      const system_mode_values = system_mode?.values;
+      const heat = zigbeeDevice.propertyMap.get('occupied_heating_setpoint') || zigbeeDevice.propertyMap.get('unoccupied_heating_setpoint');
+      const cool = zigbeeDevice.propertyMap.get('occupied_cooling_setpoint') || zigbeeDevice.propertyMap.get('unoccupied_cooling_setpoint');
+      const minHeating = heat && heat.value_min !== undefined && !isNaN(heat.value_min) ? heat.value_min : 0;
+      const maxHeating = heat && heat.value_max !== undefined && !isNaN(heat.value_max) ? heat.value_max : 50;
+      const minCooling = cool && cool.value_min !== undefined && !isNaN(cool.value_min) ? cool.value_min : 0;
+      const maxCooling = cool && cool.value_max !== undefined && !isNaN(cool.value_max) ? cool.value_max : 50;
+      zigbeeDevice.log.debug(
+        `Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} Thermostat cluster with heating ${CYAN}${heat ? 'supported' : '(un)occupied not supported'}${db} cooling ${CYAN}${cool ? 'supported' : '(un)occupied not supported'}${db} ` +
+          `system_mode ${CYAN}${system_mode_values ?? 'not supported'}${db} ` +
+          `minHeating ${CYAN}${minHeating}${db} maxHeating ${CYAN}${maxHeating}${db} minCooling ${CYAN}${minCooling}${db} maxCooling ${CYAN}${maxCooling}${db}`,
+      );
+      if ((heat && !cool) || (!system_mode_values?.includes('auto') && system_mode_values?.includes('heat'))) {
+        zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only heating is supported cause it's not supported by the cluster without AutoMode
+        zigbeeDevice.bridgedDevice.createDefaultHeatingThermostatClusterServer(undefined, undefined, minHeating, maxHeating);
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+      } else if ((!heat && cool) || (!system_mode_values?.includes('auto') && system_mode_values?.includes('cool'))) {
+        zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only cooling is supported cause it's not supported by the cluster without AutoMode
+        zigbeeDevice.bridgedDevice.createDefaultCoolingThermostatClusterServer(undefined, undefined, minCooling, maxCooling);
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+      } else {
+        zigbeeDevice.bridgedDevice.createDefaultThermostatClusterServer(undefined, undefined, undefined, undefined, minHeating, maxHeating, minCooling, maxCooling);
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+      }
+    }
+
     // Add the cluster ids to the main endpoint
     zigbeeDevice.bridgedDevice.addClusterServers(mainEndpoint.clusterServersIds);
     zigbeeDevice.bridgedDevice.addRequiredClusterServers();
+
     // Add the Fixed Label cluster to the main endpoint
     if (zigbeeDevice.composedType !== '') await zigbeeDevice.bridgedDevice.addFixedLabel('composed', zigbeeDevice.composedType);
 
@@ -1529,9 +1525,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
         if (request.mode === Thermostat.SetpointRaiseLowerMode.Cool || request.mode === Thermostat.SetpointRaiseLowerMode.Both) {
           const t = zigbeeDevice.bridgedDevice?.getAttribute(ThermostatCluster.id, 'occupiedCoolingSetpoint', zigbeeDevice.log);
           const setpoint = Math.round(t / 100 + request.amount / 10);
-          if (zigbeeDevice.propertyMap.has('current_cooling_setpoint')) {
-            zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_cooling_setpoint: setpoint });
-            zigbeeDevice.log.debug('Command setpointRaiseLower sent:', debugStringify({ current_cooling_setpoint: setpoint }));
+          if (zigbeeDevice.propertyMap.has('current_heating_setpoint')) {
+            zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_heating_setpoint: setpoint });
+            zigbeeDevice.log.debug('Command setpointRaiseLower sent:', debugStringify({ current_heating_setpoint: setpoint }));
           } else if (zigbeeDevice.propertyMap.has('occupied_cooling_setpoint')) {
             zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: setpoint });
             zigbeeDevice.log.debug('Command setpointRaiseLower sent:', debugStringify({ occupied_cooling_setpoint: setpoint }));
@@ -1573,7 +1569,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           'occupiedCoolingSetpoint',
           async (value) => {
             zigbeeDevice.log.debug(`Subscribe occupiedCoolingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
-            if (zigbeeDevice.propertyMap.has('current_cooling_setpoint')) zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_cooling_setpoint: Math.round(value / 100) });
+            if (zigbeeDevice.propertyMap.has('current_heating_setpoint')) zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_cooling_setpoint')) zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: Math.round(value / 100) });
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
