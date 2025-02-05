@@ -6,13 +6,17 @@ All notable changes to this project will be documented in this file.
 
 ## [2.4.5] - 2025-02-04
 
+### Added
+
+- [thermostat]: Added fan_only mode (tested by https://github.com/robvanoostenrijk).
+
 ### Changed
 
 - [package]: Updated dependencies.
 
 ### Fixed
 
-- [endpoint]: Fix thermostat bug.
+- [thermostat]: Fix thermostat bug (thanks https://github.com/robvanoostenrijk).
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
