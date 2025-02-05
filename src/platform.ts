@@ -283,7 +283,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.on('device_interview', async (friendly_name: string, ieee_address: string, status: string, supported: boolean) => {
       this.log.info(`zigbee2MQTT sent device_interview device: ${friendly_name} ieee_address: ${ieee_address} status: ${status} supported: ${supported}`);
       if (status === 'successful' && supported) {
-        if (!this.validateDeviceWhiteBlackList(friendly_name)) return;
+        if (!this.validateDevice(friendly_name)) return;
         this.log.info(`Registering device: ${friendly_name}`);
         const bridgedDevice = this.z2mBridgeDevices?.find((device) => device.friendly_name === friendly_name);
         if (bridgedDevice) await this.registerZigbeeDevice(bridgedDevice);
@@ -303,7 +303,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('group_add', async (friendly_name: string, id: number, status: string) => {
       this.log.info(`zigbee2MQTT sent group_add friendly_name: ${friendly_name} id ${id} status ${status}`);
-      if (!this.validateDeviceWhiteBlackList(friendly_name)) return;
+      if (!this.validateDevice(friendly_name)) return;
       this.log.info(`Registering group: ${friendly_name}`);
       const bridgedGroup = this.z2mBridgeGroups?.find((group) => group.friendly_name === friendly_name);
       if (bridgedGroup) await this.registerZigbeeGroup(bridgedGroup);
@@ -559,6 +559,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (entity) {
       this.log.info(`Removing device: ${friendly_name}`);
       await this.unregisterDevice(entity.bridgedDevice as MatterbridgeEndpoint);
+      entity.destroy();
       this.zigbeeEntities = this.zigbeeEntities.filter((entity) => entity.entityName !== friendly_name);
       this.bridgedDevices = this.bridgedDevices.filter((device) => device.deviceName !== friendly_name);
     }
