@@ -4,6 +4,24 @@ If you like this project and find it useful, please consider giving it a star on
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.5] - 2025-02-05
+
+### Added
+
+- [thermostat]: Added fan_only mode (tested by https://github.com/robvanoostenrijk). No controllers seem to support this mode in UI right now.
+
+### Changed
+
+- [package]: Updated dependencies.
+
+### Fixed
+
+- [thermostat]: Fix thermostat bug (thanks https://github.com/robvanoostenrijk).
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+</a>
+
 ## [2.4.4] - 2025-02-02
 
 ### Changed
