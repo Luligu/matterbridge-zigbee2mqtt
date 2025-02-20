@@ -21,15 +21,15 @@
  * limitations under the License. *
  */
 
-import fs from 'fs';
-import path from 'path';
-import * as util from 'util';
-import * as crypto from 'crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import * as util from 'node:util';
+import * as crypto from 'node:crypto';
 import { MqttClient, IClientOptions, connectAsync, ErrorWithReasonCode, IConnackPacket, IDisconnectPacket, IPublishPacket, Packet } from 'mqtt';
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF, LogLevel } from 'node-ansi-logger';
 import { BridgeExtension, KeyValue, Topology } from './zigbee2mqttTypes.js';
-import { mkdir } from 'fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { Payload } from './payloadTypes.js';
 
 const writeFile = util.promisify(fs.writeFile);

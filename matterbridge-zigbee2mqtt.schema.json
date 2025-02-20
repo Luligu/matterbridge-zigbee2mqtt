@@ -51,8 +51,7 @@
       "description": "The devices in the list will not be exposed.",
       "type": "array",
       "items": {
-        "type": "string",
-        "default": "device or group name"
+        "type": "string"
       },
       "uniqueItems": true,
       "selectFrom": "name"
@@ -61,8 +60,7 @@
       "description": "Only the devices in the list will be exposed.",
       "type": "array",
       "items": {
-        "type": "string",
-        "default": "device or group name"
+        "type": "string"
       },
       "uniqueItems": true,
       "selectFrom": "name"

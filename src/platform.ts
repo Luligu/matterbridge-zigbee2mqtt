@@ -25,7 +25,7 @@ import { Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, Platfo
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
-import path from 'path';
+import path from 'node:path';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup /* , BridgedBaseDevice*/ } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
@@ -431,19 +431,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
   override async onShutdown(reason?: string) {
     await super.onShutdown(reason);
+    this.z2m.removeAllListeners();
+    this.z2m.stop();
+    this.publishCallBack = undefined;
     this.log.debug('Shutting down zigbee2mqtt platform: ' + reason);
     for (const entity of this.zigbeeEntities) {
       entity.destroy();
     }
-
     if (this.injectTimer) clearInterval(this.injectTimer);
     this.injectTimer = undefined;
     if (this.availabilityTimer) clearInterval(this.availabilityTimer);
     this.availabilityTimer = undefined;
     // this.updateAvailability(false);
     if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
-    this.z2m.stop();
-    this.publishCallBack = undefined;
     this.log.info(`Shutdown zigbee2mqtt dynamic platform v${this.version}`);
   }
 

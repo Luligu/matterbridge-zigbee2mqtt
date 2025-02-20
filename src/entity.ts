@@ -85,8 +85,8 @@ import {
   Pm10ConcentrationMeasurement,
 } from 'matterbridge/matter/clusters';
 
-import EventEmitter from 'events';
-import { hostname } from 'os';
+import EventEmitter from 'node:events';
+import { hostname } from 'node:os';
 
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';

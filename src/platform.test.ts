@@ -12,8 +12,8 @@ import { wait } from 'matterbridge/utils';
 import { ZigbeePlatform } from './platform';
 import { Zigbee2MQTT } from './zigbee2mqtt';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes';
-import path from 'path';
-import fs from 'fs';
+import path from 'node:path';
+import fs from 'node:fs';
 
 describe('TestPlatform', () => {
   let mockMatterbridge: Matterbridge;
