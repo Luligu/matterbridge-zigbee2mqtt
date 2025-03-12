@@ -76,7 +76,7 @@
     "dev:unlink": "npm unlink matterbridge",
     "install:dependencies": "npm install node-ansi-logger moment mqtt",
     "install:typescript": "npm install --save-dev typescript @types/node && npm run install && npm run build",
-    "install:eslint": "npm install --save-dev eslint @eslint/js @types/eslint__js typescript typescript-eslint",
+    "install:eslint": "npm uninstall eslint @types/eslint__js && npm install --save-dev @eslint/js typescript-eslint eslint-plugin-n && npm run lint",
     "install:prettier": "npm install --save-dev prettier eslint-config-prettier eslint-plugin-prettier",
     "install:jest": "npm install --save-dev jest ts-jest @types/jest eslint-plugin-jest",
     "runMeBeforePublish": "npm run lint && npm run format && npm run build && npm run test"
