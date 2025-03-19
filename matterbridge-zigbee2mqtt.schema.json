@@ -119,6 +119,18 @@
         "selectDeviceEntityFrom": "name"
       }
     },
+    "deviceScenes": {
+      "description": "Enable the devices scenes",
+      "type": "boolean",
+      "default": false,
+      "ui:widget": "hidden"
+    },
+    "groupScenes": {
+      "description": "Enable the groups scenes",
+      "type": "boolean",
+      "default": false,
+      "ui:widget": "hidden"
+    },
     "postfix": {
       "description": "Add this unique postfix (3 characters max) to each device serial to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
       "type": "string",

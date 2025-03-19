@@ -699,6 +699,12 @@ export class ZigbeeGroup extends ZigbeeEntity {
       zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([deviceType, bridgedNode, powerSource], { uniqueStorageKey: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
     }
 
+    if (platform.config.groupScenes === true) {
+      group.scenes.forEach((scene) => {
+        zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
+      });
+    }
+
     zigbeeGroup.addBridgedDeviceBasicInformation();
     zigbeeGroup.addPowerSource();
     zigbeeGroup.bridgedDevice.addRequiredClusterServers();
@@ -1002,6 +1008,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
 
       return zigbeeDevice;
+    }
+
+    if (platform.config.deviceScenes === true) {
+      Object.entries(device.endpoints).forEach(([key, endpoint]) => {
+        Object.values(endpoint.scenes).forEach((scene) => {
+          zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
+        });
+      });
     }
 
     // Get types and properties
