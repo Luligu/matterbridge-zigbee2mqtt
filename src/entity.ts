@@ -600,7 +600,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
 
     // Set the device entity select
-    zigbeeGroup.log.debug(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device "group-${group.id}" "${group.friendly_name}" "wifi"`);
+    // zigbeeGroup.log.debug(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device "group-${group.id}" "${group.friendly_name}" "wifi"`);
     platform.setSelectDevice(`group-${group.id}`, group.friendly_name, 'wifi');
 
     let useState = false;
@@ -980,6 +980,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (device.friendly_name === 'Coordinator' || (device.model_id === 'ti.router' && device.manufacturer === 'TexasInstruments') || (device.model_id.startsWith('SLZB-') && device.manufacturer === 'SMLIGHT')) {
       zigbeeDevice.isRouter = true;
 
+      // zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
+      platform.setSelectDevice(device.ieee_address, device.friendly_name, 'wifi');
+
       zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint([doorLockDevice], { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
       zigbeeDevice.addBridgedDeviceBasicInformation();
       zigbeeDevice.addPowerSource();
@@ -1085,10 +1088,10 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Set the device entity select
     platform.setSelectEntity('last_seen', 'Last seen', 'hub');
     for (const [index, property] of properties.entries()) {
-      zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
+      // zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
       platform.setSelectDevice(device.ieee_address, device.friendly_name, 'wifi');
 
-      zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select entity ${property} (${descriptions[index]})`);
+      // zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select entity ${property} (${descriptions[index]})`);
       if (endpoints[index] === '') platform.setSelectEntity(property, descriptions[index], 'hub');
       platform.setSelectDeviceEntity(device.ieee_address, property, descriptions[index], 'hub');
     }
@@ -1142,7 +1145,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (!zigbeeDevice.mutableDevice.has(endpoint)) { zigbeeDevice.mutableDevice.set(endpoint, { tagList: [], deviceTypes: [z2m.deviceType], clusterServersIds: [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], clusterServersOptions: [], clusterClientsIds: [], clusterClientsOptions: [] });
           } else {
             zigbeeDevice.mutableDevice.get(endpoint)?.deviceTypes.push(z2m.deviceType);
-            zigbeeDevice.mutableDevice.get(endpoint)?.clusterServersIds.push(...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster));
+            zigbeeDevice.mutableDevice.get(endpoint)?.clusterServersIds.push(...z2m.deviceType.requiredServerClusters);
+            zigbeeDevice.mutableDevice.get(endpoint)?.clusterServersIds.push(ClusterId(z2m.cluster));
           }
         } else {
           const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
@@ -1239,7 +1243,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Add PowerSource cluster
     zigbeeDevice.addPowerSource();
-    mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(PowerSource.Cluster.id), 1);
+    if (mainEndpoint.clusterServersIds.includes(PowerSource.Cluster.id)) {
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(PowerSource.Cluster.id), 1);
+    }
 
     // Filter out duplicate clusters and clusters objects
     for (const [endpoint, device] of zigbeeDevice.mutableDevice) {
