@@ -593,15 +593,15 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     if (zigbeeGroup.platform.postfixHostname) {
       zigbeeGroup.serial = `group-${group.id}_${hostname}`.slice(0, 32);
+    } else if (zigbeeGroup.platform.postfix !== '') {
+      zigbeeGroup.serial = `group-${group.id}-${zigbeeGroup.platform.postfix}`.slice(0, 32);
     } else {
       zigbeeGroup.serial = `group-${group.id}`.slice(0, 32);
     }
 
     // Set the device entity select
-    // zigbeeGroup.log.warn(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device ${group.id} (${group.friendly_name})`);
-    if (!platform.selectDevice.get(`group-${group.id}`)) {
-      platform.selectDevice.set(`group-${group.id}`, { serial: `group-${group.id}`, name: group.friendly_name, icon: 'wifi', entities: [] });
-    }
+    zigbeeGroup.log.debug(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device "group-${group.id}" "${group.friendly_name}" "wifi"`);
+    platform.setSelectDevice(`group-${group.id}`, group.friendly_name, 'wifi');
 
     let useState = false;
     let useBrightness = false;
@@ -972,6 +972,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
     zigbeeDevice.serial = `${device.ieee_address}`;
     if (zigbeeDevice.platform.postfixHostname) {
       zigbeeDevice.serial = `${zigbeeDevice.serial}_${hostname}`.slice(0, 32);
+    } else if (zigbeeDevice.platform.postfix !== '') {
+      zigbeeDevice.serial = `${zigbeeDevice.serial}-${zigbeeDevice.platform.postfix}`.slice(0, 32);
     }
 
     // Set Coordinator and dedicated routers
@@ -1081,19 +1083,17 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     // Set the device entity select
-    platform.selectEntity.set('last_seen', { name: 'last_seen', description: 'Last seen', icon: 'hub' });
+    platform.setSelectEntity('last_seen', 'Last seen', 'hub');
     for (const [index, property] of properties.entries()) {
-      zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
-      if (!platform.selectDevice.get(device.ieee_address)) {
-        platform.selectDevice.set(device.ieee_address, { serial: device.ieee_address, name: device.friendly_name, icon: 'wifi', entities: [] });
-      }
+      zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
+      platform.setSelectDevice(device.ieee_address, device.friendly_name, 'wifi');
 
-      zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select entity ${property} (${descriptions[index]})`);
-      if (endpoints[index] === '') platform.selectEntity.set(property, { name: property, description: descriptions[index], icon: 'hub' });
-      platform.selectDevice.get(device.ieee_address)?.entities?.push({ name: property, description: descriptions[index], icon: 'hub' });
+      zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select entity ${property} (${descriptions[index]})`);
+      if (endpoints[index] === '') platform.setSelectEntity(property, descriptions[index], 'hub');
+      platform.setSelectDeviceEntity(device.ieee_address, property, descriptions[index], 'hub');
     }
 
-    // Set the global and devic based feature blacklist
+    // Set the global and device based feature blacklist
     if (platform.featureBlackList) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.featureBlackList];
     if (platform.deviceFeatureBlackList[device.friendly_name]) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.deviceFeatureBlackList[device.friendly_name]];
 

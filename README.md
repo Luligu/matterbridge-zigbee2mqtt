@@ -1,4 +1,4 @@
-# <img src="https://github.com/Luligu/matterbridge/blob/main/frontend/public/matterbridge%2064x64.png" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin
+# <img src="matterbridge.svg" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin
 
 [![npm version](https://img.shields.io/npm/v/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
 [![npm downloads](https://img.shields.io/npm/dt/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
@@ -20,6 +20,10 @@ No hub or dedicated hardware needed.
 Interested in super fast and autonomous automations for zigbee2mqtt? Try this: https://github.com/Luligu/zigbee2mqtt-automations
 
 If you like this project and find it useful, please consider giving it a star on GitHub at https://github.com/Luligu/matterbridge-zigbee2mqtt and sponsoring it.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
+</a>
 
 ## Prerequisites
 
@@ -146,6 +150,7 @@ These are the default vules:
   "outletList": [],
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
+  "postfix": "",
   "postfixHostname": true
 }
 ```
@@ -174,6 +179,7 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 }
 ```
 
+The parameter postfixHostname is deprecated and will be removed in the next release. Use postfix instead if needed.
 By default matterbridge-zigbee2mqtt uses hostname in order to make entities unique, however in some cases
 you may not want this behavior. You can use "postfixHostname" boolean flag to disable this behavior:
 

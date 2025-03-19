@@ -35,7 +35,7 @@ describe('TestPlatform', () => {
       matterbridgeDirectory: './jest/matterbridge',
       matterbridgePluginDirectory: './jest/plugins',
       systemInformation: { ipv4Address: undefined },
-      matterbridgeVersion: '2.1.0',
+      matterbridgeVersion: '2.2.4',
       getDevices: jest.fn(() => {
         // console.log('getDevices called');
         return [];
@@ -71,6 +71,7 @@ describe('TestPlatform', () => {
       'outletList': [],
       'featureBlackList': ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
       'deviceFeatureBlackList': {},
+      'postfix': '',
       'postfixHostname': true,
       'debug': true,
       'unregisterOnShutdown': false,

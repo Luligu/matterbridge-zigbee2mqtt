@@ -56,6 +56,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public switchList: string[] = [];
   public featureBlackList: string[] = [];
   public deviceFeatureBlackList: DeviceFeatureBlackList = {};
+  public postfix = '';
   public postfixHostname = true;
 
   // zigbee2Mqtt
@@ -76,8 +77,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('2.1.0')) {
-      throw new Error(`This plugin requires Matterbridge version >= "2.1.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('2.2.4')) {
+      throw new Error(`This plugin requires Matterbridge version >= "2.2.4". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
     }
 
     // this.log.debug(`Config:')}${rs}`, config);
@@ -96,6 +97,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.outletList) this.outletList = config.outletList as string[];
     if (config.featureBlackList) this.featureBlackList = config.featureBlackList as string[];
     if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList as DeviceFeatureBlackList;
+    if (config.postfix) this.postfix = config.postfix as string;
+    this.postfix = this.postfix.trim().slice(0, 3);
     this.postfixHostname = (config.postfixHostname as boolean) ?? true;
 
     // Save back to create a default plugin config.json
@@ -105,6 +108,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.topic = this.mqttTopic;
     config.username = this.mqttUsername;
     config.password = this.mqttPassword;
+    config.postfix = this.postfix;
     config.postfixHostname = this.postfixHostname;
 
     if (config.type === 'MatterbridgeExtension') {
@@ -117,6 +121,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
     // this.log.debug(`Config:')}${rs}`, config);
+    // Clear select device and entity since we have a bridge here
+    this.clearSelect();
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
     this.z2m.setLogDebug(this.debugEnabled);
@@ -511,8 +517,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   private async registerZigbeeDevice(device: BridgeDevice): Promise<ZigbeeDevice | undefined> {
-    this.selectDevice.set(device.ieee_address, { serial: device.ieee_address, name: device.friendly_name, icon: 'wifi', entities: [] });
-    if (!this.validateDevice(device.friendly_name)) {
+    this.setSelectDevice(device.ieee_address, device.friendly_name, undefined, 'wifi');
+    if (!this.validateDevice([device.friendly_name, device.ieee_address], true)) {
       return undefined;
     }
     this.log.debug(`Registering device ${dn}${device.friendly_name}${db} ID: ${zb}${device.ieee_address}${db}`);
@@ -533,8 +539,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   public async registerZigbeeGroup(group: BridgeGroup): Promise<ZigbeeGroup | undefined> {
-    this.selectDevice.set(`group-${group.id}`, { serial: `group-${group.id}`, name: group.friendly_name, icon: 'wifi' });
-    if (!this.validateDevice(group.friendly_name)) {
+    this.setSelectDevice(`group-${group.id}`, group.friendly_name, undefined, 'wifi');
+    if (!this.validateDevice([group.friendly_name, `group-${group.id}`], true)) {
       return undefined;
     }
     this.log.debug(`Registering group ${gn}${group.friendly_name}${db} ID: ${zb}${group.id}${db}`);
