@@ -85,7 +85,6 @@ describe('initializePlugin', () => {
       'postfix': '',
       'postfixHostname': true,
       'unregisterOnShutdown': false,
-      'delayStart': false,
     } as PlatformConfig;
 
     // Spy on and mock the AnsiLogger.log method
@@ -114,7 +113,7 @@ describe('initializePlugin', () => {
     });
   });
 
-  it('should return an instance of TestPlatform', () => {
+  it('should return an instance of ZigbeePlatform', () => {
     const result = initializePlugin(mockMatterbridge, mockLog, mockConfig);
     expect(result).toBeInstanceOf(ZigbeePlatform);
     result.onShutdown();
