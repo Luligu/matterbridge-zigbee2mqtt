@@ -1,8 +1,30 @@
-# <img src="https://github.com/Luligu/matterbridge/blob/main/frontend/public/matterbridge%2064x64.png" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin changelog
+# <img src="matterbridge.svg" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin changelog
+
+All notable changes to this project will be documented in this file.
 
 If you like this project and find it useful, please consider giving it a star on GitHub at https://github.com/Luligu/matterbridge-zigbee2mqtt and sponsoring it.
 
-All notable changes to this project will be documented in this file.
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
+</a>
+
+## [2.4.7] - 2025-03-19
+
+### Added
+
+- [select]: Added the possibility to whitelist or blacklist with the device serial (i.e. 0x187a3efffe357548) or the group serial (i.e. group-1).
+
+### Changed
+
+- [package]: Updated package.
+- [package]: Updated dependencies.
+- [plugin]: Requires Matterbridge 2.2.5.
+- [config]: Added parameter postfix (3 characters max) to be consistent with the other plugins. This parameter works with the Devices panel in the home page.
+- [config]: The old postfixHostname will be removed in the next release. If you were using postfixHostname, please change it with postfix, the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller!
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
 
 ## [2.4.6] - 2025-02-20
 
@@ -16,7 +38,7 @@ All notable changes to this project will be documented in this file.
 - [schema]: Fix wrong default in schema (thanks https://github.com/robvanoostenrijk).
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.4.5] - 2025-02-05
@@ -34,7 +56,7 @@ All notable changes to this project will be documented in this file.
 - [thermostat]: Fix thermostat bug (thanks https://github.com/robvanoostenrijk).
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.4.4] - 2025-02-02
@@ -46,7 +68,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.4.3] - 2025-01-20
@@ -57,7 +79,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.4.2] - 2025-01-11
@@ -67,7 +89,7 @@ All notable changes to this project will be documented in this file.
 - [endpoint]: Fixed blacklist of child endpoints.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.4.1] - 2025-01-11
@@ -83,7 +105,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.4.0] - 2025-01-08
@@ -99,7 +121,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.3.2] - 2024-12-24
@@ -112,7 +134,7 @@ All notable changes to this project will be documented in this file.
 - [platform]: Use platform endpoint number check.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.3.1] - 2024-12-12
@@ -130,7 +152,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.3.0] - 2024-12-04
@@ -150,7 +172,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.2.2] - 2024-11-26
@@ -176,7 +198,7 @@ All notable changes to this project will be documented in this file.
 - [thermostat]: Fixed the case when instead of current_cooling_setpoint the property is occupied_cooling_setpoint.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.2.1] - 2024-10-11
@@ -188,7 +210,7 @@ All notable changes to this project will be documented in this file.
 - [entity]: Fixed log.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.2.0] - 2024-10-10
@@ -205,7 +227,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.19] - 2024-10-01
@@ -216,7 +238,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.17] - 2024-09-21
@@ -234,7 +256,7 @@ All notable changes to this project will be documented in this file.
 - [plugin]: Removed the superset device types.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.16] - 2024-09-04
@@ -245,7 +267,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.15] - 2024-09-03
@@ -256,7 +278,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.14] - 2024-08-29
@@ -271,7 +293,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated imports.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.13] - 2024-08-22
@@ -285,7 +307,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Fixed MQTT protocol.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.12] - 2024-08-21
@@ -297,7 +319,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Updated dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.11] - 2024-08-20
@@ -312,7 +334,7 @@ All notable changes to this project will be documented in this file.
 - [package]: Fixed dependencies.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.10] - 2024-08-09
@@ -327,7 +349,7 @@ All notable changes to this project will be documented in this file.
 - [z2m]: Fixed issue: 'Only supported EndpointInterface implementation is Endpoint'.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.9] - 2024-07-28
@@ -339,7 +361,7 @@ All notable changes to this project will be documented in this file.
 - [storage]: Update node-persist-manager to 1.0.8.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.8] - 2024-07-23
@@ -349,7 +371,7 @@ All notable changes to this project will be documented in this file.
 - [z2m]: Updated matterbridge imports.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.7] - 2024-07-11
@@ -359,7 +381,7 @@ All notable changes to this project will be documented in this file.
 - [z2m]: Fixed trigger when the endpoint is undefined.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.6] - 2024-07-10
@@ -374,7 +396,7 @@ All notable changes to this project will be documented in this file.
 - [z2m]: Fixed the detection of color_temp only lights.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.5] - 2024-07-01
@@ -388,7 +410,7 @@ All notable changes to this project will be documented in this file.
 - [zigbee]: Fixed WindowCovering.targetPositionLiftPercent100ths update (Thanks Nitay Ben-Zvi).
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.4] - 2024-06-30
@@ -399,7 +421,7 @@ All notable changes to this project will be documented in this file.
 - [dependencies]: Update eslint to 9.6.0.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.3] - 2024-06-23
@@ -418,7 +440,7 @@ All notable changes to this project will be documented in this file.
 - [bridge/info]: Fixed the issue when include_device_information is set to true. (Thanks copystring).
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.2] - 2024-06-21
@@ -429,7 +451,7 @@ All notable changes to this project will be documented in this file.
 - [start]: Refactor start sequence.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.1] - 2024-06-20
@@ -440,7 +462,7 @@ All notable changes to this project will be documented in this file.
 - [schema]: Added info log when the plugin starts to register devices and groups. Added empty bridge/config and bridge/definitions handlers.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.1.0] - 2024-06-19
@@ -463,7 +485,7 @@ All notable changes to this project will be documented in this file.
 - [availability]: Fixed the issue that caused the availability event sent before the start to be ignored.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.0.17] - 2024-06-16
@@ -477,7 +499,7 @@ All notable changes to this project will be documented in this file.
 - [dependencies]: Update dependencies
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.0.16] - 2024-06-06
@@ -488,7 +510,7 @@ All notable changes to this project will be documented in this file.
 - [matterbridge]: Added bridgeOnline to the start checks.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.0.15] - 2024-06-01
@@ -499,7 +521,7 @@ All notable changes to this project will be documented in this file.
 - [matterbridge]: Adapted the code to the new start mode of Matterbridge.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.0.14] - 2024-05-09
@@ -509,7 +531,7 @@ All notable changes to this project will be documented in this file.
 - [mqtt]: Added Keekalive to MQTT.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.0.13] - 2024-05-02
@@ -523,7 +545,7 @@ All notable changes to this project will be documented in this file.
 - [payload]: Fixed the case when z2m sends empty action in the payload.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.0.12] - 2024-04-30
@@ -534,7 +556,7 @@ All notable changes to this project will be documented in this file.
 - [mqtt]: Added handles for group_add, group_remove, group_rename, group_add_member and group_remove_member
 
 <a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="./yellow-button.png" alt="Buy me a coffee" width="120">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>
 
 ## [2.0.11] - 2024-04-26

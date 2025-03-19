@@ -7,13 +7,12 @@ import { jest } from '@jest/globals';
 
 import { Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, wr, debugStringify, or, hk, zb, YELLOW } from 'matterbridge/logger';
-import { wait } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './platform';
 import { Zigbee2MQTT } from './zigbee2mqtt';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes';
 import path from 'node:path';
-import fs from 'node:fs';
+import { wait } from 'matterbridge/utils';
 
 describe('TestPlatform', () => {
   let mockMatterbridge: Matterbridge;
@@ -35,7 +34,7 @@ describe('TestPlatform', () => {
       matterbridgeDirectory: './jest/matterbridge',
       matterbridgePluginDirectory: './jest/plugins',
       systemInformation: { ipv4Address: undefined },
-      matterbridgeVersion: '2.1.0',
+      matterbridgeVersion: '2.2.5',
       getDevices: jest.fn(() => {
         // console.log('getDevices called');
         return [];
@@ -71,6 +70,7 @@ describe('TestPlatform', () => {
       'outletList': [],
       'featureBlackList': ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
       'deviceFeatureBlackList': {},
+      'postfix': '',
       'postfixHostname': true,
       'debug': true,
       'unregisterOnShutdown': false,
@@ -155,7 +155,6 @@ describe('TestPlatform', () => {
     expect(z2mPlatform.z2mBridgeGroups.length).toBe(10);
   });
 
-  /*
   it('should update entity OFFLINE', async () => {
     for (const entity of z2mPlatform.zigbeeEntities) {
       expect(entity).toBeDefined();
@@ -176,30 +175,6 @@ describe('TestPlatform', () => {
       await wait(200);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${entity.entityName}${rs}`);
     }
-  }, 60000);
-
-  it('should update entity MESSAGE', async () => {
-    const filePath = path.join('src', 'mock', 'bridge-payloads.txt');
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const logEntries = fileContent
-      .split('\n')
-      .filter((line) => line.trim() !== '')
-      .map((line) => JSON.parse(line));
-    expect(logEntries).toBeDefined();
-    expect(logEntries.length).toBe(702);
-
-    logEntries.forEach((entry: { entity: string; service: string; payload: string }) => {
-      const payloadJson: Record<string, boolean | number | string | undefined | null | object> = JSON.parse(entry.payload);
-      const entity = z2mPlatform.zigbeeEntities.find((entity) => entity.entityName === entry.entity);
-      // expect(entity).toBeDefined();
-      if (!entity) console.error('entry', entry.entity, entry.service, entry.payload);
-      if (!entity) return;
-      expect(entity.entityName).toBeDefined();
-      expect(entity.entityName.length).toBeGreaterThan(0);
-      if (entity) {
-        z2mPlatform.z2m.emit('MESSAGE-' + entity.entityName, payloadJson);
-      }
-    });
   }, 60000);
 
   it('should update /bridge/state online', async () => {
@@ -229,9 +204,7 @@ describe('TestPlatform', () => {
     expect(z2mPlatform.z2mBridgeInfo).toBeDefined();
     await wait(500);
   });
-  */
 
-  /*
   it('should update /bridge/devices', async () => {
     const devices = z2mPlatform.z2m.readConfig(path.join('src', 'mock', 'bridge-devices.json'));
     expect(devices).toBeDefined();
@@ -283,7 +256,6 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `zigbee2MQTT device At home is offline`);
     await wait(200);
   });
-  */
 
   /*
   it('should update /At home/set', async () => {
@@ -292,12 +264,33 @@ describe('TestPlatform', () => {
     (z2mPlatform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(payload)));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}Update endpoint ${or}MA-onoffswitch:undefined${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}false${db} to ${YELLOW}true${db}`));
-
     await wait(200);
   });
-  */
 
-  /*
+  it('should update entity MESSAGE', async () => {
+    const filePath = path.join('src', 'mock', 'bridge-payloads.txt');
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const logEntries = fileContent
+      .split('\n')
+      .filter((line) => line.trim() !== '')
+      .map((line) => JSON.parse(line));
+    expect(logEntries).toBeDefined();
+    expect(logEntries.length).toBe(702);
+
+    logEntries.forEach((entry: { entity: string; service: string; payload: string }) => {
+      const payloadJson: Record<string, boolean | number | string | undefined | null | object> = JSON.parse(entry.payload);
+      const entity = z2mPlatform.zigbeeEntities.find((entity) => entity.entityName === entry.entity);
+      // expect(entity).toBeDefined();
+      if (!entity) console.error('entry', entry.entity, entry.service, entry.payload);
+      if (!entity) return;
+      expect(entity.entityName).toBeDefined();
+      expect(entity.entityName.length).toBeGreaterThan(0);
+      if (entity) {
+        z2mPlatform.z2m.emit('MESSAGE-' + entity.entityName, payloadJson);
+      }
+    });
+  }, 60000);
+
   it('should update /Lights/set', async () => {
     // loggerLogSpy.mockRestore();
     // consoleLogSpy.mockRestore();

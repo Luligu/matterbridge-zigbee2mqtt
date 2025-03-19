@@ -7,12 +7,14 @@
     "name": {
       "description": "Plugin name",
       "type": "string",
-      "readOnly": true
+      "readOnly": true,
+      "ui:widget": "hidden"
     },
     "type": {
       "description": "Plugin type",
       "type": "string",
-      "readOnly": true
+      "readOnly": true,
+      "ui:widget": "hidden"
     },
     "host": {
       "description": "MQTT server host (IP address or hostname without mqtt://)",
@@ -25,7 +27,8 @@
     },
     "password": {
       "description": "MQTT server authentication password",
-      "type": "string"
+      "type": "string",
+      "ui:widget": "password"
     },
     "port": {
       "description": "MQTT server port (default 1883)",
@@ -43,12 +46,12 @@
       "default": "zigbee2mqtt"
     },
     "zigbeeFrontend": {
-      "description": "Zigbee frontend host to prefix the configUrl",
+      "description": "Zigbee frontend host to prefix the configUrl (i.e. http://192.168.1.100:8080)",
       "type": "string",
       "default": "http://localhost:8080"
     },
-    "blackList": {
-      "description": "The devices in the list will not be exposed.",
+    "whiteList": {
+      "description": "Only the devices in the list will be exposed. If the list is empty, all the devices will be exposed.",
       "type": "array",
       "items": {
         "type": "string"
@@ -56,8 +59,8 @@
       "uniqueItems": true,
       "selectFrom": "name"
     },
-    "whiteList": {
-      "description": "Only the devices in the list will be exposed.",
+    "blackList": {
+      "description": "The devices in the list will not be exposed. If the list is empty, no devices will be excluded.",
       "type": "array",
       "items": {
         "type": "string"
@@ -116,8 +119,13 @@
         "selectDeviceEntityFrom": "name"
       }
     },
+    "postfix": {
+      "description": "Add this unique postfix (3 characters max) to each device serial to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
+      "type": "string",
+      "default": ""
+    },
     "postfixHostname": {
-      "description": "Unique postfix added to each device identifier to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
+      "description": "DEPRECATED: unique postfix added to each device identifier to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value). Use postfix instead.",
       "type": "boolean",
       "default": true
     },
@@ -129,7 +137,8 @@
     "unregisterOnShutdown": {
       "description": "Unregister all devices on shutdown (development only)",
       "type": "boolean",
-      "default": false
+      "default": false,
+      "ui:widget": "hidden"
     }
   }
 }
