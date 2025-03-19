@@ -18,7 +18,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [package]: Updated package.
 - [package]: Updated dependencies.
-- [plugin]: Requires Matterbridge 2.2.4.
+- [plugin]: Requires Matterbridge 2.2.5.
 - [config]: Added parameter postfix (3 characters max) to be consistent with the other plugins. This parameter works with the Devices panel in the home page.
 - [config]: The old postfixHostname will be removed in the next release. If you were using postfixHostname, please change it with postfix, the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller!
 
