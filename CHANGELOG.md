@@ -8,6 +8,21 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## [2.5.0] - 2025-05-21
+
+### Added
+
+### Changed
+
+- [package]: Updated package.
+- [package]: Updated dependencies.
+- [plugin]: Requires Matterbridge 3.0.3.
+- [config]: Removed parameter postfixHostname. Use postfix.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [2.4.7] - 2025-03-19
 
 ### Added
