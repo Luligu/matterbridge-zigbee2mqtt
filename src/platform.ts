@@ -110,6 +110,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.postfixHostname !== undefined) delete config.postfixHostname;
     if (config.deviceScenes !== undefined) delete config.deviceScenes;
     if (config.groupScenes !== undefined) delete config.groupScenes;
+    if (config.scenesType === undefined) config.scenesType = 'outlet';
 
     if (config.type === 'MatterbridgeExtension') {
       this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);

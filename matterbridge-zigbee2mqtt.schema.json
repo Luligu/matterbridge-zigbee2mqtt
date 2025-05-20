@@ -140,7 +140,7 @@
           "enum": ["mounted_switch"]
         }
       ],
-      "default": "switch"
+      "default": "outlet"
     },
     "postfix": {
       "description": "Add this unique postfix (3 characters max) to each device serial to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
