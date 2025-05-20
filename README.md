@@ -150,8 +150,8 @@ These are the default vules:
   "outletList": [],
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
-  "postfix": "",
-  "postfixHostname": true
+  "scenesType": 'light' | 'outlet' | 'switch' | 'mounted_switch',
+  "postfix": ""
 }
 ```
 
@@ -249,6 +249,20 @@ If one of your devices is not supported out of the box, open an issue and we wil
 ```
 
 ![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/screenshot/Smart%20button.png)
+
+## Scenes in groups and devices
+
+With release 2.5.0 has been added support for scenes in groups and devices.
+
+In the config select what device type you want to use to expose the command that runs the scene: 'light' | 'outlet' | 'switch' | 'mounted_switch'.
+
+Switch is not supported by Alexa. Mounted Switch is not supported by Apple Home.
+
+The virtual device takes the name of the group or device it belongs to, with added the name of scene.
+
+The state of the virtual device is always reverted to off in a few seconds.
+
+It is possibile to disable the feature globally with featureBlackList and on a per device/group base with deviceFeatureBlackList.
 
 # Known issues
 

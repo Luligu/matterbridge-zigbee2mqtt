@@ -86,7 +86,6 @@ import {
 } from 'matterbridge/matter/clusters';
 
 import EventEmitter from 'node:events';
-import { hostname } from 'node:os';
 
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
@@ -591,9 +590,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
   static async create(platform: ZigbeePlatform, group: BridgeGroup): Promise<ZigbeeGroup> {
     const zigbeeGroup = new ZigbeeGroup(platform, group);
 
-    if (zigbeeGroup.platform.postfixHostname) {
-      zigbeeGroup.serial = `group-${group.id}_${hostname}`.slice(0, 32);
-    } else if (zigbeeGroup.platform.postfix !== '') {
+    if (zigbeeGroup.platform.postfix !== '') {
       zigbeeGroup.serial = `group-${group.id}-${zigbeeGroup.platform.postfix}`.slice(0, 32);
     } else {
       zigbeeGroup.serial = `group-${group.id}`.slice(0, 32);
@@ -699,9 +696,14 @@ export class ZigbeeGroup extends ZigbeeEntity {
       zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([deviceType, bridgedNode, powerSource], { uniqueStorageKey: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
     }
 
-    if (platform.config.groupScenes === true) {
+    if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
       group.scenes.forEach((scene) => {
         zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
+        platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
+        platform.registerVirtualDevice(group.friendly_name + ' ' + scene.name, async () => {
+          zigbeeGroup.log.info(`Triggered scene "${scene.name}" from group ${group.friendly_name}`);
+          zigbeeGroup.publishCommand('scene_recall', group.friendly_name, { 'scene_recall': scene.id });
+        });
       });
     }
 
@@ -976,9 +978,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     const zigbeeDevice = new ZigbeeDevice(platform, device);
 
     zigbeeDevice.serial = `${device.ieee_address}`;
-    if (zigbeeDevice.platform.postfixHostname) {
-      zigbeeDevice.serial = `${zigbeeDevice.serial}_${hostname}`.slice(0, 32);
-    } else if (zigbeeDevice.platform.postfix !== '') {
+    if (zigbeeDevice.platform.postfix !== '') {
       zigbeeDevice.serial = `${zigbeeDevice.serial}-${zigbeeDevice.platform.postfix}`.slice(0, 32);
     }
 
@@ -1010,10 +1010,15 @@ export class ZigbeeDevice extends ZigbeeEntity {
       return zigbeeDevice;
     }
 
-    if (platform.config.deviceScenes === true) {
+    if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[device.friendly_name]?.includes('scenes')) {
       Object.entries(device.endpoints).forEach(([key, endpoint]) => {
         Object.values(endpoint.scenes).forEach((scene) => {
           zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
+          platform.setSelectDeviceEntity(device.ieee_address, 'scenes', 'Scenes', 'component');
+          platform.registerVirtualDevice(device.friendly_name + ' ' + scene.name, async () => {
+            zigbeeDevice.log.info(`Triggered scene "${scene.name}" from device ${device.friendly_name}`);
+            zigbeeDevice.publishCommand('scene_recall', device.friendly_name, { 'scene_recall': scene.id });
+          });
         });
       });
     }

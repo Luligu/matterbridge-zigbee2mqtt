@@ -21,7 +21,7 @@
  * limitations under the License. *
  */
 
-import { Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
+import { addVirtualDevice, Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
@@ -57,7 +57,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public featureBlackList: string[] = [];
   public deviceFeatureBlackList: DeviceFeatureBlackList = {};
   public postfix = '';
-  public postfixHostname = true;
 
   // zigbee2Mqtt
   public debugEnabled: boolean;
@@ -77,8 +76,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('2.2.5')) {
-      throw new Error(`This plugin requires Matterbridge version >= "2.2.5". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.0.3')) {
+      throw new Error(`This plugin requires Matterbridge version >= "3.0.3". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`);
     }
 
     // this.log.debug(`Config:')}${rs}`, config);
@@ -99,7 +98,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList as DeviceFeatureBlackList;
     if (config.postfix) this.postfix = config.postfix as string;
     this.postfix = this.postfix.trim().slice(0, 3);
-    this.postfixHostname = (config.postfixHostname as boolean) ?? true;
 
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
@@ -109,7 +107,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.username = this.mqttUsername;
     config.password = this.mqttPassword;
     config.postfix = this.postfix;
-    config.postfixHostname = this.postfixHostname;
+    if (config.postfixHostname !== undefined) delete config.postfixHostname;
+    if (config.deviceScenes !== undefined) delete config.deviceScenes;
+    if (config.groupScenes !== undefined) delete config.groupScenes;
 
     if (config.type === 'MatterbridgeExtension') {
       this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
@@ -121,8 +121,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
     // this.log.debug(`Config:')}${rs}`, config);
-    // Clear select device and entity since we have a bridge here
-    this.clearSelect();
 
     this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
     this.z2m.setLogDebug(this.debugEnabled);
@@ -353,6 +351,13 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onStart(reason?: string) {
     this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
 
+    // Check if the platform is already initialized
+    await this.ready;
+
+    // Clear select device and entity since we have a bridge here and they will be recreated from the bridge
+    await this.clearSelect();
+    this.setSelectEntity('scenes', 'Scenes', 'component');
+
     const hasOnline = await waiter('z2mBridgeOnline', () => this.z2mBridgeOnline !== undefined);
 
     const hasInfo = await waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
@@ -448,7 +453,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.injectTimer = undefined;
     if (this.availabilityTimer) clearInterval(this.availabilityTimer);
     this.availabilityTimer = undefined;
-    // this.updateAvailability(false);
     if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
     this.log.info(`Shutdown zigbee2mqtt dynamic platform v${this.version}`);
   }
@@ -558,6 +562,18 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.error(`Error registering group ${gn}${group.friendly_name}${er} ID: ${group.id}: ${error}`);
     }
     return matterGroup;
+  }
+
+  public registerVirtualDevice(name: string, callback: () => Promise<void>) {
+    let aggregator;
+    if (this.matterbridge.bridgeMode === 'bridge') {
+      aggregator = this.matterbridge.aggregatorNode;
+    } else if (this.matterbridge.bridgeMode === 'childbridge') {
+      aggregator = this.matterbridge.plugins.get(this.name)?.aggregatorNode;
+    }
+    if (aggregator) {
+      addVirtualDevice(aggregator, name, this.config.scenesType as 'light' | 'outlet' | 'switch' | 'mounted_switch', callback);
+    }
   }
 
   private async unregisterZigbeeEntity(friendly_name: string) {

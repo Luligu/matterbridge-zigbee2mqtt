@@ -12,12 +12,14 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Added
 
+- [scenes]: Added scenes support for groups and devices. See the README.md for explanations.
+
 ### Changed
 
 - [package]: Updated package.
 - [package]: Updated dependencies.
 - [plugin]: Requires Matterbridge 3.0.3.
-- [config]: Removed parameter postfixHostname. Use postfix.
+- [config]: Removed parameter postfixHostname. Use postfix if needed.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
