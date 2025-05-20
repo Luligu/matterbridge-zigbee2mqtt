@@ -13,6 +13,9 @@ If you like this project and find it useful, please consider giving it a star on
 ### Added
 
 - [scenes]: Added scenes support for groups and devices. See the README.md for explanations.
+- [waterLeak]: Added waterLeakDetector device type for property "water_leak". Default to false no alarm since is not possible to get.
+- [rainSensor]: Added rainSensor device type for property "rain". Default to false no alarm since is not possible to get.
+- [smokeSensor]: Added smokeSensor device type for property "smoke". Default to false no alarm since is not possible to get.
 
 ### Changed
 

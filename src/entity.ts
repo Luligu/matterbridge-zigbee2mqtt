@@ -46,6 +46,9 @@ import {
   humiditySensor,
   pressureSensor,
   genericSwitch,
+  waterLeakDetector,
+  rainSensor,
+  smokeCoAlarm,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
 import { deepCopy, deepEqual, isValidNumber } from 'matterbridge/utils';
@@ -83,6 +86,7 @@ import {
   Pm1ConcentrationMeasurement,
   Pm25ConcentrationMeasurement,
   Pm10ConcentrationMeasurement,
+  SmokeCoAlarm,
 } from 'matterbridge/matter/clusters';
 
 import EventEmitter from 'node:events';
@@ -919,9 +923,10 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'occupancy', property: 'occupancy', deviceType: occupancySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
   { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(10000 * Math.log10(value), 0xfffe), 0)) } },
   { type: '', name: 'contact', property: 'contact', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
-  { type: '', name: 'water_leak', property: 'water_leak', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
+  { type: '', name: 'water_leak', property: 'water_leak', deviceType: waterLeakDetector, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
+  { type: '', name: 'rain', property: 'rain', deviceType: rainSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
   { type: '', name: 'vibration', property: 'vibration', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
-  { type: '', name: 'smoke', property: 'smoke', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
+  { type: '', name: 'smoke', property: 'smoke', deviceType: smokeCoAlarm, cluster: SmokeCoAlarm.Cluster.id, attribute: 'smokeState', converter: (value) => { return value ? SmokeCoAlarm.AlarmState.Critical : SmokeCoAlarm.AlarmState.Normal } },
   { type: '', name: 'carbon_monoxide', property: 'carbon_monoxide', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
   { type: '', name: 'temperature', property: 'temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
   { type: '', name: 'humidity', property: 'humidity', deviceType: humiditySensor, cluster: RelativeHumidityMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
@@ -1298,6 +1303,20 @@ export class ZigbeeDevice extends ZigbeeEntity {
         `Device ${zigbeeDevice.ien}${zigbeeDevice.device?.friendly_name}${rs}${db} endpoint: ${ign}${endpoint === '' ? 'main' : endpoint}${rs}${db} => ` +
           `${nf}tagList: ${debugStringify(device.tagList)} deviceTypes: ${debugStringify(device.deviceTypes)} clusterServersIds: ${debugStringify(device.clusterServersIds)}`,
       );
+    }
+
+    // Configure BooleanStateCluster for water leak detector and rain sensor
+    if ((mainEndpoint.deviceTypes.find((dt) => dt.code === waterLeakDetector.code) || mainEndpoint.deviceTypes.find((dt) => dt.code === rainSensor.code)) && mainEndpoint.clusterServersIds.includes(BooleanState.Cluster.id)) {
+      zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} BooleanStateCluster cluster with`);
+      zigbeeDevice.bridgedDevice.createDefaultBooleanStateClusterServer(false);
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(BooleanState.Cluster.id), 1);
+    }
+
+    // Configure SmokeCoAlarmCluster for smoke only sensors
+    if (mainEndpoint.deviceTypes.find((dt) => dt.code === smokeCoAlarm.code) && mainEndpoint.clusterServersIds.includes(SmokeCoAlarm.Cluster.id)) {
+      zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} SmokeCoAlarmCluster cluster with`);
+      zigbeeDevice.bridgedDevice.createSmokeOnlySmokeCOAlarmClusterServer(SmokeCoAlarm.AlarmState.Normal);
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(SmokeCoAlarm.Cluster.id), 1);
     }
 
     // Configure ColorControlCluster
