@@ -52,7 +52,7 @@ import {
   extendedColorLight,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
-import { deepCopy, deepEqual, isValidNumber } from 'matterbridge/utils';
+import { deepCopy, deepEqual, isValidNumber, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
 import { AtLeastOne, SwitchesTag, NumberTag } from 'matterbridge/matter';
 import { getClusterNameById, ClusterId, VendorId, Semtag } from 'matterbridge/matter/types';
@@ -1477,7 +1477,17 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToColorTemperature', async ({ request }) => {
         zigbeeDevice.log.debug(`Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request: ${request.colorTemperatureMireds}`);
         await zigbeeDevice.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, zigbeeDevice.log);
-        const payload: Payload = { color_temp: request.colorTemperatureMireds };
+        const payload: Payload = {};
+        if (zigbeeDevice.propertyMap.get('color_temp')) {
+          payload['color_temp'] = request.colorTemperatureMireds;
+        } else {
+          // Convert mireds to RGB
+          const rgb = kelvinToRGB(miredToKelvin(request.colorTemperatureMireds));
+          payload['color'] = { r: rgb.r, g: rgb.g, b: rgb.b };
+          zigbeeDevice.log.info(
+            `Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${nf} but color_temp property is not available. Converting ${request.colorTemperatureMireds} to RGB ${debugStringify(payload['color'])}.`,
+          );
+        }
         if (zigbeeDevice.transition && request.transitionTime && request.transitionTime / 10 >= 1) payload['transition'] = Math.round(request.transitionTime / 10);
         zigbeeDevice.publishCommand('moveToColorTemperature', device.friendly_name, payload);
       });

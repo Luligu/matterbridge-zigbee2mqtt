@@ -8,6 +8,17 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+### Breaking Changes
+
+New device types:
+
+- extendedColorLight
+- waterLeakDetector
+- rainSensor
+- smokeSensor
+
+If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes, remove the blacklist and restart again. This will create a new endpoint on the controller.
+
 ## [2.5.0] - 2025-05-21
 
 ### Added
@@ -16,6 +27,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [waterLeak]: Added waterLeakDetector device type for zigbee property "water_leak". Default to false (i.e. no alarm) since is not possible to get the property.
 - [rainSensor]: Added rainSensor device type for zigbee property "rain". Default to false (i.e. no alarm) since is not possible to get the property.
 - [smokeSensor]: Added smokeSensor device type for zigbee property "smoke". Default to false (i.e. no alarm) since is not possible to get the property.
+- [colorTemp]: Added conversion from color temperature to rgb for the devices that doesn't support color temperature.
 
 ### Changed
 
