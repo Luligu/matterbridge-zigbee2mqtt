@@ -150,7 +150,8 @@ These are the default vules:
   "outletList": [],
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
-  "scenesType": 'light' | 'outlet' | 'switch' | 'mounted_switch',
+  "scenesType": "outlet",
+  "scenesPrefix: true,
   "postfix": ""
 }
 ```
@@ -258,7 +259,7 @@ In the config select what device type you want to use to expose the command that
 
 Switch is not supported by Alexa. Mounted Switch is not supported by Apple Home.
 
-The virtual device takes the name of the group or device it belongs to, with added the name of scene.
+The virtual device takes the name of the group or device it belongs to, with added the name of scene. If scenesPrefix is disabled, it takes only the name of the scene. Consider that in Matter the node name is 32 characters long.
 
 The state of the virtual device is always reverted to off in a few seconds.
 

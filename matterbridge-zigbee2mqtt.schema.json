@@ -142,6 +142,11 @@
       ],
       "default": "outlet"
     },
+    "scenesPrefix": {
+      "description": "Add the device/group friendly name before the scene name.",
+      "type": "boolean",
+      "default": true
+    },
     "postfix": {
       "description": "Add this unique postfix (3 characters max) to each device serial to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
       "type": "string",
