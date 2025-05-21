@@ -111,6 +111,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.deviceScenes !== undefined) delete config.deviceScenes;
     if (config.groupScenes !== undefined) delete config.groupScenes;
     if (config.scenesType === undefined) config.scenesType = 'outlet';
+    if (config.scenesPrefix === undefined) config.scenesPrefix = true;
 
     if (config.type === 'MatterbridgeExtension') {
       this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
@@ -402,7 +403,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         this.log.info(`Configuring router ${bridgedEntity.bridgedDevice?.deviceName}.`);
         if (this.z2mBridgeInfo?.permit_join) {
           bridgedEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
-          if (bridgedEntity.bridgedDevice.number)
+          if (bridgedEntity.bridgedDevice.maybeNumber)
             bridgedEntity.bridgedDevice?.triggerEvent(
               DoorLock.Cluster.id,
               'lockOperation',
@@ -411,7 +412,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
             );
         } else {
           bridgedEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
-          if (bridgedEntity.bridgedDevice.number)
+          if (bridgedEntity.bridgedDevice.maybeNumber)
             bridgedEntity.bridgedDevice?.triggerEvent(
               DoorLock.Cluster.id,
               'lockOperation',
@@ -573,7 +574,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       aggregator = this.matterbridge.plugins.get(this.name)?.aggregatorNode;
     }
     if (aggregator) {
-      addVirtualDevice(aggregator, name, this.config.scenesType as 'light' | 'outlet' | 'switch' | 'mounted_switch', callback);
+      addVirtualDevice(aggregator, name.slice(0, 32), this.config.scenesType as 'light' | 'outlet' | 'switch' | 'mounted_switch', callback);
     }
   }
 

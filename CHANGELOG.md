@@ -13,16 +13,17 @@ If you like this project and find it useful, please consider giving it a star on
 ### Added
 
 - [scenes]: Added scenes support for groups and devices. See the README.md for explanations.
-- [waterLeak]: Added waterLeakDetector device type for property "water_leak". Default to false no alarm since is not possible to get.
-- [rainSensor]: Added rainSensor device type for property "rain". Default to false no alarm since is not possible to get.
-- [smokeSensor]: Added smokeSensor device type for property "smoke". Default to false no alarm since is not possible to get.
+- [waterLeak]: Added waterLeakDetector device type for zigbee property "water_leak". Default to false (i.e. no alarm) since is not possible to get the property.
+- [rainSensor]: Added rainSensor device type for zigbee property "rain". Default to false (i.e. no alarm) since is not possible to get the property.
+- [smokeSensor]: Added smokeSensor device type for zigbee property "smoke". Default to false (i.e. no alarm) since is not possible to get the property.
 
 ### Changed
 
 - [package]: Updated package.
 - [package]: Updated dependencies.
 - [plugin]: Requires Matterbridge 3.0.3.
-- [config]: As anticipated in the previous release, removed the parameter postfixHostname. Use postfix if needed.
+- [config]: As anticipated in the previous release, the parameter postfixHostname has been removed. Use postfix if needed.
+- [colorRgb]: Changed the default device type from colorTemperatureLight to extendedColorLight to solve the SmartThings issue with colors.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
