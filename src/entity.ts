@@ -953,10 +953,10 @@ export const z2ms: ZigbeeToMatter[] = [
   { type: '', name: '', property: 'battery', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
   { type: '', name: '', property: 'battery_low', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
   { type: '', name: '', property: 'battery_voltage', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batVoltage', converter: (value) => { return value } },
-  { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.Cluster.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: value * 1000000 } } },
-  { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activePower', converter: (value) => { return value * 1000 } },
-  { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'voltage', converter: (value) => { return value * 1000 } },
-  { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activeCurrent', converter: (value) => { return value * 1000 } },
+  { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.Cluster.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: Math.round(value * 1000000) } } },
+  { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activePower', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activeCurrent', converter: (value) => { return Math.round(value * 1000) } },
 ];
 
 /**
@@ -1339,12 +1339,20 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.log.debug(
           `Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with CT: ${names.includes('color_temp')} min: ${zigbeeDevice.propertyMap.get('color_temp')?.value_min} max: ${zigbeeDevice.propertyMap.get('color_temp')?.value_max}`,
         );
-        zigbeeDevice.bridgedDevice.createCtColorControlClusterServer(undefined, zigbeeDevice.propertyMap.get('color_temp')?.value_min, zigbeeDevice.propertyMap.get('color_temp')?.value_max);
+        zigbeeDevice.bridgedDevice.createCtColorControlClusterServer(zigbeeDevice.propertyMap.get('color_temp')?.value_max, zigbeeDevice.propertyMap.get('color_temp')?.value_min, zigbeeDevice.propertyMap.get('color_temp')?.value_max);
       } else {
         zigbeeDevice.log.debug(
           `Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')} min: ${zigbeeDevice.propertyMap.get('color_temp')?.value_min} max: ${zigbeeDevice.propertyMap.get('color_temp')?.value_max}`,
         );
-        zigbeeDevice.bridgedDevice.createDefaultColorControlClusterServer(undefined, undefined, undefined, undefined, undefined, zigbeeDevice.propertyMap.get('color_temp')?.value_min, zigbeeDevice.propertyMap.get('color_temp')?.value_max);
+        zigbeeDevice.bridgedDevice.createDefaultColorControlClusterServer(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          zigbeeDevice.propertyMap.get('color_temp')?.value_max,
+          zigbeeDevice.propertyMap.get('color_temp')?.value_min,
+          zigbeeDevice.propertyMap.get('color_temp')?.value_max,
+        );
       }
       mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ColorControl.Cluster.id), 1);
     }
