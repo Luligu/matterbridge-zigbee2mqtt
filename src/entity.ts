@@ -211,6 +211,17 @@ export class ZigbeeEntity extends EventEmitter {
         // Modify voltage to battery_voltage
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') key = 'battery_voltage';
 
+        // Set batChargeLevel to critical if batter is less than 20%
+        if (key === 'battery' && !('battery_low' in payload) && isValidNumber(value, 0, 100) && this.isDevice && this.device?.power_source === 'Battery') {
+          if (value < 20) {
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.Cluster.id, 'batChargeLevel', PowerSource.BatChargeLevel.Critical);
+          } else if (value < 40) {
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.Cluster.id, 'batChargeLevel', PowerSource.BatChargeLevel.Warning);
+          } else {
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.Cluster.id, 'batChargeLevel', PowerSource.BatChargeLevel.Ok);
+          }
+        }
+
         // Lookup the property in the propertyMap and ZigbeeToMatter table
         const propertyMap = this.propertyMap.get(key);
         if (propertyMap) {

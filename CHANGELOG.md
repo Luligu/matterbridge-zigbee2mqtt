@@ -19,7 +19,7 @@ New device types:
 
 If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes, remove the blacklist and restart again. This will create a new endpoint on the controller.
 
-## [2.5.0] - 2025-05-21
+## [2.5.0] - 2025-05-23
 
 ### Added
 
@@ -27,7 +27,10 @@ If your controller has issues detecting the new device type, blacklist these dev
 - [waterLeak]: Added waterLeakDetector device type for zigbee property "water_leak". Default to false (i.e. no alarm) since is not possible to get the property.
 - [rainSensor]: Added rainSensor device type for zigbee property "rain". Default to false (i.e. no alarm) since is not possible to get the property.
 - [smokeSensor]: Added smokeSensor device type for zigbee property "smoke". Default to false (i.e. no alarm) since is not possible to get the property.
-- [colorTemp]: Added conversion from color temperature to rgb for the devices that doesn't support color temperature.
+- [colorTemp]: Added conversion from color temperature to rgb for the rgb devices that don't support color temperature.
+- [battery]: Set batChargeLevel to warning if battery is less than 40% and the device doesn't expose battery_low.
+- [battery]: Set batChargeLevel to critical if battery is less than 20% and the device doesn't expose battery_low.
+- [retain]: Send retained mqtt states at startup if z2m has retain enabled.
 
 ### Changed
 

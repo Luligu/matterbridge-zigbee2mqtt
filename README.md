@@ -224,6 +224,23 @@ The latest release also supports all clusters in the multi endpoints devices (e.
 
 Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
 
+## Availability
+
+If the availability is enabled in zigbee2mqtt settings, it is exposed.
+
+## Retain
+
+If the retain option is enabled in zigbee2mqtt settings or device setting, at restart all retained states are updated.
+
+To enable retain globally add retain: true to device_options.
+
+```
+device_options:
+  retain: true
+```
+
+To enable retain for a single device set it in the device settings.
+
 ## Unsupported devices
 
 If one of your devices is not supported out of the box, open an issue and we will try to support it if possible.

@@ -70,7 +70,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public z2mBridgeInfo: BridgeInfo | undefined;
   public z2mBridgeDevices: BridgeDevice[] | undefined;
   public z2mBridgeGroups: BridgeGroup[] | undefined;
-  private z2mDeviceAvailability = new Map<string, boolean>();
+  private z2mEntityAvailability = new Map<string, boolean>();
+  private z2mEntityPayload = new Map<string, Payload>();
   private availabilityTimer: NodeJS.Timeout | undefined;
 
   constructor(matterbridge: Matterbridge, log: AnsiLogger, config: PlatformConfig) {
@@ -232,9 +233,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('availability', (device: string, available: boolean) => {
-      this.z2mDeviceAvailability.set(device, available);
-      if (available) this.log.info(`zigbee2MQTT device ${device} is ${available ? 'online' : 'offline'}`);
-      else this.log.warn(`zigbee2MQTT device ${device} is ${available ? 'online' : 'offline'}`);
+      this.z2mEntityAvailability.set(device, available);
+      if (available) this.log.info(`zigbee2MQTT entity ${device} is ${available ? 'online' : 'offline'}`);
+      else this.log.warn(`zigbee2MQTT entity ${device} is ${available ? 'online' : 'offline'}`);
+    });
+
+    this.z2m.on('message', (device: string, payload: Payload) => {
+      // this.log.debug(`zigbee2MQTT entity ${CYAN}${device}${db} sent a message: ${debugStringify(payload)}`);
+      this.z2mEntityPayload.set(device, payload);
     });
 
     this.z2m.on('permit_join', async (device: string, time: number, status: boolean) => {
@@ -397,8 +403,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await super.onConfigure();
     this.log.info(`Requesting update for ${this.zigbeeEntities.length} zigbee entities.`);
     for (const bridgedEntity of this.zigbeeEntities) {
-      if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
-      if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);
       await bridgedEntity.configure();
       if (bridgedEntity.isRouter && bridgedEntity.bridgedDevice) {
         this.log.info(`Configuring router ${bridgedEntity.bridgedDevice?.deviceName}.`);
@@ -422,14 +426,22 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
             );
         }
       }
+      // Request update for devices and groups for properties that are gettable
+      if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
+      if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);
     }
 
     this.availabilityTimer = setTimeout(() => {
-      for (const [device, available] of this.z2mDeviceAvailability) {
-        if (available) this.z2m.emit('ONLINE-' + device);
-        else this.z2m.emit('OFFLINE-' + device);
+      // Send availability if z2m has availability enabled
+      for (const [entity, available] of this.z2mEntityAvailability) {
+        if (available) this.z2m.emit('ONLINE-' + entity);
+        else this.z2m.emit('OFFLINE-' + entity);
       }
-    }, 60 * 1000);
+      // Send retained state if z2m has retain enabled
+      for (const [entity, payload] of this.z2mEntityPayload) {
+        this.z2m.emit('MESSAGE-' + entity, payload);
+      }
+    }, 10 * 1000).unref();
 
     if (this.config.injectPayloads) {
       this.injectTimer = setInterval(() => {
