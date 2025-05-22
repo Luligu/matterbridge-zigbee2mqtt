@@ -43,6 +43,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
   private injectTimer: NodeJS.Timeout | undefined;
+  private namePostfix = 1;
 
   // z2m
   private mqttHost = 'localhost';
@@ -574,6 +575,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       aggregator = this.matterbridge.plugins.get(this.name)?.aggregatorNode;
     }
     if (aggregator) {
+      if (aggregator.parts.has(name.replaceAll(' ', '') + ':' + this.config.scenesType)) {
+        this.log.warn(`Scene name ${name} already registered. Please use a different name. Changed to ${name + ' ' + this.namePostfix}`);
+        name = name + ' ' + this.namePostfix++;
+      }
       addVirtualDevice(aggregator, name.slice(0, 32), this.config.scenesType as 'light' | 'outlet' | 'switch' | 'mounted_switch', callback);
     }
   }
