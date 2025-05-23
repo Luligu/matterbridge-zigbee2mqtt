@@ -151,7 +151,7 @@ These are the default vules:
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
   "scenesType": "outlet",
-  "scenesPrefix: true,
+  "scenesPrefix": true,
   "postfix": ""
 }
 ```
@@ -180,19 +180,7 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 }
 ```
 
-The parameter postfixHostname is deprecated and will be removed in the next release. Use postfix instead if needed.
-By default matterbridge-zigbee2mqtt uses hostname in order to make entities unique, however in some cases
-you may not want this behavior. You can use "postfixHostname" boolean flag to disable this behavior:
-
-```json
-{
-    ...
-    "postfixHostname": false
-    ...
-}
-```
-
-From the release 1.2.14 of Matterbridge you can edit the config file directly in the frontend.
+From the release 1.2.14 of Matterbridge you can edit the config file directly in the frontend. I strongly suggest you use the integrated config editor.
 
 You can edit the config file manually if you prefer:
 
@@ -300,6 +288,6 @@ For general controller issues check the Matterbridge Known issues section
 
 ## Alexa
 
-In the plugin config add each switch device to the lightList or outletList. Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize.
+In the plugin config add each switch device to the lightList or outletList. Matterbridge uses a switch device type without client cluster that Alexa doesn't recognize.
 
 ## SmartThings
