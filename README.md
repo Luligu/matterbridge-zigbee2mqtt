@@ -242,6 +242,9 @@ It is possibile to disable the feature globally with featureBlackList (add "scen
 
 If the availability is enabled in zigbee2mqtt settings, it is exposed.
 
+![image](https://github.com/user-attachments/assets/7e0d395f-19e4-4e7f-b263-0cae3df70be4)
+
+
 ## Retain
 
 If the retain option is enabled in zigbee2mqtt settings or device setting, at restart all retained states are updated.
@@ -254,6 +257,9 @@ device_options:
 ```
 
 To enable retain for a single device set it in the device settings.
+
+![image](https://github.com/user-attachments/assets/5ae09f2a-6cff-4623-92f4-87f7721ee443)
+
 
 ## Unsupported devices
 
