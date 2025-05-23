@@ -218,11 +218,25 @@ nano matterbridge-zigbee2mqtt.config.json
 
 ## What is supported?
 
-Out of the box, this plugin supports all possible conversion from zigbee2mqtt to Matter 1.1.
+Out of the box, this plugin supports all possible conversion from zigbee2mqtt to Matter 1.4.
 
-The latest release also supports all clusters in the multi endpoints devices (e.g. DIY devices or the double channel switches/dimmers).
+It also supports all clusters in the multi endpoints devices (e.g. DIY devices or the double channel switches/dimmers).
 
-Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
+Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.2 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
+
+## Scenes in groups and devices
+
+With release 2.5.0 has been added support for scenes in groups and devices.
+
+In the config select what device type you want to use to expose the command that runs the scene: 'light' | 'outlet' | 'switch' | 'mounted_switch'.
+
+Switch is not supported by Alexa. Mounted Switch is not supported by Apple Home.
+
+The virtual device takes the name of the group or device it belongs to, with added the name of scene. If scenesPrefix is disabled, it takes only the name of the scene. Consider that in Matter the node name is 32 characters long. Consider also that each scene name must by unique if scenesPrefix is disabled.
+
+The state of the virtual device is always reverted to off in a few seconds.
+
+It is possibile to disable the feature globally with featureBlackList (add "scenes" to the list) and on a per device/group base with deviceFeatureBlackList (add "scenes" to the list).
 
 ## Availability
 
@@ -232,7 +246,7 @@ If the availability is enabled in zigbee2mqtt settings, it is exposed.
 
 If the retain option is enabled in zigbee2mqtt settings or device setting, at restart all retained states are updated.
 
-To enable retain globally add retain: true to device_options.
+To enable retain globally, stop zigbee2mqtt, add retain: true to device_options and restart zigbee2mqtt.
 
 ```
 device_options:
@@ -267,20 +281,6 @@ If one of your devices is not supported out of the box, open an issue and we wil
 ```
 
 ![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/screenshot/Smart%20button.png)
-
-## Scenes in groups and devices
-
-With release 2.5.0 has been added support for scenes in groups and devices.
-
-In the config select what device type you want to use to expose the command that runs the scene: 'light' | 'outlet' | 'switch' | 'mounted_switch'.
-
-Switch is not supported by Alexa. Mounted Switch is not supported by Apple Home.
-
-The virtual device takes the name of the group or device it belongs to, with added the name of scene. If scenesPrefix is disabled, it takes only the name of the scene. Consider that in Matter the node name is 32 characters long.
-
-The state of the virtual device is always reverted to off in a few seconds.
-
-It is possibile to disable the feature globally with featureBlackList and on a per device/group base with deviceFeatureBlackList.
 
 # Known issues
 
