@@ -166,7 +166,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.en = gn;
       this.ien = ign;
     }
-    this.log = new AnsiLogger({ logName: this.entityName, logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: platform.debugEnabled ? LogLevel.DEBUG : LogLevel.INFO });
+    this.log = new AnsiLogger({ logName: this.entityName, logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: platform.debugEnabled ? LogLevel.DEBUG : platform.log.logLevel });
     this.log.debug(`Created MatterEntity: ${this.entityName}`);
 
     this.platform.z2m.on('MESSAGE-' + this.entityName, (payload: Payload) => {
@@ -233,6 +233,10 @@ export class ZigbeeEntity extends EventEmitter {
           z2m = z2ms.find((z2m) => z2m.type === propertyMap?.type && z2m.property === propertyMap?.name);
           if (!z2m) z2m = z2ms.find((z2m) => z2m.property === propertyMap?.name);
           if (z2m) {
+            if (z2m.valueLookup && propertyMap.values && propertyMap.values !== '' && typeof value === 'string' && !propertyMap.values.includes(value)) {
+              this.log.fatal(`*Payload entry ${CYAN}${key}${db} value ${CYAN}${value}${db} not found in propertyMap values ${CYAN}${propertyMap.values}${db}`);
+              return;
+            }
             if (z2m.converter || z2m.valueLookup) {
               this.updateAttributeIfChanged(this.bridgedDevice, propertyMap === undefined || propertyMap.endpoint === '' ? undefined : propertyMap.endpoint, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
               return;
@@ -1385,10 +1389,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only heating is supported cause it's not supported by the cluster without AutoMode
         zigbeeDevice.bridgedDevice.createDefaultHeatingThermostatClusterServer(undefined, undefined, minHeating, maxHeating);
         mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+        const sMode = zigbeeDevice.propertyMap.get('system_mode');
+        if (sMode) sMode.values = 'off|heat'; // Set system_mode to off|heat if only heating is supported cause it's not supported by the cluster without AutoMode
       } else if ((!heat && cool) || (!system_mode_values?.includes('auto') && system_mode_values?.includes('cool'))) {
         zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only cooling is supported cause it's not supported by the cluster without AutoMode
         zigbeeDevice.bridgedDevice.createDefaultCoolingThermostatClusterServer(undefined, undefined, minCooling, maxCooling);
         mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+        const sMode = zigbeeDevice.propertyMap.get('system_mode');
+        if (sMode) sMode.values = 'off|cool'; // Set system_mode to off|cool if only cooling is supported cause it's not supported by the cluster without AutoMode
       } else {
         zigbeeDevice.bridgedDevice.createDefaultThermostatClusterServer(undefined, undefined, undefined, undefined, minHeating, maxHeating, minCooling, maxCooling);
         mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
