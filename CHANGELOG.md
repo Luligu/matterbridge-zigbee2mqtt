@@ -17,7 +17,7 @@ New device types:
 - rainSensor
 - smokeSensor
 
-If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller.
+If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
 
 ## [2.5.0] - 2025-05-23
 
@@ -27,10 +27,10 @@ If your controller has issues detecting the new device type, blacklist these dev
 - [waterLeak]: Added waterLeakDetector device type for zigbee property "water_leak". Default to false (i.e. no alarm) since is not possible to get the property.
 - [rainSensor]: Added rainSensor device type for zigbee property "rain". Default to false (i.e. no alarm) since is not possible to get the property.
 - [smokeSensor]: Added smokeSensor device type for zigbee property "smoke". Default to false (i.e. no alarm) since is not possible to get the property.
-- [colorTemp]: Added conversion from color temperature to rgb for the rgb devices that don't support color temperature.
+- [colorTemp]: Added conversion from color temperature to rgb for the rgb devices that don't support color_temp.
 - [battery]: Set batChargeLevel to warning if battery is less than 40% and the device doesn't expose battery_low.
 - [battery]: Set batChargeLevel to critical if battery is less than 20% and the device doesn't expose battery_low.
-- [retain]: Send retained mqtt states at startup if z2m has retain enabled.
+- [retain]: Send retained mqtt states at startup if z2m has retain enabled. See the README.md for explanations.
 - [logger]: Added onChangeLoggerLevel() to the platform.
 
 ### Changed
@@ -40,7 +40,7 @@ If your controller has issues detecting the new device type, blacklist these dev
 - [plugin]: Requires Matterbridge 3.0.3.
 - [config]: As anticipated in the previous release, the parameter postfixHostname has been removed. Use postfix if needed.
 - [colorRgb]: Changed the default device type from colorTemperatureLight to extendedColorLight to solve the SmartThings issue with colors.
-- [colorTemp]: The min and max mired values are now set in the cluster.
+- [colorTemp]: The min and max mired values for color_temp are now set in the cluster.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
