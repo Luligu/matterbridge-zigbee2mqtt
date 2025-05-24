@@ -42,6 +42,11 @@ If your controller has issues detecting the new device type, blacklist these dev
 - [colorRgb]: Changed the default device type from colorTemperatureLight to extendedColorLight to solve the SmartThings issue with colors.
 - [colorTemp]: The min and max mired values for color_temp are now set in the cluster.
 
+### Fixed
+
+- [logger]: Fixed logger not always taking the correct value from the frontend.
+- [issue104]: Solved wrong mode AUTO in system_mode for HEAT only devices.
+
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>

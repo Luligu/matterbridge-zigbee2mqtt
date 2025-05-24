@@ -234,7 +234,7 @@ export class ZigbeeEntity extends EventEmitter {
           if (!z2m) z2m = z2ms.find((z2m) => z2m.property === propertyMap?.name);
           if (z2m) {
             if (z2m.valueLookup && propertyMap.values && propertyMap.values !== '' && typeof value === 'string' && !propertyMap.values.includes(value)) {
-              this.log.fatal(`*Payload entry ${CYAN}${key}${db} value ${CYAN}${value}${db} not found in propertyMap values ${CYAN}${propertyMap.values}${db}`);
+              this.log.debug(`*Payload entry ${CYAN}${key}${db} value ${CYAN}${value}${db} not found in propertyMap values ${CYAN}${propertyMap.values}${db}`);
               return;
             }
             if (z2m.converter || z2m.valueLookup) {
