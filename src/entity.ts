@@ -283,7 +283,8 @@ export class ZigbeeEntity extends EventEmitter {
         // ColorControl colorTemperatureMired and colorMode
         if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp') {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds);
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorTemperatureMireds', Math.max(147, Math.min(500, typeof value === 'number' ? value : 0)));
+          const colorTemp = this.propertyMap.get('color_temp');
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorTemperatureMireds', Math.max(colorTemp?.value_min ?? 147, Math.min(colorTemp?.value_max ?? 500, typeof value === 'number' ? value : 0)));
         }
         // ColorControl currentHue, currentSaturation and colorMode
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'hs') {
@@ -351,14 +352,13 @@ export class ZigbeeEntity extends EventEmitter {
 
   protected addBridgedDeviceBasicInformation(): MatterbridgeEndpoint {
     if (!this.bridgedDevice) throw new Error('No bridged device');
-    // Add BridgedDeviceBasicInformation cluster and device type
+    // Add BridgedDeviceBasicInformation cluster
     const softwareVersion = parseInt(this.platform.z2mBridgeInfo?.version || '1');
     const softwareVersionString = `${this.platform.z2mBridgeInfo?.version} (commit ${this.platform.z2mBridgeInfo?.commit})`;
     const hardwareVersion = parseInt(this.platform.matterbridge.matterbridgeVersion || '1');
     const hardwareVersionString = this.platform.matterbridge.matterbridgeVersion || 'unknown';
     if (this.isDevice && this.device && this.device.friendly_name === 'Coordinator') {
       this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(this.device.friendly_name, this.serial, 0xfff1, 'zigbee2MQTT', 'Coordinator', softwareVersion, softwareVersionString, hardwareVersion, hardwareVersionString);
-      return this.bridgedDevice;
     } else if (this.isDevice && this.device) {
       this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(
         this.device.friendly_name,
@@ -371,10 +371,9 @@ export class ZigbeeEntity extends EventEmitter {
         hardwareVersion,
         hardwareVersionString,
       );
-      return this.bridgedDevice;
+    } else if (this.isGroup && this.group) {
+      this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(this.group.friendly_name, this.serial, 0xfff1, 'zigbee2MQTT', 'Group', softwareVersion, softwareVersionString, hardwareVersion, hardwareVersionString);
     }
-    if (!this.group) throw new Error('No group found');
-    this.bridgedDevice.createDefaultBridgedDeviceBasicInformationClusterServer(this.group.friendly_name, this.serial, 0xfff1, 'zigbee2MQTT', 'Group', softwareVersion, softwareVersionString, hardwareVersion, hardwareVersionString);
     return this.bridgedDevice;
   }
 
@@ -467,6 +466,12 @@ export class ZigbeeEntity extends EventEmitter {
             this.log,
           );
       }
+    }
+    if (this.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id)) {
+      this.log.info(`Configuring ${this.bridgedDevice?.deviceName} ColorControl cluster`);
+      const colorTemp = this.propertyMap.get('color_temp');
+      this.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTempPhysicalMinMireds', colorTemp?.value_min ?? 147, this.log);
+      this.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTempPhysicalMaxMireds', colorTemp?.value_max ?? 500, this.log);
     }
   }
 
@@ -1351,20 +1356,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.log.debug(
           `Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with CT: ${names.includes('color_temp')} min: ${zigbeeDevice.propertyMap.get('color_temp')?.value_min} max: ${zigbeeDevice.propertyMap.get('color_temp')?.value_max}`,
         );
-        zigbeeDevice.bridgedDevice.createCtColorControlClusterServer(zigbeeDevice.propertyMap.get('color_temp')?.value_max, zigbeeDevice.propertyMap.get('color_temp')?.value_min, zigbeeDevice.propertyMap.get('color_temp')?.value_max);
+        zigbeeDevice.bridgedDevice.createCtColorControlClusterServer();
       } else {
         zigbeeDevice.log.debug(
           `Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with HS: ${names.includes('color_hs')} XY: ${names.includes('color_xy')} CT: ${names.includes('color_temp')} min: ${zigbeeDevice.propertyMap.get('color_temp')?.value_min} max: ${zigbeeDevice.propertyMap.get('color_temp')?.value_max}`,
         );
-        zigbeeDevice.bridgedDevice.createDefaultColorControlClusterServer(
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          zigbeeDevice.propertyMap.get('color_temp')?.value_max,
-          zigbeeDevice.propertyMap.get('color_temp')?.value_min,
-          zigbeeDevice.propertyMap.get('color_temp')?.value_max,
-        );
+        zigbeeDevice.bridgedDevice.createDefaultColorControlClusterServer();
       }
       mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ColorControl.Cluster.id), 1);
     }

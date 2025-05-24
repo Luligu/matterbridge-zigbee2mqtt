@@ -17,7 +17,7 @@ New device types:
 - rainSensor
 - smokeSensor
 
-If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes, remove the blacklist and restart again. This will create a new endpoint on the controller.
+If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller.
 
 ## [2.5.0] - 2025-05-23
 
@@ -31,6 +31,7 @@ If your controller has issues detecting the new device type, blacklist these dev
 - [battery]: Set batChargeLevel to warning if battery is less than 40% and the device doesn't expose battery_low.
 - [battery]: Set batChargeLevel to critical if battery is less than 20% and the device doesn't expose battery_low.
 - [retain]: Send retained mqtt states at startup if z2m has retain enabled.
+- [logger]: Added onChangeLoggerLevel() to the platform.
 
 ### Changed
 
@@ -39,6 +40,7 @@ If your controller has issues detecting the new device type, blacklist these dev
 - [plugin]: Requires Matterbridge 3.0.3.
 - [config]: As anticipated in the previous release, the parameter postfixHostname has been removed. Use postfix if needed.
 - [colorRgb]: Changed the default device type from colorTemperatureLight to extendedColorLight to solve the SmartThings issue with colors.
+- [colorTemp]: The min and max mired values are now set in the cluster.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">

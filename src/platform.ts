@@ -22,7 +22,7 @@
  */
 
 import { addVirtualDevice, Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf } from 'matterbridge/logger';
+import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf, LogLevel } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
 import path from 'node:path';
@@ -433,11 +433,13 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.availabilityTimer = setTimeout(() => {
       // Send availability if z2m has availability enabled
+      this.log.info(`Setting availability for ${this.z2mEntityAvailability.size} entities`);
       for (const [entity, available] of this.z2mEntityAvailability) {
         if (available) this.z2m.emit('ONLINE-' + entity);
         else this.z2m.emit('OFFLINE-' + entity);
       }
       // Send retained state if z2m has retain enabled
+      this.log.info(`Setting retained values for ${this.z2mEntityPayload.size} entities`);
       for (const [entity, payload] of this.z2mEntityPayload) {
         this.z2m.emit('MESSAGE-' + entity, payload);
       }
@@ -453,6 +455,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }, 60 * 1000);
     }
     this.log.info(`Configured zigbee2mqtt dynamic platform v${this.version}`);
+  }
+
+  override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
+    this.log.info(`Configuring zigbee2mqtt platform logger level to ${CYAN}${logLevel}${nf}`);
+    this.log.logLevel = logLevel;
+    this.z2m.setLogLevel(logLevel);
+    for (const bridgedDevice of this.bridgedDevices) {
+      bridgedDevice.log.logLevel = logLevel;
+    }
+    for (const entity of this.zigbeeEntities) {
+      entity.log.logLevel = logLevel;
+    }
+    this.log.debug('Changed logger level to ' + logLevel);
   }
 
   override async onShutdown(reason?: string) {

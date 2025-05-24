@@ -304,6 +304,10 @@ export class Zigbee2MQTT extends EventEmitter {
     this.log.logLevel = logDebug ? LogLevel.DEBUG : LogLevel.INFO;
   }
 
+  public setLogLevel(logLevel: LogLevel): void {
+    this.log.logLevel = logLevel;
+  }
+
   public async setDataPath(dataPath: string): Promise<void> {
     try {
       await mkdir(dataPath, { recursive: true });
