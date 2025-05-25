@@ -19,7 +19,7 @@ New device types:
 
 If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
 
-## [2.5.0] - 2025-05-23
+## [2.5.0] - 2025-05-25
 
 ### Added
 
@@ -46,6 +46,7 @@ If your controller has issues detecting the new device type, blacklist these dev
 
 - [logger]: Fixed logger not always taking the correct value from the frontend.
 - [issue104]: Solved wrong mode AUTO in system_mode for HEAT only devices.
+- [issue107]: Solved motor_direction reversed.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
