@@ -37,7 +37,7 @@ If your controller has issues detecting the new device type, blacklist these dev
 
 - [package]: Updated package.
 - [package]: Updated dependencies.
-- [plugin]: Requires Matterbridge 3.0.3.
+- [plugin]: Requires Matterbridge 3.0.4.
 - [config]: As anticipated in the previous release, the parameter postfixHostname has been removed. Use postfix if needed.
 - [colorRgb]: Changed the default device type from colorTemperatureLight to extendedColorLight to solve the SmartThings issue with colors.
 - [colorTemp]: The min and max mired values for color_temp are now set in the cluster.
