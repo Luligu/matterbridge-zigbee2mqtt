@@ -8,6 +8,50 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+### Breaking Changes
+
+New device types:
+
+- extendedColorLight
+- waterLeakDetector
+- rainSensor
+- smokeSensor
+
+If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
+
+## [2.5.0] - 2025-05-26
+
+### Added
+
+- [scenes]: Added scenes support for groups and devices. See the README.md for explanations.
+- [waterLeak]: Added waterLeakDetector device type for zigbee property "water_leak". Default to false (i.e. no alarm) since is not possible to get the property.
+- [rainSensor]: Added rainSensor device type for zigbee property "rain". Default to false (i.e. no alarm) since is not possible to get the property.
+- [smokeSensor]: Added smokeSensor device type for zigbee property "smoke". Default to false (i.e. no alarm) since is not possible to get the property.
+- [colorTemp]: Added conversion from color temperature to rgb for the rgb devices that don't support color_temp.
+- [battery]: Set batChargeLevel to warning if battery is less than 40% and the device doesn't expose battery_low.
+- [battery]: Set batChargeLevel to critical if battery is less than 20% and the device doesn't expose battery_low.
+- [retain]: Send retained mqtt states at startup if z2m has retain enabled. See the README.md for explanations.
+- [logger]: Added onChangeLoggerLevel() to the platform.
+
+### Changed
+
+- [package]: Updated package.
+- [package]: Updated dependencies.
+- [plugin]: Requires Matterbridge 3.0.4.
+- [config]: As anticipated in the previous release, the parameter postfixHostname has been removed. Use postfix if needed.
+- [colorRgb]: Changed the default device type from colorTemperatureLight to extendedColorLight to solve the SmartThings issue with colors.
+- [colorTemp]: The min and max mired values for color_temp are now set in the cluster.
+
+### Fixed
+
+- [logger]: Fixed logger not always taking the correct value from the frontend.
+- [issue104]: Solved wrong mode AUTO in system_mode for HEAT only devices.
+- [issue107]: Solved motor_direction reversed.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [2.4.7] - 2025-03-19
 
 ### Added

@@ -304,6 +304,10 @@ export class Zigbee2MQTT extends EventEmitter {
     this.log.logLevel = logDebug ? LogLevel.DEBUG : LogLevel.INFO;
   }
 
+  public setLogLevel(logLevel: LogLevel): void {
+    this.log.logLevel = logLevel;
+  }
+
   public async setDataPath(dataPath: string): Promise<void> {
     try {
       await mkdir(dataPath, { recursive: true });
@@ -316,6 +320,12 @@ export class Zigbee2MQTT extends EventEmitter {
       } else {
         this.log.error('Error creating data directory:', error);
       }
+    }
+    try {
+      const filePath = path.join(this.mqttDataPath, 'bridge-payloads.txt');
+      fs.unlinkSync(filePath);
+    } catch (error) {
+      this.log.debug(`Error deleting bridge-payloads.txt: ${error}`);
     }
   }
 
@@ -906,6 +916,7 @@ export class Zigbee2MQTT extends EventEmitter {
       // Do nothing
     } else if (service === undefined) {
       // this.log.debug(`classZigbee2MQTT=>emitting message for device ${dn}${entity}${rs} payload ${pl}${payload}${rs}`);
+      this.emit('message', entity, data);
       this.emit('MESSAGE-' + entity, data);
     } else {
       // MQTT output attribute type

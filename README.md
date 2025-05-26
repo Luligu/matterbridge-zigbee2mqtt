@@ -17,7 +17,7 @@ Matterbridge zigbee2mqtt is a matterbridge production-level plugin that expose a
 
 No hub or dedicated hardware needed.
 
-Interested in super fast and autonomous automations for zigbee2mqtt? Try this: https://github.com/Luligu/zigbee2mqtt-automations
+Interested in super fast and autonomous **[automations for zigbee2mqtt](https://github.com/Luligu/zigbee2mqtt-automations)**? Try this: https://github.com/Luligu/zigbee2mqtt-automations.
 
 If you like this project and find it useful, please consider giving it a star on GitHub at https://github.com/Luligu/matterbridge-zigbee2mqtt and sponsoring it.
 
@@ -129,6 +129,12 @@ The featureBlackList allows to globally (for all devices) blacklist a z2m featur
 
 The deviceFeatureBlackList allows to blacklist a z2m feature for a single device if you don't want to expose it (e.g. temperature for a motion sensor).
 
+The scenesType enable and set how to expose the scenes.
+
+The scenesPrefix enable the prefix with device/grop name to the scene device.
+
+The debug option allows to set the debug mode only for the plugin.
+
 The unregisterOnShutdown option allows to remove from the bridge all z2m devices when you shut down Matterbridge.
 
 These are the default vules:
@@ -150,8 +156,11 @@ These are the default vules:
   "outletList": [],
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
+  "scenesType": "outlet",
+  "scenesPrefix": true,
   "postfix": "",
-  "postfixHostname": true
+  "debug": false,
+  "unregisterOnShutdown": false
 }
 ```
 
@@ -179,19 +188,7 @@ If you want to exclude "temperature" and "humidity" for the device "My motion se
 }
 ```
 
-The parameter postfixHostname is deprecated and will be removed in the next release. Use postfix instead if needed.
-By default matterbridge-zigbee2mqtt uses hostname in order to make entities unique, however in some cases
-you may not want this behavior. You can use "postfixHostname" boolean flag to disable this behavior:
-
-```json
-{
-    ...
-    "postfixHostname": false
-    ...
-}
-```
-
-From the release 1.2.14 of Matterbridge you can edit the config file directly in the frontend.
+From the release 1.2.14 of Matterbridge you can edit the config file directly in the frontend. I strongly suggest you use the integrated config editor.
 
 You can edit the config file manually if you prefer:
 
@@ -217,11 +214,46 @@ nano matterbridge-zigbee2mqtt.config.json
 
 ## What is supported?
 
-Out of the box, this plugin supports all possible conversion from zigbee2mqtt to Matter 1.1.
+Out of the box, this plugin supports all possible conversion from zigbee2mqtt to Matter 1.4.
 
-The latest release also supports all clusters in the multi endpoints devices (e.g. DIY devices or the double channel switches/dimmers).
+It also supports all clusters in the multi endpoints devices (e.g. DIY devices or the double channel switches/dimmers).
 
-Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.1 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
+Since the Matter support in the available ecosystems (controllers) is sometimes limited and, when available, only covers Matter 1.2 specifications, some z2m devices cannot be exposed properly or cannot be exposed at all.
+
+## Scenes in groups and devices
+
+With release 2.5.0 has been added support for scenes in groups and devices.
+
+In the config select what device type you want to use to expose the command that runs the scene: 'light' | 'outlet' | 'switch' | 'mounted_switch'.
+
+Switch is not supported by Alexa. Mounted Switch is not supported by Apple Home.
+
+The virtual device takes the name of the group or device it belongs to, with added the name of scene. If scenesPrefix is disabled, it takes only the name of the scene. Consider that in Matter the node name is 32 characters long. Consider also that each scene name must by unique if scenesPrefix is disabled.
+
+The state of the virtual device is always reverted to off in a few seconds.
+
+It is possibile to disable the feature globally with featureBlackList (add "scenes" to the list) and on a per device/group base with deviceFeatureBlackList (add "scenes" to the list).
+
+## Availability
+
+If the availability is enabled in zigbee2mqtt settings, it is used to set the corresponding device/group reachable or not.
+
+[Screenshot](https://github.com/user-attachments/assets/7e0d395f-19e4-4e7f-b263-0cae3df70be4)
+
+## Retain
+
+If the retain option is enabled in zigbee2mqtt settings or device setting, at restart all retained states are updated. I suggest to use this option expecially for battery powered devices.
+
+To enable retain globally, stop zigbee2mqtt, add retain: true to device_options and restart zigbee2mqtt.
+
+```
+device_options:
+  retain: true
+```
+
+To enable retain for a single device set it in the device settings.
+
+[Screenshot](https://github.com/user-attachments/assets/5ae09f2a-6cff-4623-92f4-87f7721ee443)
 
 ## Unsupported devices
 
@@ -264,6 +296,6 @@ For general controller issues check the Matterbridge Known issues section
 
 ## Alexa
 
-In the plugin config add each switch device to the lightList or outletList. Matterbridge uses a modified switch device type without client cluster that Alexa doesn't recognize.
+In the plugin config add each switch device to the lightList or outletList. Matterbridge uses a switch device type without client cluster that Alexa doesn't recognize.
 
 ## SmartThings

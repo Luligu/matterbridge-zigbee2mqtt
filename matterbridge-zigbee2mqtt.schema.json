@@ -119,27 +119,38 @@
         "selectDeviceEntityFrom": "name"
       }
     },
-    "deviceScenes": {
-      "description": "Enable the devices scenes",
-      "type": "boolean",
-      "default": false,
-      "ui:widget": "hidden"
+    "scenesType": {
+      "description": "Device type to use to expose scenes",
+      "type": "string",
+      "oneOf": [
+        {
+          "title": "Light",
+          "enum": ["light"]
+        },
+        {
+          "title": "Outlet",
+          "enum": ["outlet"]
+        },
+        {
+          "title": "Switch",
+          "enum": ["switch"]
+        },
+        {
+          "title": "Mounted Switch",
+          "enum": ["mounted_switch"]
+        }
+      ],
+      "default": "outlet"
     },
-    "groupScenes": {
-      "description": "Enable the groups scenes",
+    "scenesPrefix": {
+      "description": "Add the device/group friendly name before the scene name.",
       "type": "boolean",
-      "default": false,
-      "ui:widget": "hidden"
+      "default": true
     },
     "postfix": {
       "description": "Add this unique postfix (3 characters max) to each device serial to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
       "type": "string",
       "default": ""
-    },
-    "postfixHostname": {
-      "description": "DEPRECATED: unique postfix added to each device identifier to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value). Use postfix instead.",
-      "type": "boolean",
-      "default": true
     },
     "debug": {
       "description": "Enable the debug for the plugin (development only)",
