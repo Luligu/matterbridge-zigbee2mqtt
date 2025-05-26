@@ -129,6 +129,12 @@ The featureBlackList allows to globally (for all devices) blacklist a z2m featur
 
 The deviceFeatureBlackList allows to blacklist a z2m feature for a single device if you don't want to expose it (e.g. temperature for a motion sensor).
 
+The scenesType enable and set how to expose the scenes.
+
+The scenesPrefix enable the prefix with device/grop name to the scene device.
+
+The debug option allows to set the debug mode only for the plugin.
+
 The unregisterOnShutdown option allows to remove from the bridge all z2m devices when you shut down Matterbridge.
 
 These are the default vules:
@@ -152,7 +158,9 @@ These are the default vules:
   "deviceFeatureBlackList": {},
   "scenesType": "outlet",
   "scenesPrefix": true,
-  "postfix": ""
+  "postfix": "",
+  "debug": false,
+  "unregisterOnShutdown": false
 }
 ```
 

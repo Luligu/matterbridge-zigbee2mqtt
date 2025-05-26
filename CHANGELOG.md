@@ -19,7 +19,7 @@ New device types:
 
 If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
 
-## [2.5.0] - 2025-05-25
+## [2.5.0] - 2025-05-26
 
 ### Added
 
