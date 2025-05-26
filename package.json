@@ -7,7 +7,7 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "homepage": "https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/README.md",
+  "homepage": "https://www.npmjs.com/package/matterbridge-zigbee2mqtt",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Luligu/matterbridge-zigbee2mqtt.git"
