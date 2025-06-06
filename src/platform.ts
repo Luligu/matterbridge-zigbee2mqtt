@@ -115,18 +115,32 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.scenesType === undefined) config.scenesType = 'outlet';
     if (config.scenesPrefix === undefined) config.scenesPrefix = true;
 
+    /*
     if (config.type === 'MatterbridgeExtension') {
       this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
       this.z2m.setLogDebug(this.debugEnabled);
       this.log.debug('Created ZigbeePlatform as Matterbridge extension');
       return;
     }
+    */
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
     // this.log.debug(`Config:')}${rs}`, config);
 
-    this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
+    this.z2m = new Zigbee2MQTT(
+      this.mqttHost,
+      this.mqttPort,
+      this.mqttTopic,
+      this.mqttUsername,
+      this.mqttPassword,
+      this.mqttProtocol,
+      this.config.ca as string | undefined,
+      this.config.rejectUnauthorized as boolean | undefined,
+      this.config.cert as string | undefined,
+      this.config.key as string | undefined,
+      this.debugEnabled,
+    );
     this.z2m.setLogDebug(this.debugEnabled);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
