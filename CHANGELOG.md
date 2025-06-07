@@ -25,8 +25,8 @@ If your controller has issues detecting the new device type, blacklist these dev
 
 ### Added
 
-- [mqtt]: Added MQTT SSL/TLS server authentication. Prefix host with mqtts:// and provide the ca certificate.
-- [mqtt]: Added MQTT SSL/TLS client authentication. Prefix host with mqtts:// and provide the client certificate and key.
+- [mqtt]: Added MQTT SSL/TLS server authentication. Prefix host with mqtts:// and provide the ca certificate for self-signed server certificates.
+- [mqtt]: Added MQTT SSL/TLS client authentication. Prefix host with mqtts:// and provide the client certificate and key. Provide also the ca certificate for self-signed client certificates.
 
 ### Changed
 
