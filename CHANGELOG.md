@@ -25,6 +25,7 @@ If your controller has issues detecting the new device type, blacklist these dev
 
 ### Added
 
+- [npm]: The dev of matterbridge-zigbee2mqtt is published with tag **dev** on **npm** each day at 00:00 UTC if there is a new commit.
 - [mqtt]: Added MQTT SSL/TLS server authentication. Prefix host with mqtts:// and provide the ca certificate for self-signed server certificates.
 - [mqtt]: Added MQTT SSL/TLS client authentication. Prefix host with mqtts:// and provide the client certificate and key. Provide also the ca certificate for self-signed client certificates.
 
