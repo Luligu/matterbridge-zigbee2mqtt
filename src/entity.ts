@@ -1644,7 +1644,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'systemMode',
-        async (value) => {
+        (value) => {
           if (isValidNumber(value, Thermostat.SystemMode.Off, Thermostat.SystemMode.FanOnly) && zigbeeDevice.thermostatSystemModeLookup[value] !== '') {
             const system_mode = zigbeeDevice.thermostatSystemModeLookup[value];
             zigbeeDevice.log.debug(`Subscribe systemMode called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with ${value} => ${system_mode}`);
@@ -1661,7 +1661,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.bridgedDevice.subscribeAttribute(
           ThermostatCluster.id,
           'occupiedHeatingSetpoint',
-          async (value) => {
+          (value) => {
             zigbeeDevice.log.debug(`Subscribe occupiedHeatingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
             if (zigbeeDevice.propertyMap.has('current_heating_setpoint')) zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_heating_setpoint')) zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { occupied_heating_setpoint: Math.round(value / 100) });
@@ -1676,7 +1676,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.bridgedDevice.subscribeAttribute(
           ThermostatCluster.id,
           'occupiedCoolingSetpoint',
-          async (value) => {
+          (value) => {
             zigbeeDevice.log.debug(`Subscribe occupiedCoolingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
             if (zigbeeDevice.propertyMap.has('current_heating_setpoint')) zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_cooling_setpoint')) zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: Math.round(value / 100) });

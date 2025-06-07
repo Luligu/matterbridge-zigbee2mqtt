@@ -25,11 +25,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as util from 'node:util';
 import * as crypto from 'node:crypto';
-import { MqttClient, IClientOptions, connectAsync, ErrorWithReasonCode, IConnackPacket, IDisconnectPacket, IPublishPacket, Packet } from 'mqtt';
 import { EventEmitter } from 'node:events';
+import { mkdir } from 'node:fs/promises';
+import { MqttClient, IClientOptions, connectAsync, ErrorWithReasonCode, IConnackPacket, IDisconnectPacket, IPublishPacket, Packet } from 'mqtt';
 import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF, LogLevel } from 'node-ansi-logger';
 import { BridgeExtension, KeyValue, Topology } from './zigbee2mqttTypes.js';
-import { mkdir } from 'node:fs/promises';
 import { Payload } from './payloadTypes.js';
 
 const writeFile = util.promisify(fs.writeFile);
@@ -261,20 +261,43 @@ export class Zigbee2MQTT extends EventEmitter {
 
   // Define our MQTT options
   private options: IClientOptions = {
-    clientId: 'classZigbee2MQTT_' + crypto.randomBytes(8).toString('hex'),
+    clientId: 'matterbridge_' + crypto.randomBytes(8).toString('hex'),
     keepalive: 60,
-    protocolId: 'MQTT',
+    protocol: 'mqtt',
     protocolVersion: 5,
-    reconnectPeriod: 5000, // 1000
-    connectTimeout: 60 * 1000, // 30 * 1000
+    reconnectPeriod: 5000,
+    connectTimeout: 60 * 1000,
     username: undefined,
     password: undefined,
     clean: true,
   };
 
-  // Constructor
-  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername: string | undefined = undefined, mqttPassword: string | undefined = undefined, protocolVersion: 4 | 5 | 3 = 5, debug = false) {
+  /**
+   * Creates a new Zigbee2MQTT instance.
+   *
+   * @param {string} mqttHost - The MQTT broker URL (e.g., 'mqtt://localhost' or 'mqtts://host'). Use 'mqtts://' for secure (TLS) connections.
+   * @param {number} mqttPort - The MQTT broker port (default: 1883 for MQTT, 8883 for MQTT over TLS).
+   * @param {string} mqttTopic - The base MQTT topic to subscribe to (e.g., 'zigbee2mqtt').
+   * @param {string} [mqttUsername] - Optional username for MQTT authentication.
+   * @param {string} [mqttPassword] - Optional password for MQTT authentication.
+   * @param {5 | 4 | 3} [protocolVersion=5] - MQTT protocol version (5, 4, or 3). Default is 5.
+   * @param {string} [ca] - Path to a CA certificate file for verifying the MQTT broker when using 'mqtts://'. Required for secure connections.
+   * @param {boolean} [rejectUnauthorized] - If true, only accept server certificates signed by a trusted CA. Set to false to allow self-signed/untrusted certs (not recommended).
+   * @param {string} [cert] - Path to a client certificate file for mutual TLS authentication (optional, only needed if the broker requires client certificates).
+   * @param {string} [key] - Path to a client private key file for mutual TLS authentication (optional, only needed if the broker requires client certificates).
+   * @param {boolean} [debug=false] - Enable debug logging.
+   *
+   * @throws {Error} If 'mqtts://' is used but no CA certificate is provided.
+   *
+   * TLS usage notes:
+   * - For secure MQTT (TLS), use 'mqtts://' in mqttHost and provide the 'ca' parameter.
+   * - 'cert' and 'key' are only required if your broker requires client certificate authentication (mutual TLS).
+   * - 'rejectUnauthorized' should almost always be true for security; set to false only for testing with self-signed certs.
+   */
+  constructor(mqttHost: string, mqttPort: number, mqttTopic: string, mqttUsername?: string, mqttPassword?: string, protocolVersion: 5 | 4 | 3 = 5, ca?: string, rejectUnauthorized?: boolean, cert?: string, key?: string, debug = false) {
     super();
+
+    this.log = new AnsiLogger({ logName: 'Zigbee2MQTT', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: debug ? LogLevel.DEBUG : LogLevel.INFO });
 
     this.mqttHost = mqttHost;
     this.mqttPort = mqttPort;
@@ -286,6 +309,51 @@ export class Zigbee2MQTT extends EventEmitter {
     this.options.password = mqttPassword !== undefined && mqttPassword !== '' ? mqttPassword : undefined;
     this.options.protocolVersion = protocolVersion;
 
+    // Setup TLS authentication if needed:
+    if (mqttHost.startsWith('mqtts://')) {
+      this.log.debug('Using mqtts:// protocol for secure MQTT connection');
+      if (!ca) {
+        this.log.info('When using mqtts:// protocol, you must provide the ca certificate for SSL/TLS connections with self-signed certificates.');
+      } else {
+        try {
+          fs.accessSync(ca, fs.constants.R_OK);
+          this.options.ca = fs.readFileSync(ca);
+        } catch (error) {
+          this.log.error(`Error reading the CA certificate from ${ca}:`, error);
+        }
+      }
+      this.options.rejectUnauthorized = rejectUnauthorized !== undefined ? rejectUnauthorized : true; // Default to true for security
+      this.options.protocol = 'mqtts';
+      // If cert and key are provided, use them for client authentication with SSL/TLS. Mandatory for mqtts:// connections when require_certificate true
+      if (cert && key) {
+        try {
+          fs.accessSync(cert, fs.constants.R_OK);
+          this.options.cert = fs.readFileSync(cert);
+        } catch (error) {
+          this.log.error(`Error reading the client certificate from ${cert}:`, error);
+        }
+        try {
+          fs.accessSync(key, fs.constants.R_OK);
+          this.options.key = fs.readFileSync(key);
+        } catch (error) {
+          this.log.error(`Error reading the client key from ${key}:`, error);
+        }
+      }
+    } else if (mqttHost.startsWith('mqtt://')) {
+      this.log.debug('Using mqtt:// protocol for non-secure MQTT connection');
+      if (ca) {
+        this.log.warn('You are using mqtt:// protocol, but you provided a CA certificate. It will be ignored.');
+      }
+      if (cert) {
+        this.log.warn('You are using mqtt:// protocol, but you provided a certificate. It will be ignored.');
+      }
+      if (key) {
+        this.log.warn('You are using mqtt:// protocol, but you provided a key. It will be ignored.');
+      }
+    } else {
+      this.log.warn('You are using an unsupported MQTT protocol. Please use mqtt:// or mqtts://.');
+    }
+
     this.z2mIsAvailabilityEnabled = false;
     this.z2mIsOnline = false;
     this.z2mPermitJoin = false;
@@ -294,7 +362,6 @@ export class Zigbee2MQTT extends EventEmitter {
     this.z2mDevices = [];
     this.z2mGroups = [];
 
-    this.log = new AnsiLogger({ logName: 'Zigbee2MQTT', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: debug ? LogLevel.DEBUG : LogLevel.INFO });
     this.log.debug(
       `Created new instance with host: ${mqttHost} port: ${mqttPort} protocol ${protocolVersion} topic: ${mqttTopic} username: ${mqttUsername !== undefined && mqttUsername !== '' ? mqttUsername : 'undefined'} password: ${mqttPassword !== undefined && mqttPassword !== '' ? '*****' : 'undefined'}`,
     );
@@ -331,7 +398,7 @@ export class Zigbee2MQTT extends EventEmitter {
 
   // Get the URL for connect
   private getUrl(): string {
-    return 'mqtt://' + this.mqttHost + ':' + this.mqttPort.toString();
+    return this.mqttHost + ':' + this.mqttPort.toString();
   }
 
   public async start() {
@@ -420,7 +487,7 @@ export class Zigbee2MQTT extends EventEmitter {
             }
           },
           (this.options.keepalive ?? 60) * 1000,
-        );
+        ).unref();
       })
       .catch((error) => {
         this.log.error(`Error connecting to ${this.getUrl()}: ${error.message}`);

@@ -7,7 +7,7 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-  
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,32 +20,44 @@ jobs:
 
       - name: Clean cache
         run: npm cache clean --force
-  
+
       - name: Verify Node.js version
         run: node -v
 
       - name: Verify Npm version
         run: npm -v
-            
-      - name: Install matterbridge
-        run: npm install -g matterbridge --omit=dev
 
-      - name: Install dependencies
+      - name: Clone matterbridge repo
+        run: git clone https://github.com/Luligu/matterbridge.git ../matterbridge
+
+      - name: Install matterbridge dependencies
+        working-directory: ../matterbridge
         run: npm ci
-    
-      - name: Link matterbridge
-        run: npm link matterbridge
 
-      - name: Lint the project
-        run: npm run lint
-
-      - name: Test the project
-        run: npm run test
-
-      - name: Build the project
+      - name: Build matterbridge
+        working-directory: ../matterbridge
         run: npm run build
 
-      - name: Publish to npm
+      - name: Link matterbridge globally
+        working-directory: ../matterbridge
+        run: npm link
+
+      - name: Install plugin dependencies
+        run: npm ci
+
+      - name: Link matterbridge in the project
+        run: npm link matterbridge
+
+      - name: Lint the plugin
+        run: npm run lint
+
+      - name: Test the plugin
+        run: npm run test
+
+      - name: Build the plugin
+        run: npm run build
+
+      - name: Publish the plugin to npm
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

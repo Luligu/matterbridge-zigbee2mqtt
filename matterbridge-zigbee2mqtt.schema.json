@@ -17,36 +17,53 @@
       "ui:widget": "hidden"
     },
     "host": {
-      "description": "MQTT server host (IP address or hostname without mqtt://)",
+      "description": "MQTT server host (IP address or hostname with mqtt:// or mqtts:// prefix). For secure connections, use the mqtts:// prefix and ensure your certificates are configured. If you use a hostname, make sure that the hostname is resolvable by the system running matterbridge.",
       "type": "string",
-      "default": "localhost"
-    },
-    "username": {
-      "description": "MQTT server authentication user",
-      "type": "string"
-    },
-    "password": {
-      "description": "MQTT server authentication password",
-      "type": "string",
-      "ui:widget": "password"
+      "default": "mqtt://localhost"
     },
     "port": {
-      "description": "MQTT server port (default 1883)",
+      "description": "MQTT server port (i.e. 1883 for mqtt:// and 8883 for mqtts://).",
       "type": "number",
       "default": 1883
     },
     "protocolVersion": {
-      "description": "MQTT server protocol version 3, 4 or 5 (default 5)",
+      "description": "MQTT server protocol version 3, 4 or 5 (default 5). Version 5 is recommended for most modern MQTT brokers.",
       "type": "number",
       "default": 5
     },
+    "username": {
+      "description": "MQTT server authentication user. Only required if the MQTT server requires authentication (i.e allow_anonymous false)",
+      "type": "string"
+    },
+    "password": {
+      "description": "MQTT server authentication password. Only required if the MQTT server requires authentication (i.e allow_anonymous false)",
+      "type": "string",
+      "ui:widget": "password"
+    },
+    "ca": {
+      "description": "Absolute path to the SSL/TLS CA certificate used to sign both the server and client certificates (PEM format). Required for secure connections (i.e. mqtts://) with self-signed certificates.",
+      "type": "string"
+    },
+    "rejectUnauthorized": {
+      "description": "Reject unauthorized MQTT server. Only used for secure connections (i.e. mqtts://).",
+      "type": "boolean",
+      "default": true
+    },
+    "cert": {
+      "description": "Absolute path to the SSL/TLS MQTT client certificate (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
+      "type": "string"
+    },
+    "key": {
+      "description": "Absolute path to the SSL/TLS MQTT client private key (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
+      "type": "string"
+    },
     "topic": {
-      "description": "MQTT base topic for Zigbee2MQTT MQTT messages",
+      "description": "MQTT base topic for Zigbee2MQTT MQTT messages. This should match the base_topic in your Zigbee2MQTT configuration.yaml file.",
       "type": "string",
       "default": "zigbee2mqtt"
     },
     "zigbeeFrontend": {
-      "description": "Zigbee frontend host to prefix the configUrl (i.e. http://192.168.1.100:8080)",
+      "description": "Zigbee frontend host to prefix the configUrl from matterbridge frontend (i.e. http://192.168.1.100:8080)",
       "type": "string",
       "default": "http://localhost:8080"
     },

@@ -10,6 +10,8 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Breaking Changes
 
+The host config option must now start with mqtt:// or mqtts:// to distinguish between unsecure and SSL/TLS connection with the MQTT broker.
+
 New device types:
 
 - extendedColorLight
@@ -18,6 +20,26 @@ New device types:
 - smokeSensor
 
 If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
+
+## [2.6.0] - 2025-06-07
+
+### Added
+
+- [mqtt]: Added MQTT SSL/TLS server authentication. Prefix host with mqtts:// and provide the ca certificate for self-signed server certificates.
+- [mqtt]: Added MQTT SSL/TLS client authentication. Prefix host with mqtts:// and provide the client certificate and key. Provide also the ca certificate for self-signed client certificates.
+
+### Changed
+
+- [package]: Updated package.
+- [package]: Updated dependencies.
+
+### Fixed
+
+- [subscribe]: Removed async from handlers.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
 
 ## [2.5.0] - 2025-05-26
 
