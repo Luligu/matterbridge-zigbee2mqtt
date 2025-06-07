@@ -41,20 +41,20 @@
       "ui:widget": "password"
     },
     "ca": {
-      "description": "Absolute path for the MQTT server CA certificate used to sign both the server and client certificates (PEM format).",
+      "description": "Absolute path to the SSL/TLS CA certificate used to sign both the server and client certificates (PEM format). Required for secure connections (i.e. mqtts://) with self-signed certificates.",
       "type": "string"
     },
     "rejectUnauthorized": {
-      "description": "Reject unauthorized MQTT server.",
+      "description": "Reject unauthorized MQTT server. Only used for secure connections (i.e. mqtts://).",
       "type": "boolean",
       "default": true
     },
     "cert": {
-      "description": "Absolute path for the MQTT server client certificate (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
+      "description": "Absolute path to the SSL/TLS MQTT client certificate (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
       "type": "string"
     },
     "key": {
-      "description": "Absolute path for the MQTT server client private key (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
+      "description": "Absolute path to the SSL/TLS MQTT client private key (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
       "type": "string"
     },
     "topic": {
