@@ -22,11 +22,12 @@
  * limitations under the License.
  */
 
+import path from 'node:path';
+
 import { addVirtualDevice, Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf, LogLevel } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
-import path from 'node:path';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup /* , BridgedBaseDevice*/ } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
@@ -513,6 +514,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   /**
+   *  Set the callback to be called when a publish request is received.
+   *
+   * @param {Function} onPublish The callback function to be called when a publish request is received.
    * @deprecated
    */
   public setPublishCallBack(onPublish: (entityName: string, topic: string, message: string) => Promise<void>): void {
@@ -520,6 +524,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   /**
+   *  Set the callback to be called when a permit join request is received.
+   *
+   * @param {Function} onPermitJoin The callback function to be called when a permit join request is received.
+   *
    * @deprecated
    */
   public setPermitJoinCallBack(onPermitJoin: (entityName: string, permit: boolean) => Promise<void>): void {
@@ -537,6 +545,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   /**
+   *  Emit an event to the zigbee2mqtt instance.
+   *
+   * @param {string} eventName The name of the event to emit.
+   * @param {Payload} data The data to send with the event.
    * @deprecated
    */
   public emit(eventName: string, data: Payload) {

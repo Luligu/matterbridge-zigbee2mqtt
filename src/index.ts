@@ -24,6 +24,7 @@
 
 import { Matterbridge, PlatformConfig } from 'matterbridge';
 import { AnsiLogger } from 'matterbridge/logger';
+
 import { ZigbeePlatform } from './platform.js';
 
 /**

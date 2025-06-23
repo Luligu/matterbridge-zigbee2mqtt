@@ -22,6 +22,8 @@
  * limitations under the License.
  */
 
+import EventEmitter from 'node:events';
+
 import {
   DeviceTypeDefinition,
   airQualitySensor,
@@ -91,8 +93,6 @@ import {
   SmokeCoAlarm,
 } from 'matterbridge/matter/clusters';
 
-import EventEmitter from 'node:events';
-
 import { ZigbeePlatform } from './platform.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
@@ -106,7 +106,7 @@ interface BehaviorOptions {
  * Represents a Zigbee entity: a group or a device.
  *
  * @class
- * @extends {EventEmitter}
+ * @augments {EventEmitter}
  */
 export class ZigbeeEntity extends EventEmitter {
   public log: AnsiLogger;
@@ -126,12 +126,34 @@ export class ZigbeeEntity extends EventEmitter {
   private lastSeen = 0;
   protected ignoreFeatures: string[] = [];
   protected transition = false;
-  protected propertyMap = new Map<string, { name: string; type: string; endpoint: string; values?: string; value_min?: number; value_max?: number; unit?: string; category?: string; description?: string; label?: string; action?: string }>();
+  protected propertyMap = new Map<
+    string,
+    {
+      name: string;
+      type: string;
+      endpoint: string;
+      values?: string;
+      value_min?: number;
+      value_max?: number;
+      unit?: string;
+      category?: string;
+      description?: string;
+      label?: string;
+      action?: string;
+    }
+  >();
 
   // We save the tag list and device types and cluster servers and clients to avoid multiple lookups
   protected readonly mutableDevice = new Map<
     string,
-    { tagList: Semtag[]; deviceTypes: DeviceTypeDefinition[]; clusterServersIds: ClusterId[]; clusterServersOptions: BehaviorOptions[]; clusterClientsIds: ClusterId[]; clusterClientsOptions: BehaviorOptions[] }
+    {
+      tagList: Semtag[];
+      deviceTypes: DeviceTypeDefinition[];
+      clusterServersIds: ClusterId[];
+      clusterServersOptions: BehaviorOptions[];
+      clusterClientsIds: ClusterId[];
+      clusterClientsOptions: BehaviorOptions[];
+    }
   >();
 
   protected colorTimeout: NodeJS.Timeout | undefined = undefined;
@@ -167,7 +189,11 @@ export class ZigbeeEntity extends EventEmitter {
       this.en = gn;
       this.ien = ign;
     }
-    this.log = new AnsiLogger({ logName: this.entityName, logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: platform.debugEnabled ? LogLevel.DEBUG : platform.log.logLevel });
+    this.log = new AnsiLogger({
+      logName: this.entityName,
+      logTimestampFormat: TimestampFormat.TIME_MILLIS,
+      logLevel: platform.debugEnabled ? LogLevel.DEBUG : platform.log.logLevel,
+    });
     this.log.debug(`Created MatterEntity: ${this.entityName}`);
 
     this.platform.z2m.on('MESSAGE-' + this.entityName, (payload: Payload) => {
@@ -593,7 +619,7 @@ export class ZigbeeEntity extends EventEmitter {
  * Represents a Zigbee group entity.
  *
  * @class
- * @extends {ZigbeeEntity}
+ * @augments {ZigbeeEntity}
  */
 export class ZigbeeGroup extends ZigbeeEntity {
   /**
@@ -732,7 +758,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
         platform.registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, async () => {
           zigbeeGroup.log.info(`Triggered scene "${scene.name}" id ${scene.id} from group ${group.friendly_name}`);
-          zigbeeGroup.publishCommand('scene_recall', group.friendly_name, { 'scene_recall': scene.id });
+          zigbeeGroup.publishCommand('scene_recall', group.friendly_name, { scene_recall: scene.id });
         });
       });
     }
@@ -988,14 +1014,16 @@ export const z2ms: ZigbeeToMatter[] = [
  * Represents a Zigbee device entity.
  *
  * @class
- * @extends {ZigbeeEntity}
+ * @augments {ZigbeeEntity}
  */
 export class ZigbeeDevice extends ZigbeeEntity {
   /**
    * Represents a Zigbee device entity.
    *
+   * @param {ZigbeePlatform} platform - The Zigbee platform instance.
+   * @param {BridgeDevice} device - The bridge device instance.
    * @class
-   * @extends {ZigbeeEntity}
+   * @augments {ZigbeeEntity}
    */
   private constructor(platform: ZigbeePlatform, device: BridgeDevice) {
     super(platform, device);
@@ -1059,7 +1087,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           platform.setSelectDeviceEntity(device.ieee_address, 'scenes', 'Scenes', 'component');
           platform.registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, async () => {
             zigbeeDevice.log.info(`Triggered scene "${scene.name}" id ${scene.id} from device ${device.friendly_name}`);
-            zigbeeDevice.publishCommand('scene_recall', device.friendly_name, { 'scene_recall': scene.id });
+            zigbeeDevice.publishCommand('scene_recall', device.friendly_name, { scene_recall: scene.id });
           });
         });
       });
@@ -1250,7 +1278,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
           }
           const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
-          zigbeeDevice.mutableDevice.set('switch_' + count, { tagList, deviceTypes: [genericSwitch], clusterServersIds: [...genericSwitch.requiredServerClusters], clusterServersOptions: [], clusterClientsIds: [], clusterClientsOptions: [] });
+          zigbeeDevice.mutableDevice.set('switch_' + count, {
+            tagList,
+            deviceTypes: [genericSwitch],
+            clusterServersIds: [...genericSwitch.requiredServerClusters],
+            clusterServersOptions: [],
+            clusterClientsIds: [],
+            clusterClientsOptions: [],
+          });
         } else {
           for (let i = 0; i < zigbeeDevice.actions.length; i += 3) {
             const actionsMap: string[] = [];
@@ -1261,7 +1296,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
             }
             const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
             tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
-            zigbeeDevice.mutableDevice.set('switch_' + count, { tagList, deviceTypes: [genericSwitch], clusterServersIds: [...genericSwitch.requiredServerClusters], clusterServersOptions: [], clusterClientsIds: [], clusterClientsOptions: [] });
+            zigbeeDevice.mutableDevice.set('switch_' + count, {
+              tagList,
+              deviceTypes: [genericSwitch],
+              clusterServersIds: [...genericSwitch.requiredServerClusters],
+              clusterServersOptions: [],
+              clusterClientsIds: [],
+              clusterClientsOptions: [],
+            });
             count++;
           }
         }
@@ -1277,7 +1319,15 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     // Handle when the device has only child endpoints
-    if (!zigbeeDevice.mutableDevice.has('')) zigbeeDevice.mutableDevice.set('', { tagList: [], deviceTypes: [bridgedNode, powerSource], clusterServersIds: [], clusterServersOptions: [], clusterClientsIds: [], clusterClientsOptions: [] });
+    if (!zigbeeDevice.mutableDevice.has(''))
+      zigbeeDevice.mutableDevice.set('', {
+        tagList: [],
+        deviceTypes: [bridgedNode, powerSource],
+        clusterServersIds: [],
+        clusterServersOptions: [],
+        clusterClientsIds: [],
+        clusterClientsOptions: [],
+      });
     const mainEndpoint = zigbeeDevice.mutableDevice.get('');
     if (!mainEndpoint) return zigbeeDevice;
 

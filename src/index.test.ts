@@ -1,13 +1,12 @@
-/* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, LogLevel } from 'matterbridge/logger';
-import { ZigbeePlatform } from './platform.js';
-import initializePlugin from './index';
 import { jest } from '@jest/globals';
-import { Zigbee2MQTT } from './zigbee2mqtt.js';
+
+import { ZigbeePlatform } from './platform.ts';
+import { Zigbee2MQTT } from './zigbee2mqtt.ts';
+import initializePlugin from './index.ts';
 
 let loggerLogSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.log>;
 let consoleLogSpy: jest.SpiedFunction<typeof console.log>;
@@ -77,23 +76,23 @@ describe('initializePlugin', () => {
       debug: jest.fn((message) => {}),
     } as unknown as AnsiLogger;
     mockConfig = {
-      'name': 'matterbridge-zigbee2mqtt',
-      'type': 'DynamicPlatform',
-      'topic': 'zigbee2mqtt',
-      'host': 'localhost',
-      'port': 1883,
-      'protocolVersion': 5,
-      'username': undefined,
-      'password': undefined,
-      'blackList': [],
-      'whiteList': [],
-      'switchList': [],
-      'lightList': [],
-      'outletList': [],
-      'featureBlackList': ['device_temperature', 'consumption', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
-      'deviceFeatureBlackList': {},
-      'postfix': '',
-      'unregisterOnShutdown': false,
+      name: 'matterbridge-zigbee2mqtt',
+      type: 'DynamicPlatform',
+      topic: 'zigbee2mqtt',
+      host: 'localhost',
+      port: 1883,
+      protocolVersion: 5,
+      username: undefined,
+      password: undefined,
+      blackList: [],
+      whiteList: [],
+      switchList: [],
+      lightList: [],
+      outletList: [],
+      featureBlackList: ['device_temperature', 'consumption', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
+      deviceFeatureBlackList: {},
+      postfix: '',
+      unregisterOnShutdown: false,
     } as PlatformConfig;
   });
 

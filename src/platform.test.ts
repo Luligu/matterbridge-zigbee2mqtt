@@ -1,20 +1,17 @@
-/* eslint-disable @typescript-eslint/no-empty-function */
-
 /* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { jest } from '@jest/globals';
-import { bridgedNode, colorTemperatureLight, coverDevice, dimmableLight, doorLockDevice, extendedColorLight, Matterbridge, MatterbridgeEndpoint, onOffLight, PlatformConfig, powerSource, thermostatDevice } from 'matterbridge';
-import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, wr, debugStringify, or, hk, zb, YELLOW, gn } from 'matterbridge/logger';
-import { wait } from 'matterbridge/utils';
-import { Thermostat } from 'matterbridge/matter/clusters';
 import path from 'node:path';
 import fs from 'node:fs';
 
-import { ZigbeePlatform } from './platform';
-import { Zigbee2MQTT } from './zigbee2mqtt';
-import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes';
+import { jest } from '@jest/globals';
+import { bridgedNode, colorTemperatureLight, coverDevice, dimmableLight, doorLockDevice, extendedColorLight, Matterbridge, MatterbridgeEndpoint, onOffLight, PlatformConfig, powerSource, thermostatDevice } from 'matterbridge';
+import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, or, hk, YELLOW } from 'matterbridge/logger';
+import { wait } from 'matterbridge/utils';
+import { Thermostat } from 'matterbridge/matter/clusters';
+
+import { ZigbeePlatform } from './platform.ts';
+import { Zigbee2MQTT } from './zigbee2mqtt.ts';
+import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.ts';
 
 let loggerLogSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.log>;
 let consoleLogSpy: jest.SpiedFunction<typeof console.log>;
@@ -91,25 +88,25 @@ describe('TestPlatform', () => {
       }),
     } as unknown as Matterbridge;
     mockConfig = {
-      'name': 'matterbridge-zigbee2mqtt',
-      'type': 'DynamicPlatform',
-      'topic': 'zigbee2mqtt',
-      'host': 'localhost',
-      'port': 1883,
-      'protocolVersion': 5,
-      'username': undefined,
-      'password': undefined,
-      'blackList': [],
-      'whiteList': [],
-      'switchList': [],
-      'lightList': [],
-      'outletList': [],
-      'featureBlackList': ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
-      'deviceFeatureBlackList': {},
-      'scenesType': 'outlet',
-      'postfix': '',
-      'debug': true,
-      'unregisterOnShutdown': false,
+      name: 'matterbridge-zigbee2mqtt',
+      type: 'DynamicPlatform',
+      topic: 'zigbee2mqtt',
+      host: 'localhost',
+      port: 1883,
+      protocolVersion: 5,
+      username: undefined,
+      password: undefined,
+      blackList: [],
+      whiteList: [],
+      switchList: [],
+      lightList: [],
+      outletList: [],
+      featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
+      deviceFeatureBlackList: {},
+      scenesType: 'outlet',
+      postfix: '',
+      debug: true,
+      unregisterOnShutdown: false,
     } as PlatformConfig;
   });
 
