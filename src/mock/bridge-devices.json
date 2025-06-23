@@ -5770,7 +5770,18 @@
           }
         ],
         "clusters": {
-          "input": ["genBasic", "genIdentify", "genGroups", "genScenes", "genOnOff", "seMetering", "haElectricalMeasurement", "msTemperatureMeasurement", "57344", "manuSpecificTuya_3"],
+          "input": [
+            "genBasic",
+            "genIdentify",
+            "genGroups",
+            "genScenes",
+            "genOnOff",
+            "seMetering",
+            "haElectricalMeasurement",
+            "msTemperatureMeasurement",
+            "57344",
+            "manuSpecificTuya_3"
+          ],
           "output": ["genOta", "genTime"]
         },
         "configured_reportings": [
@@ -6180,7 +6191,18 @@
           }
         ],
         "clusters": {
-          "input": ["genBasic", "genIdentify", "genGroups", "genScenes", "genOnOff", "seMetering", "haElectricalMeasurement", "msTemperatureMeasurement", "57344", "manuSpecificTuya_3"],
+          "input": [
+            "genBasic",
+            "genIdentify",
+            "genGroups",
+            "genScenes",
+            "genOnOff",
+            "seMetering",
+            "haElectricalMeasurement",
+            "msTemperatureMeasurement",
+            "57344",
+            "manuSpecificTuya_3"
+          ],
           "output": ["genOta", "genTime"]
         },
         "configured_reportings": [

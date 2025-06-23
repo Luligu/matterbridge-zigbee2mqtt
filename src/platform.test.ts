@@ -4,7 +4,20 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 import { jest } from '@jest/globals';
-import { bridgedNode, colorTemperatureLight, coverDevice, dimmableLight, doorLockDevice, extendedColorLight, Matterbridge, MatterbridgeEndpoint, onOffLight, PlatformConfig, powerSource, thermostatDevice } from 'matterbridge';
+import {
+  bridgedNode,
+  colorTemperatureLight,
+  coverDevice,
+  dimmableLight,
+  doorLockDevice,
+  extendedColorLight,
+  Matterbridge,
+  MatterbridgeEndpoint,
+  onOffLight,
+  PlatformConfig,
+  powerSource,
+  thermostatDevice,
+} from 'matterbridge';
 import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, or, hk, YELLOW } from 'matterbridge/logger';
 import { wait } from 'matterbridge/utils';
 import { Thermostat } from 'matterbridge/matter/clusters';
@@ -264,7 +277,12 @@ describe('TestPlatform', () => {
     const payload = { state: 'ON', changed: 1 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(payload)));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}Update endpoint ${or}MA-onoffswitch:undefined${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}undefined${db} to ${YELLOW}true${db}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      expect.stringContaining(
+        `${db}Update endpoint ${or}MA-onoffswitch:undefined${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}undefined${db} to ${YELLOW}true${db}`,
+      ),
+    );
     await wait(200);
   });
 
@@ -304,22 +322,35 @@ describe('TestPlatform', () => {
     const payload = { state: 'ON', brightness: 250, color: { x: 0.7006, y: 0.2993 }, color_mode: 'xy', changed: 1 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(payload)));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}undefined${db} to ${YELLOW}true${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db} from ${YELLOW}undefined${db} to ${YELLOW}250${db}`),
+      expect.stringContaining(
+        `${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}undefined${db} to ${YELLOW}true${db}`,
+      ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}undefined${db} to ${YELLOW}0${db}`),
+      expect.stringContaining(
+        `${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db} from ${YELLOW}undefined${db} to ${YELLOW}250${db}`,
+      ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}undefined${db} to ${YELLOW}0${db}`),
+      expect.stringContaining(
+        `${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}undefined${db} to ${YELLOW}0${db}`,
+      ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}undefined${db} to ${YELLOW}254${db}`),
+      expect.stringContaining(
+        `${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}undefined${db} to ${YELLOW}0${db}`,
+      ),
+    );
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      expect.stringContaining(
+        `${db}Update endpoint ${or}MA-extendedcolorlight:undefined${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}undefined${db} to ${YELLOW}254${db}`,
+      ),
     );
   });
 
@@ -327,7 +358,10 @@ describe('TestPlatform', () => {
     const entity = 'NewGroup';
     const payload = { data: { friendly_name: entity, id: 15 }, status: 'ok', transaction: '8j6s7-10' };
     (platform.z2m as any).messageHandler('zigbee2mqtt/bridge/response/group/add', Buffer.from(JSON.stringify(payload)));
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`zigbee2MQTT sent group_add friendly_name: ${entity} id ${payload.data.id} status ${payload.status}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      expect.stringContaining(`zigbee2MQTT sent group_add friendly_name: ${entity} id ${payload.data.id} status ${payload.status}`),
+    );
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Registering group: ${entity}`));
   });
 
@@ -343,7 +377,10 @@ describe('TestPlatform', () => {
     const entity = 'Sleeping';
     const payload = { data: { from: entity, to: 'Is dark' }, status: 'ok', transaction: '8j6s7-10' };
     (platform.z2m as any).messageHandler('zigbee2mqtt/bridge/response/group/rename', Buffer.from(JSON.stringify(payload)));
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`zigbee2MQTT sent group_rename from: ${payload.data.from} to ${payload.data.to} status ${payload.status}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      expect.stringContaining(`zigbee2MQTT sent group_rename from: ${payload.data.from} to ${payload.data.to} status ${payload.status}`),
+    );
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Removing device: ${payload.data.from}`));
     // expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Registering group: ${gn}${payload.data.to}${db}`));
   });
