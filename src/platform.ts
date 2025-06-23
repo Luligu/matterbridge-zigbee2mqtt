@@ -3,8 +3,9 @@
  *
  * @file platform.ts
  * @author Luca Liguori
- * @date 2023-12-29
+ * @created 2023-12-29
  * @version 2.2.2
+ * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025 Luca Liguori.
  *
@@ -18,7 +19,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. *
+ * limitations under the License.
  */
 
 import { addVirtualDevice, Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
@@ -483,7 +484,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
     this.log.info(`Configuring zigbee2mqtt platform logger level to ${CYAN}${logLevel}${nf}`);
     this.log.logLevel = logLevel;
-    this.z2m.setLogLevel(logLevel);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.z2m.setLogLevel(logLevel as any); // Cast to any to avoid type error, as the local Logger can have a different version than matterbridge Logger
     for (const bridgedDevice of this.bridgedDevices) {
       bridgedDevice.log.logLevel = logLevel;
     }
