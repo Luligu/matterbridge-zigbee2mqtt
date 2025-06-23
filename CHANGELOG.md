@@ -21,6 +21,21 @@ New device types:
 
 If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
 
+## [2.6.1] - 2025-06-??
+
+### Added
+
+### Changed
+
+- [package]: Updated package to Automator v. 2.0.0.
+- [package]: Updated dependencies.
+
+### Fixed
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [2.6.0] - 2025-06-07
 
 ### Added
