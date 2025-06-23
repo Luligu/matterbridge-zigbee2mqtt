@@ -1,32 +1,20 @@
 // jest.config.js
-/*
 
-How to install:
-  npm install --save-dev jest ts-jest @types/jest eslint-plugin-jest
+// This Jest configuration is designed for a TypeScript project using ESM modules with ts-jest.
 
-Add package.json scripts:
-  "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-  "test:verbose": "node --experimental-vm-modules node_modules/jest/bin/jest.js --verbose",
-  "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+import { createDefaultEsmPreset } from 'ts-jest';
 
-*/
+const presetConfig = createDefaultEsmPreset({
+  tsconfig: './tsconfig.jest.json',
+});
 
-export default {
+const jestConfig = {
+  ...presetConfig,
   testEnvironment: 'node',
-  extensionsToTreatAsEsm: ['.ts'],
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
-  transform: {
-    '^.+\\.ts$': [
-      'ts-jest',
-      {
-        useESM: true,
-        tsconfig: 'tsconfig.jest.json',
-      },
-    ],
-  },
-  transformIgnorePatterns: ['/node_modules/'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/frontend/'],
-  coveragePathIgnorePatterns: ['/node_modules/', '/dist/', '/frontend/', '/src/mock/'],
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' }, // Handle ESM imports by removing the .js extension
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/vitest/'],
+  coveragePathIgnorePatterns: ['/node_modules/', '/dist/', '/vitest/'],
+  maxWorkers: '100%',
 };
+
+export default jestConfig;
