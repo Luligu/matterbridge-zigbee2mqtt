@@ -1,5 +1,5 @@
-# .github\workflows\publish-matterbridge-plugin-dev-daily.yml
-name: Plugin daily dev publish to npm
+# .github\workflows\publish-matterbridge-plugin-dev-daily-from-main.yml
+name: Plugin daily dev publish to npm from main branch
 
 on:
   # Daily at midnight UTC
@@ -12,15 +12,12 @@ jobs:
   publish-dev:
     runs-on: ubuntu-latest
     steps:
-      # Always check out the dev branch, even for scheduled runs
-      - name: Checkout dev
+      # Always check out the main branch, even for scheduled runs
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: main
           fetch-depth: 0
-          # Ensure full history is available for versioning
-          # This is important to ensure that the git SHA is accurate for the versioning
-          # and to allow the script to check if the dev version has changed since the last publish.
 
       - name: Set up Node.js & registry
         uses: actions/setup-node@v4
@@ -31,8 +28,8 @@ jobs:
       - name: Clean npm cache
         run: npm cache clean --force
 
-      - name: Clone matterbridge repo
-        run: git clone https://github.com/Luligu/matterbridge.git ../matterbridge
+      - name: Clone matterbridge repo branch dev
+        run: git clone -b dev https://github.com/Luligu/matterbridge.git ../matterbridge
 
       - name: Install matterbridge dependencies
         working-directory: ../matterbridge
@@ -46,6 +43,19 @@ jobs:
         working-directory: ../matterbridge
         run: npm link
 
+      - name: Lint & test & build the plugin
+        run: |
+          npm ci
+          npm link matterbridge
+          npm run lint
+          npm run buildProduction
+          npm install -g .
+          npm run test
+          npm pkg delete devDependencies scripts types
+          npx shx rm -rf ./node_modules
+          npm install --omit=dev
+          npm shrinkwrap
+
       - name: Extract base version and date
         id: vars
         run: |
@@ -58,19 +68,6 @@ jobs:
 
       - name: Bump to date-stamped dev version (no git tag)
         run: npm version "${{ env.DEV_TAG }}" --no-git-tag-version
-
-      - name: Lint & test & build the plugin
-        run: |
-          npm ci
-          npm link matterbridge
-          npm run lint
-          npm run buildProduction
-          npm install -g .
-          npm run test
-          npm pkg delete devDependencies scripts types
-          npx rimraf ./node_modules
-          npm install --omit=dev
-          npm shrinkwrap
 
       - name: Check if a new dev-publish is needed
         id: check_new
