@@ -1,6 +1,5 @@
 /**
- * This file contains the class ZigbeePlatform.
- *
+ * @description This file contains the class ZigbeePlatform.
  * @file platform.ts
  * @author Luca Liguori
  * @created 2023-12-29
@@ -29,7 +28,7 @@ import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, C
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
 
-import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup /* , BridgedBaseDevice*/ } from './entity.js';
+import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
@@ -37,15 +36,13 @@ import { Payload } from './payloadTypes.js';
 type DeviceFeatureBlackList = Record<string, string[]>;
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
-  // extension
-  private publishCallBack: ((entityName: string, topic: string, message: string) => Promise<void>) | undefined = undefined;
-  private permitJoinCallBack: ((entityName: string, permit: boolean) => Promise<void>) | undefined = undefined;
-
   // platform
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
-  private injectTimer: NodeJS.Timeout | undefined;
   private namePostfix = 1;
+
+  // debug
+  private injectTimer: NodeJS.Timeout | undefined;
 
   // z2m
   private mqttHost = 'mqtt://localhost';
@@ -127,15 +124,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.groupScenes !== undefined) delete config.groupScenes;
     if (config.scenesType === undefined) config.scenesType = 'outlet';
     if (config.scenesPrefix === undefined) config.scenesPrefix = true;
-
-    /*
-    if (config.type === 'MatterbridgeExtension') {
-      this.z2m = new Zigbee2MQTT(this.mqttHost, this.mqttPort, this.mqttTopic, this.mqttUsername, this.mqttPassword, this.mqttProtocol, this.debugEnabled);
-      this.z2m.setLogDebug(this.debugEnabled);
-      this.log.debug('Created ZigbeePlatform as Matterbridge extension');
-      return;
-    }
-    */
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
@@ -432,24 +420,24 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
   override async onConfigure() {
     await super.onConfigure();
-    this.log.info(`Requesting update for ${this.zigbeeEntities.length} zigbee entities.`);
+    this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
     for (const bridgedEntity of this.zigbeeEntities) {
       await bridgedEntity.configure();
       if (bridgedEntity.isRouter && bridgedEntity.bridgedDevice) {
-        this.log.info(`Configuring router ${bridgedEntity.bridgedDevice?.deviceName}.`);
+        this.log.info(`Configuring router ${bridgedEntity.bridgedDevice.deviceName}.`);
         if (this.z2mBridgeInfo?.permit_join) {
-          bridgedEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
+          bridgedEntity.bridgedDevice.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Unlocked, this.log);
           if (bridgedEntity.bridgedDevice.maybeNumber)
-            bridgedEntity.bridgedDevice?.triggerEvent(
+            bridgedEntity.bridgedDevice.triggerEvent(
               DoorLock.Cluster.id,
               'lockOperation',
               { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
               this.log,
             );
         } else {
-          bridgedEntity.bridgedDevice?.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
+          bridgedEntity.bridgedDevice.setAttribute(DoorLock.Cluster.id, 'lockState', DoorLock.LockState.Locked, this.log);
           if (bridgedEntity.bridgedDevice.maybeNumber)
-            bridgedEntity.bridgedDevice?.triggerEvent(
+            bridgedEntity.bridgedDevice.triggerEvent(
               DoorLock.Cluster.id,
               'lockOperation',
               { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
@@ -476,6 +464,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     }, 10 * 1000).unref();
 
+    /* istanbul ignore next if */
     if (this.config.injectPayloads) {
       this.injectTimer = setInterval(() => {
         const data = this.z2m.readConfig(path.join(this.matterbridge.matterbridgeDirectory, this.config.injectPayloads as string));
@@ -506,7 +495,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await super.onShutdown(reason);
     this.z2m.removeAllListeners();
     this.z2m.stop();
-    this.publishCallBack = undefined;
     this.log.debug('Shutting down zigbee2mqtt platform: ' + reason);
     for (const entity of this.zigbeeEntities) {
       entity.destroy();
@@ -519,46 +507,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.info(`Shutdown zigbee2mqtt dynamic platform v${this.version}`);
   }
 
-  /**
-   *  Set the callback to be called when a publish request is received.
-   *
-   * @param {Function} onPublish The callback function to be called when a publish request is received.
-   * @deprecated
-   */
-  public setPublishCallBack(onPublish: (entityName: string, topic: string, message: string) => Promise<void>): void {
-    this.publishCallBack = onPublish;
-  }
-
-  /**
-   *  Set the callback to be called when a permit join request is received.
-   *
-   * @param {Function} onPermitJoin The callback function to be called when a permit join request is received.
-   *
-   * @deprecated
-   */
-  public setPermitJoinCallBack(onPermitJoin: (entityName: string, permit: boolean) => Promise<void>): void {
-    this.permitJoinCallBack = onPermitJoin;
-  }
-
   public async publish(topic: string, subTopic: string, message: string) {
-    if (this.config.type === 'MatterbridgeExtension') {
-      if (this.publishCallBack && !topic.startsWith('bridge/request')) await this.publishCallBack(topic, subTopic, message);
-      if (this.permitJoinCallBack && topic.startsWith('bridge/request')) await this.permitJoinCallBack('', message === '{"value":true}');
-    } else {
-      await this.z2m.publish(this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic), message);
-      this.log.info(`MQTT publish topic: ${CYAN}${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)}${nf} payload: ${CYAN}${message}${nf}`);
-    }
-  }
-
-  /**
-   *  Emit an event to the zigbee2mqtt instance.
-   *
-   * @param {string} eventName The name of the event to emit.
-   * @param {Payload} data The data to send with the event.
-   * @deprecated
-   */
-  public emit(eventName: string, data: Payload) {
-    this.z2m.emit(eventName, data);
+    this.log.info(`MQTT publish topic: ${CYAN}${this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic)}${nf} payload: ${CYAN}${message}${nf}`);
+    await this.z2m.publish(this.z2m.mqttTopic + '/' + topic + (subTopic === '' ? '' : '/' + subTopic), message);
   }
 
   private async requestDeviceUpdate(device: BridgeDevice) {

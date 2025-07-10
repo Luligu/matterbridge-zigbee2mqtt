@@ -21,14 +21,25 @@ New device types:
 
 If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
 
-## [2.6.1] - 2025-06-??
+## [2.7.0] - 2025-07-10
 
 ### Added
 
+- [entity]: Added the ability to cache commands on a single light device or group. They will be executed in once. This helps to execute global controller scenes in large setups.
+
 ### Changed
 
-- [package]: Updated package to Automator v. 2.0.0.
 - [package]: Updated dependencies.
+- [package]: Updated package to Automator v. 2.0.2.
+- [DevContainer]: Added support for the [**Matterbridge Plugin Dev Container**](https://github.com/Luligu/matterbridge/blob/dev/README-DEV.md#matterbridge-plugin-dev-container) with optimized named volumes for `matterbridge` and `node_modules`.
+- [GitHub]: Added GitHub issue templates for bug reports and feature requests.
+- [ESLint]: Refactored the flat config.
+- [ESLint]: Added the plugins `eslint-plugin-promise`, `eslint-plugin-jsdoc`, and `@vitest/eslint-plugin`.
+- [Jest]: Refactored the flat config.
+- [Vitest]: Added Vitest for TypeScript project testing. It will replace Jest, which does not work correctly with ESM module mocks.
+- [JSDoc]: Added missing JSDoc comments, including `@param` and `@returns` tags.
+- [CodeQL]: Added CodeQL badge in the readme.
+- [Codecov]: Added Codecov badge in the readme.
 
 ### Fixed
 

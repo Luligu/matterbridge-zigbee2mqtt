@@ -1,6 +1,5 @@
 /**
- * This file contains the types for Payload.
- *
+ * @description This file contains the types for Payload.
  * @file payloadTypes.ts
  * @author Luca Liguori
  * @created 2023-12-29

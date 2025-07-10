@@ -1,3 +1,5 @@
+// src/index.test.ts
+
 /* eslint-disable no-console */
 
 import { Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';

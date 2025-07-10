@@ -5,6 +5,8 @@
 [![Docker Version](https://img.shields.io/docker/v/luligu/matterbridge?label=docker%20version&sort=semver)](https://hub.docker.com/r/luligu/matterbridge)
 [![Docker Pulls](https://img.shields.io/docker/pulls/luligu/matterbridge.svg)](https://hub.docker.com/r/luligu/matterbridge)
 ![Node.js CI](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/build-matterbridge-plugin.yml/badge.svg)
+![CodeQL](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/codeql.yml/badge.svg)
+[![codecov](https://codecov.io/gh/Luligu/matterbridge-zigbee2mqtt/branch/main/graph/badge.svg)](https://codecov.io/gh/Luligu/matterbridge-zigbee2mqtt)
 
 [![powered by](https://img.shields.io/badge/powered%20by-matterbridge-blue)](https://www.npmjs.com/package/matterbridge)
 [![powered by](https://img.shields.io/badge/powered%20by-matter--history-blue)](https://www.npmjs.com/package/matter-history)
@@ -13,7 +15,7 @@
 
 ---
 
-Matterbridge zigbee2mqtt is a matterbridge production-level plugin that expose all zigbee2mqtt devices and groups to Matter.
+Matterbridge zigbee2mqtt is a matterbridge production-level plugin that expose all zigbee2mqtt devices and groups to Matter. Scenes are supported too.
 
 No hub or dedicated hardware needed.
 
@@ -37,7 +39,7 @@ on Windows:
 npm install -g matterbridge --omit=dev
 ```
 
-on Linux (you need the necessary permissions):
+on Linux and macOS (you need the necessary permissions):
 
 ```
 sudo npm install -g matterbridge --omit=dev
@@ -67,7 +69,7 @@ npm install -g matterbridge-zigbee2mqtt --omit=dev
 matterbridge -add matterbridge-zigbee2mqtt
 ```
 
-On linux:
+On linux and macOS:
 
 ```
 cd ~/Matterbridge
@@ -92,10 +94,10 @@ cd matterbridge-zigbee2mqtt
 npm ci
 npm run dev:link
 npm run build
-matterbridge -add .\
+matterbridge -add .
 ```
 
-On linux:
+On linux and macOS:
 
 ```
 cd ~/Matterbridge
@@ -104,7 +106,7 @@ cd matterbridge-zigbee2mqtt
 npm ci
 npm run dev:link
 npm run build
-matterbridge -add ./
+matterbridge -add .
 ```
 
 Then start Matterbridge

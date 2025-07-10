@@ -1,6 +1,5 @@
 /**
- * This file contains the types for zigbee2mqtt.
- *
+ * @description This file contains the types for zigbee2mqtt.
  * @file zigbee2mqttTypes.ts
  * @author Luca Liguori
  * @created 2023-11-02

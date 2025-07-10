@@ -1,6 +1,5 @@
 /**
- * This file contains the class Zigbee2MQTT and all the interfaces to communicate with zigbee2MQTT.
- *
+ * @description This file contains the class Zigbee2MQTT and all the interfaces to communicate with zigbee2MQTT.
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @created 2023-06-30

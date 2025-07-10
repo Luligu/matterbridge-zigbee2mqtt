@@ -1,6 +1,5 @@
 /**
- * This file contains the entry point of Matterbridge.
- *
+ * @description This file contains the entry point of Matterbridge.
  * @file index.ts
  * @author Luca Liguori
  * @created 2023-12-29

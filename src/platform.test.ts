@@ -1,3 +1,5 @@
+// src/platform.test.ts
+
 /* eslint-disable no-console */
 
 import path from 'node:path';
@@ -77,8 +79,8 @@ describe('TestPlatform', () => {
 
   beforeAll(() => {
     mockMatterbridge = {
-      matterbridgeDirectory: './jest/matterbridge',
-      matterbridgePluginDirectory: './jest/plugins',
+      matterbridgeDirectory: './jest/.matterbridge',
+      matterbridgePluginDirectory: './jest/Matterbridge',
       systemInformation: { ipv4Address: undefined },
       matterbridgeVersion: '3.0.4',
       getDevices: jest.fn(() => {
@@ -117,9 +119,15 @@ describe('TestPlatform', () => {
       featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
       deviceFeatureBlackList: {},
       scenesType: 'outlet',
-      postfix: '',
+      scenesPrefix: false,
+      postfix: 'JEST',
       debug: true,
       unregisterOnShutdown: false,
+
+      // Old properties to delete
+      postfixHostname: true,
+      deviceScenes: true,
+      groupScenes: true,
     } as PlatformConfig;
   });
 
@@ -296,11 +304,14 @@ describe('TestPlatform', () => {
     expect(logEntries).toBeDefined();
     expect(logEntries.length).toBe(702);
 
+    consoleWarnSpy.mockRestore();
+    consoleWarnSpy = jest.spyOn(console, 'warn');
+
     logEntries.forEach((entry: { entity: string; service: string; payload: string }) => {
       const payloadJson: Record<string, boolean | number | string | undefined | null | object> = JSON.parse(entry.payload);
       const entity = platform.zigbeeEntities.find((entity) => entity.entityName === entry.entity);
-      // expect(entity).toBeDefined();
-      if (!entity) console.error('entry', entry.entity, entry.service, entry.payload);
+      expect(entity).toBeDefined();
+      if (!entity) console.warn('entry', entry.entity, entry.service, entry.payload);
       if (!entity) return;
       expect(entity.entityName).toBeDefined();
       expect(entity.entityName.length).toBeGreaterThan(0);
