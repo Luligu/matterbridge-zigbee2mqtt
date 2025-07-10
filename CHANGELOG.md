@@ -26,6 +26,7 @@ If your controller has issues detecting the new device type, blacklist these dev
 ### Added
 
 - [entity]: Added the ability to cache commands on a single light device or group. They will be executed in once. This helps to execute global controller scenes in large setups.
+- [composed]: Added the ability to send commands on subenpoint also for ColorControl cluster.
 
 ### Changed
 
@@ -40,8 +41,6 @@ If your controller has issues detecting the new device type, blacklist these dev
 - [JSDoc]: Added missing JSDoc comments, including `@param` and `@returns` tags.
 - [CodeQL]: Added CodeQL badge in the readme.
 - [Codecov]: Added Codecov badge in the readme.
-
-### Fixed
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
