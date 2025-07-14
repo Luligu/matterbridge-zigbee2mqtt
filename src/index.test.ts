@@ -1,6 +1,13 @@
 // src/index.test.ts
 
+const MATTER_PORT = 0;
+const NAME = 'Index';
+const HOMEDIR = path.join('jest', NAME);
+
 /* eslint-disable no-console */
+
+import path from 'node:path';
+import { rmSync } from 'node:fs';
 
 import { Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, LogLevel } from 'matterbridge/logger';
@@ -34,6 +41,9 @@ if (!debug) {
   consoleErrorSpy = jest.spyOn(console, 'error');
 }
 
+// Cleanup the test environment
+rmSync(HOMEDIR, { recursive: true, force: true });
+
 // Mock the Zigbee2MQTT methods
 const z2mStartSpy = jest.spyOn(Zigbee2MQTT.prototype, 'start').mockImplementation(() => {
   console.log('Mocked start');
@@ -59,9 +69,14 @@ describe('initializePlugin', () => {
 
   beforeEach(() => {
     mockMatterbridge = {
-      matterbridgeDirectory: './jest/matterbridge',
-      matterbridgePluginDirectory: './jest/plugins',
-      systemInformation: { ipv4Address: undefined },
+      matterbridgeDirectory: HOMEDIR + '/.matterbridge',
+      matterbridgePluginDirectory: HOMEDIR + '/Matterbridge',
+      systemInformation: {
+        ipv4Address: undefined,
+        ipv6Address: undefined,
+        osRelease: 'xx.xx.xx.xx.xx.xx',
+        nodeVersion: '22.1.10',
+      },
       matterbridgeVersion: '3.0.4',
       getDevices: jest.fn(() => []),
       getPlugins: jest.fn(() => []),

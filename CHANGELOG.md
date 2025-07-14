@@ -8,25 +8,14 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
-### Breaking Changes
-
-The host config option must now start with mqtt:// or mqtts:// to distinguish between unsecure and SSL/TLS connection with the MQTT broker.
-
-New device types:
-
-- extendedColorLight
-- waterLeakDetector
-- rainSensor
-- smokeSensor
-
-If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
-
-## [2.7.0] - 2025-07-10
+## [2.7.0] - 2025-07-14
 
 ### Added
 
-- [entity]: Added the ability to cache commands on a single light device or group. They will be executed in once. This helps to execute global controller scenes in large setups.
-- [composed]: Added the ability to send commands on subenpoint also for ColorControl cluster.
+- [entity]: Added the ability to cache commands for a single light device or group. They will be executed in once. This helps to execute scenes from the controller in large setups.
+- [composed]: Added the ability to send commands on child enpoint also for ColorControl cluster.
+- [startup]: Changed the timeout for the connection to the mqtt broker to 60 seconds. This resolve the race condition when docker compose (or a host reboot) starts mosquitto, zigbee2mqtt and matterbridge in the same moment.
+- [jest]: Added a few more test. Coverage will improve in the next releases.
 
 ### Changed
 

@@ -856,7 +856,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         nextPayload = {};
         lastRequestedHue = -1;
         lastRequestedSaturation = -1;
-      }, 100);
+      }, 100).unref();
     }
 
     // Add command handlers
@@ -1629,7 +1629,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         nextPayload = {};
         lastRequestedHue = -1;
         lastRequestedSaturation = -1;
-      }, 100);
+      }, 100).unref();
     }
 
     // Add command handlers
@@ -1685,7 +1685,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.log.debug(
               `Command moveToLevel called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
             );
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
+            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
             nextPayload['brightness_' + data.endpoint.uniqueStorageKey] = data.request.level;
             if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
               nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1695,7 +1695,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.log.debug(
               `Command moveToLevelWithOnOff called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
             );
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
+            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
             nextPayload['brightness_' + data.endpoint.uniqueStorageKey] = data.request.level;
             if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
               nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1707,7 +1707,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.log.debug(
           `Command moveToLevel called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
         );
-        nextPayload['state'] = 'ON';
+        // nextPayload['state'] = 'ON';
         nextPayload['brightness'] = data.request.level;
         if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
           nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1717,7 +1717,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.log.debug(
           `Command moveToLevelWithOnOff called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
         );
-        nextPayload['state'] = 'ON';
+        // nextPayload['state'] = 'ON';
         nextPayload['brightness'] = data.request.level;
         if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
           nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1733,7 +1733,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
               `Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.colorTemperatureMireds} transition: ${data.request.transitionTime}`,
             );
             await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, zigbeeDevice.log);
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
+            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
             if (zigbeeDevice.propertyMap.get('color_temp')) {
               nextPayload['color_temp_' + data.endpoint.uniqueStorageKey] = data.request.colorTemperatureMireds;
               if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
@@ -1758,7 +1758,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           `Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.colorTemperatureMireds} transition: ${data.request.transitionTime}`,
         );
         await data.endpoint?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, zigbeeDevice.log);
-        nextPayload['state'] = 'ON';
+        // nextPayload['state'] = 'ON';
         if (zigbeeDevice.propertyMap.get('color_temp')) {
           nextPayload['color_temp'] = data.request.colorTemperatureMireds;
           if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
@@ -1785,7 +1785,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
               `Command moveToColor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: X: ${data.request.colorX} Y: ${data.request.colorY} transition: ${data.request.transitionTime}`,
             );
             await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, zigbeeDevice.log);
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
+            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
             nextPayload['color_' + data.endpoint.uniqueStorageKey] = { x: data.request.colorX / 65536, y: data.request.colorY / 65536 };
             if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
               nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1798,7 +1798,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           `Command moveToColor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: X: ${data.request.colorX} Y: ${data.request.colorY} transition: ${data.request.transitionTime}`,
         );
         await data.endpoint?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, zigbeeDevice.log);
-        nextPayload['state'] = 'ON';
+        // nextPayload['state'] = 'ON';
         nextPayload['color'] = { x: data.request.colorX / 65536, y: data.request.colorY / 65536 };
         if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
           nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1813,7 +1813,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
               `Command moveToHue called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`,
             );
             await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
+            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
             lastRequestedHue = data.request.hue;
             if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
               nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1824,7 +1824,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
               `Command moveToSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`,
             );
             await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
+            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
             lastRequestedSaturation = data.request.saturation;
             if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
               nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1835,7 +1835,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
               `Command moveToHueAndSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue}-${data.request.saturation} transition: ${data.request.transitionTime}`,
             );
             await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
+            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
             const rgb = color.hslColorToRgbColor((data.request.hue / 254) * 360, (data.request.saturation / 254) * 100, 50);
             nextPayload['color_' + data.endpoint.uniqueStorageKey] = { r: rgb.r, g: rgb.g, b: rgb.b };
             cachePublishLight();
@@ -1847,7 +1847,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           `Command moveToHue called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`,
         );
         await zigbeeDevice.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-        nextPayload['state'] = 'ON';
+        // nextPayload['state'] = 'ON';
         lastRequestedHue = data.request.hue;
         if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
           nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1858,7 +1858,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           `Command moveToSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`,
         );
         await zigbeeDevice.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-        nextPayload['state'] = 'ON';
+        // nextPayload['state'] = 'ON';
         lastRequestedSaturation = data.request.saturation;
         if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
           nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
@@ -1869,7 +1869,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           `Command moveToHueAndSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue}-${data.request.saturation} transition: ${data.request.transitionTime}`,
         );
         await zigbeeDevice.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-        nextPayload['state'] = 'ON';
+        // nextPayload['state'] = 'ON';
         const rgb = color.hslColorToRgbColor((data.request.hue / 254) * 360, (data.request.saturation / 254) * 100, 50);
         nextPayload['color'] = { r: rgb.r, g: rgb.g, b: rgb.b };
         cachePublishLight();

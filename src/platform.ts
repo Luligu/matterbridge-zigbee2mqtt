@@ -40,6 +40,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
   private namePostfix = 1;
+  private connectTimeout = 30000; // 30 seconds
+  private availabilityTimeout = 10000; // 10 seconds
 
   // debug
   private injectTimer: NodeJS.Timeout | undefined;
@@ -188,6 +190,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('bridge-info', async (bridgeInfo: BridgeInfo) => {
+      /* istanbul ignore next */
       if (bridgeInfo === null || bridgeInfo === undefined) return;
       this.z2mBridgeInfo = bridgeInfo;
       this.log.info(
@@ -201,8 +204,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
+      /* istanbul ignore next */
       if (devices === null || devices === undefined) return;
       this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
+      /* istanbul ignore next if */
       if (config.injectDevices) {
         this.log.warn(`***Injecting virtual devices from ${path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string)}`);
         const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
@@ -229,6 +234,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.z2m.on('bridge-groups', async (groups: BridgeGroup[]) => {
+      /* istanbul ignore next */
       if (groups === null || groups === undefined) return;
       this.log.info(`zigbee2MQTT sent ${groups.length} groups ${this.z2mGroupsRegistered ? 'already registered' : ''}`);
       this.z2mBridgeGroups = groups;
@@ -386,16 +392,30 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await this.clearSelect();
     this.setSelectEntity('scenes', 'Scenes', 'component');
 
-    const hasOnline = await waiter('z2mBridgeOnline', () => this.z2mBridgeOnline !== undefined);
+    // const hasOnline = await waiter('z2mBridgeOnline', () => this.z2mBridgeOnline !== undefined);
 
-    const hasInfo = await waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
+    // const hasInfo = await waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
 
-    const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
+    // const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
 
-    if (!hasOnline) this.log.error('The plugin did not receive zigbee2mqtt bridge state. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-    if (!hasInfo) this.log.error('The plugin did not receive zigbee2mqtt bridge info. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-    if (!hasDevices) this.log.error('The plugin did not receive zigbee2mqtt bridge devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-    if (!hasOnline || !hasInfo || !hasDevices) {
+    await waiter(
+      'zigbee2mqtt',
+      () => this.z2mBridgeDevices !== undefined && this.z2mBridgeGroups !== undefined && (this.z2mBridgeOnline !== undefined || this.z2mBridgeInfo !== undefined),
+      false,
+      this.connectTimeout,
+      1000,
+      true,
+    );
+
+    if (this.z2mBridgeOnline === undefined)
+      this.log.error('The plugin did not receive zigbee2mqtt bridge state. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+
+    if (this.z2mBridgeInfo === undefined) this.log.error('The plugin did not receive zigbee2mqtt bridge info. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+
+    if (this.z2mBridgeDevices === undefined && this.z2mBridgeGroups === undefined)
+      this.log.error('The plugin did not receive zigbee2mqtt bridge devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+
+    if (this.z2mBridgeOnline === undefined || this.z2mBridgeInfo === undefined || (this.z2mBridgeDevices === undefined && this.z2mBridgeGroups === undefined)) {
       throw new Error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
     }
 
@@ -462,7 +482,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       for (const [entity, payload] of this.z2mEntityPayload) {
         this.z2m.emit('MESSAGE-' + entity, payload);
       }
-    }, 10 * 1000).unref();
+    }, this.availabilityTimeout).unref();
 
     /* istanbul ignore next if */
     if (this.config.injectPayloads) {
@@ -472,7 +492,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         for (const payload of data.payloads) {
           this.z2m.emitPayload(payload.topic, payload.payload);
         }
-      }, 60 * 1000);
+      }, 60 * 1000).unref();
     }
     this.log.info(`Configured zigbee2mqtt dynamic platform v${this.version}`);
   }
@@ -504,6 +524,13 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (this.availabilityTimer) clearInterval(this.availabilityTimer);
     this.availabilityTimer = undefined;
     if (this.config.unregisterOnShutdown === true) await this.unregisterAllDevices();
+    this.bridgedDevices = [];
+    this.zigbeeEntities = [];
+    this.z2mBridgeDevices = undefined;
+    this.z2mBridgeGroups = undefined;
+    this.z2mBridgeInfo = undefined;
+    this.z2mEntityAvailability.clear();
+    this.z2mEntityPayload.clear();
     this.log.info(`Shutdown zigbee2mqtt dynamic platform v${this.version}`);
   }
 
