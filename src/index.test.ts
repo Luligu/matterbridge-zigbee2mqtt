@@ -1,120 +1,121 @@
+// src/index.test.ts
+
+const MATTER_PORT = 0;
+const NAME = 'Index';
+const HOMEDIR = path.join('jest', NAME);
+
 /* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
+import path from 'node:path';
+import { rmSync } from 'node:fs';
+
 import { Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
 import { AnsiLogger, LogLevel } from 'matterbridge/logger';
-import { ZigbeePlatform } from './platform.js';
-import initializePlugin from './index';
 import { jest } from '@jest/globals';
-import { Zigbee2MQTT } from './zigbee2mqtt.js';
+
+import { ZigbeePlatform } from './platform.ts';
+import { Zigbee2MQTT } from './zigbee2mqtt.ts';
+import initializePlugin from './index.ts';
+
+let loggerLogSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.log>;
+let consoleLogSpy: jest.SpiedFunction<typeof console.log>;
+let consoleDebugSpy: jest.SpiedFunction<typeof console.debug>;
+let consoleInfoSpy: jest.SpiedFunction<typeof console.info>;
+let consoleWarnSpy: jest.SpiedFunction<typeof console.warn>;
+let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
+const debug = false; // Set to true to enable debug logs
+
+if (!debug) {
+  loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log').mockImplementation((level: string, message: string, ...parameters: any[]) => {});
+  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation((...args: any[]) => {});
+  consoleDebugSpy = jest.spyOn(console, 'debug').mockImplementation((...args: any[]) => {});
+  consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation((...args: any[]) => {});
+  consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation((...args: any[]) => {});
+  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation((...args: any[]) => {});
+} else {
+  loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log');
+  consoleLogSpy = jest.spyOn(console, 'log');
+  consoleDebugSpy = jest.spyOn(console, 'debug');
+  consoleInfoSpy = jest.spyOn(console, 'info');
+  consoleWarnSpy = jest.spyOn(console, 'warn');
+  consoleErrorSpy = jest.spyOn(console, 'error');
+}
+
+// Cleanup the test environment
+rmSync(HOMEDIR, { recursive: true, force: true });
+
+// Mock the Zigbee2MQTT methods
+const z2mStartSpy = jest.spyOn(Zigbee2MQTT.prototype, 'start').mockImplementation(() => {
+  console.log('Mocked start');
+  return Promise.resolve();
+});
+const z2mStopSpy = jest.spyOn(Zigbee2MQTT.prototype, 'stop').mockImplementation(() => {
+  console.log('Mocked stop');
+  return Promise.resolve();
+});
+const z2mSubscribeSpy = jest.spyOn(Zigbee2MQTT.prototype, 'subscribe').mockImplementation((topic: string) => {
+  console.log('Mocked subscribe', topic);
+  return Promise.resolve();
+});
+const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplementation((topic: string, message: string, queue?: boolean) => {
+  console.log(`Mocked publish: ${topic} - ${message} queue ${queue}`);
+  return Promise.resolve();
+});
 
 describe('initializePlugin', () => {
   let mockMatterbridge: Matterbridge;
   let mockLog: AnsiLogger;
   let mockConfig: PlatformConfig;
 
-  let loggerLogSpy: jest.SpiedFunction<(level: LogLevel, message: string, ...parameters: any[]) => void>;
-  let consoleLogSpy: jest.SpiedFunction<(...args: any[]) => void>;
-
-  let z2mStartSpy: jest.SpiedFunction<() => Promise<void>>;
-  let z2mStopSpy: jest.SpiedFunction<() => Promise<void>>;
-  let z2mSubscribeSpy: jest.SpiedFunction<(topic: string) => Promise<void>>;
-  let z2mPublishSpy: jest.SpiedFunction<(topic: string, message: string, queue: boolean) => Promise<void>>;
-
   beforeEach(() => {
     mockMatterbridge = {
-      matterbridgeDirectory: './jest/matterbridge',
-      matterbridgePluginDirectory: './jest/plugins',
-      systemInformation: { ipv4Address: undefined },
+      matterbridgeDirectory: HOMEDIR + '/.matterbridge',
+      matterbridgePluginDirectory: HOMEDIR + '/Matterbridge',
+      systemInformation: {
+        ipv4Address: undefined,
+        ipv6Address: undefined,
+        osRelease: 'xx.xx.xx.xx.xx.xx',
+        nodeVersion: '22.1.10',
+      },
       matterbridgeVersion: '3.0.4',
-      getDevices: jest.fn(() => {
-        // console.log('getDevices called');
-        return [];
-      }),
-      getPlugins: jest.fn(() => {
-        // console.log('getDevices called');
-        return [];
-      }),
-      addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
-        // console.log('addBridgedEndpoint called');
-        // await aggregator.add(device);
-      }),
-      removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
-        // console.log('removeBridgedEndpoint called');
-      }),
-      removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {
-        // console.log('removeAllBridgedEndpoints called');
-      }),
+      getDevices: jest.fn(() => []),
+      getPlugins: jest.fn(() => []),
+      addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {}),
+      removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {}),
+      removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
     } as unknown as Matterbridge;
     mockLog = {
-      fatal: jest.fn((message) => {
-        // console.log(`Fatal: ${message}`);
-      }),
-      error: jest.fn((message) => {
-        // console.log(`Error: ${message}`);
-      }),
-      warn: jest.fn((message) => {
-        // console.log(`Warn: ${message}`);
-      }),
-      notice: jest.fn((message) => {
-        // console.log(`Notice: ${message}`);
-      }),
-      info: jest.fn((message) => {
-        // console.log(`Info: ${message}`);
-      }),
-      debug: jest.fn((message) => {
-        // console.log(`Debug: ${message}`);
-      }),
+      fatal: jest.fn((message) => {}),
+      error: jest.fn((message) => {}),
+      warn: jest.fn((message) => {}),
+      notice: jest.fn((message) => {}),
+      info: jest.fn((message) => {}),
+      debug: jest.fn((message) => {}),
     } as unknown as AnsiLogger;
     mockConfig = {
-      'name': 'matterbridge-zigbee2mqtt',
-      'type': 'DynamicPlatform',
-      'topic': 'zigbee2mqtt',
-      'host': 'localhost',
-      'port': 1883,
-      'protocolVersion': 5,
-      'username': undefined,
-      'password': undefined,
-      'blackList': [],
-      'whiteList': [],
-      'switchList': [],
-      'lightList': [],
-      'outletList': [],
-      'featureBlackList': ['device_temperature', 'consumption', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
-      'deviceFeatureBlackList': {},
-      'postfix': '',
-      'unregisterOnShutdown': false,
+      name: 'matterbridge-zigbee2mqtt',
+      type: 'DynamicPlatform',
+      topic: 'zigbee2mqtt',
+      host: 'localhost',
+      port: 1883,
+      protocolVersion: 5,
+      username: undefined,
+      password: undefined,
+      blackList: [],
+      whiteList: [],
+      switchList: [],
+      lightList: [],
+      outletList: [],
+      featureBlackList: ['device_temperature', 'consumption', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
+      deviceFeatureBlackList: {},
+      postfix: '',
+      unregisterOnShutdown: false,
     } as PlatformConfig;
-
-    // Spy on and mock the AnsiLogger.log method
-    loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log').mockImplementation((level: string, message: string, ...parameters: any[]) => {
-      // console.log(`Mocked log: ${level} - ${message}`, ...parameters);
-    });
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation((...args: any[]) => {
-      // Mock implementation or empty function
-    });
-
-    z2mStartSpy = jest.spyOn(Zigbee2MQTT.prototype, 'start').mockImplementation(() => {
-      console.log('Mocked start');
-      return Promise.resolve();
-    });
-    z2mStopSpy = jest.spyOn(Zigbee2MQTT.prototype, 'stop').mockImplementation(() => {
-      console.log('Mocked stop');
-      return Promise.resolve();
-    });
-    z2mSubscribeSpy = jest.spyOn(Zigbee2MQTT.prototype, 'subscribe').mockImplementation((topic: string) => {
-      console.log('Mocked subscribe', topic);
-      return Promise.resolve();
-    });
-    z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplementation((topic: string, message: string, queue?: boolean) => {
-      console.log(`Mocked publish: ${topic} - ${message} queue ${queue}`);
-      return Promise.resolve();
-    });
   });
 
   it('should return an instance of ZigbeePlatform', () => {
-    const result = initializePlugin(mockMatterbridge, mockLog, mockConfig);
-    expect(result).toBeInstanceOf(ZigbeePlatform);
-    result.onShutdown();
+    const platform = initializePlugin(mockMatterbridge, mockLog, mockConfig);
+    expect(platform).toBeInstanceOf(ZigbeePlatform);
+    platform.onShutdown();
   });
 });

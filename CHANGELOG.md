@@ -8,18 +8,32 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
-### Breaking Changes
+## [2.7.0] - 2025-07-14
 
-The host config option must now start with mqtt:// or mqtts:// to distinguish between unsecure and SSL/TLS connection with the MQTT broker.
+### Added
 
-New device types:
+- [entity]: Added the ability to cache commands for a single light device or group. They will be executed in once. This helps to execute scenes from the controller in large setups.
+- [composed]: Added the ability to send commands on child enpoint also for ColorControl cluster.
+- [startup]: Changed the timeout for the connection to the mqtt broker to 60 seconds. This resolve the race condition when docker compose (or a host reboot) starts mosquitto, zigbee2mqtt and matterbridge in the same moment.
+- [jest]: Added a few more test. Coverage will improve in the next releases.
 
-- extendedColorLight
-- waterLeakDetector
-- rainSensor
-- smokeSensor
+### Changed
 
-If your controller has issues detecting the new device type, blacklist these devices, restart, wait 5 minutes that the controller removes them, remove the blacklist and restart again. This will create a new endpoint on the controller and the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller.
+- [package]: Updated dependencies.
+- [package]: Updated package to Automator v. 2.0.2.
+- [DevContainer]: Added support for the [**Matterbridge Plugin Dev Container**](https://github.com/Luligu/matterbridge/blob/dev/README-DEV.md#matterbridge-plugin-dev-container) with optimized named volumes for `matterbridge` and `node_modules`.
+- [GitHub]: Added GitHub issue templates for bug reports and feature requests.
+- [ESLint]: Refactored the flat config.
+- [ESLint]: Added the plugins `eslint-plugin-promise`, `eslint-plugin-jsdoc`, and `@vitest/eslint-plugin`.
+- [Jest]: Refactored the flat config.
+- [Vitest]: Added Vitest for TypeScript project testing. It will replace Jest, which does not work correctly with ESM module mocks.
+- [JSDoc]: Added missing JSDoc comments, including `@param` and `@returns` tags.
+- [CodeQL]: Added CodeQL badge in the readme.
+- [Codecov]: Added Codecov badge in the readme.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
 
 ## [2.6.0] - 2025-06-07
 
