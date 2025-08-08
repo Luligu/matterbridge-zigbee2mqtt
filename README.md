@@ -305,3 +305,9 @@ For general controller issues check the Matterbridge Known issues section
 In the plugin config add each switch device to the lightList or outletList. Matterbridge uses a switch device type without client cluster that Alexa doesn't recognize.
 
 ## SmartThings
+
+# Related projects
+
+This Matterbridge zigbee2mqtt plugin would not be possible without the great work and collaboration from the matter.js project which this Matter Bridge implementation is based:
+
+- https://github.com/project-chip/matter.js
