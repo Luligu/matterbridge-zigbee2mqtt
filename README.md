@@ -27,6 +27,12 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## Introduction
+
+The concept of a "Matter Bridge" is a part of the [Matter standard](https://en.wikipedia.org/wiki/Matter_(standard)) that enables non-matter devices to speak the Matter communication protocol. Bridges allow platforms that use other protocol standards to interoperate with the Matter ecosystem by integrating a Matter server into or in between existing smart gateways, controllers and hubs. Many commercial smart gateways, like example the Philips Hue hub and the IKEA Dirigera, provides a built-in Matter bridge which translates Matter to ZigBee or other protocols making it possible from other ecosystems to talk to them.
+
+Matterbridge zigbee2mqtt plugin act as a Matter Bridge using a Matter development certificate (uncertified), exposing all Zigbee devices and groups from Zigbee2MQTT instead as Matter devices to third-party Matter clients from compatible ecosystems like Amazon Alexa, Apple Home, Google Home and SmartThings, all while remaining local on the user's network. This allows fast, secure and cloud-free control of Zigbee2MQTT connected Zigbee devices from all major voice assistants as well as other third-party Matter clients.
+
 ## Prerequisites
 
 ### Matterbridge
