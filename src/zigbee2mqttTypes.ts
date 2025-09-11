@@ -215,6 +215,7 @@ interface DeviceDefinition {
   vendor: string;
   description: string;
   exposes: DefinitionExpose[];
+  source?: string;
   supports_ota: boolean;
   options: DefinitionExpose[];
 }
@@ -231,9 +232,13 @@ interface DefinitionExposeFeature {
   unit?: string;
   value_off?: string;
   value_on?: string;
+  value_toggle?: string;
   value_step?: number;
-  values: string[];
+  values?: string[];
   access: number;
+  type?: string;
+  presets?: { description: string; name: string; value: number }[];
+  // features?: { access?: number; label?: string; name?: string; property?: string; type?: string }[];
 }
 
 interface DefinitionExpose {
@@ -245,14 +250,20 @@ interface DefinitionExpose {
   features?: DefinitionExposeFeature[];
   endpoint?: string;
   values?: string[];
-  value_off?: string;
-  value_on?: string;
+  value_off?: string | boolean;
+  value_on?: string | boolean;
   value_step?: number;
   access: number;
   property: string;
   unit?: string;
   value_min?: number;
   value_max?: number;
+  item_type?: {
+    access: number;
+    label: string;
+    name: string;
+    type: string;
+  };
 }
 
 export interface BridgeDevice {
@@ -262,7 +273,7 @@ export interface BridgeDevice {
   supported: boolean;
   friendly_name: string;
   disabled: boolean;
-  description: string;
+  description?: string;
   definition: DeviceDefinition;
   power_source: string;
   software_build_id: string;
@@ -270,6 +281,7 @@ export interface BridgeDevice {
   model_id: string;
   interviewing: boolean;
   interview_completed: boolean;
+  interview_state: string;
   manufacturer: string;
   endpoints: Record<number, DeviceEndpoint>;
 }

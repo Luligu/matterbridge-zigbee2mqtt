@@ -392,12 +392,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await this.clearSelect();
     this.setSelectEntity('scenes', 'Scenes', 'component');
 
-    // const hasOnline = await waiter('z2mBridgeOnline', () => this.z2mBridgeOnline !== undefined);
-
-    // const hasInfo = await waiter('z2mBridgeInfo', () => this.z2mBridgeInfo !== undefined);
-
-    // const hasDevices = await waiter('z2mBridgeDevices & z2mBridgeGroups', () => this.z2mBridgeDevices !== undefined || this.z2mBridgeGroups !== undefined);
-
     await waiter(
       'zigbee2mqtt',
       () => this.z2mBridgeDevices !== undefined && this.z2mBridgeGroups !== undefined && (this.z2mBridgeOnline !== undefined || this.z2mBridgeInfo !== undefined),

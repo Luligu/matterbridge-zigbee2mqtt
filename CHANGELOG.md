@@ -8,6 +8,36 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## [2.8.0] - 2025-09-11
+
+### Breaking changes
+
+Some color conversion have been optimized to improve performnces.
+
+It is possible that existing scenes on the controllers now render the color in a different nuance.
+
+If this is the case, update the color attributes in the controller scenes.
+
+### Added
+
+- [adaptiveLighting]: Added support for **Apple Home Adaptive Lighting**. See https://github.com/Luligu/matterbridge/discussions/390.
+- [platform]: Optimized command handlers execution and perfomance when the controllers send huge light scenes.
+- [devcontainer]: Added the plugin name to the container.
+- [devcontainer]: Improved performance of first build with shallow clone.
+- [workflows]: The publish workflow now triggers automatically the docker build of matterbridge.
+- [jest]: Added jest helper module v. 1.0.6.
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Updated package to Automator v. 2.0.6.
+- [workflows]: Ignore any .md anywhere.
+- [workflows]: Improved speed on Node CI.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [2.7.0] - 2025-07-14
 
 ### Added

@@ -3,7 +3,7 @@
  * @file src/helpers.test.ts
  * @author Luca Liguori
  * @created 2025-09-03
- * @version 1.0.5
+ * @version 1.0.6
  * @license Apache-2.0
  *
  * Copyright 2025, 2026, 2027 Luca Liguori.
@@ -314,7 +314,7 @@ export async function startServerNode(name: string, port: number): Promise<[Serv
   expect(aggregator.lifecycle.hasNumber).toBeTruthy();
 
   // Ensure the queue is empty and pause 100ms
-  await flushAsync();
+  await flushAsync(undefined, undefined, 200);
 
   return [server, aggregator];
 }
@@ -344,7 +344,7 @@ export async function stopServerNode(server: ServerNode<ServerNode.RootEndpoint>
   await server.env.get(MdnsService)[Symbol.asyncDispose]();
 
   // Ensure the queue is empty and pause 100ms
-  await flushAsync();
+  await flushAsync(undefined, undefined, 200);
 }
 
 /**
