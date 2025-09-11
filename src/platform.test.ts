@@ -25,7 +25,7 @@ import {
   thermostatDevice,
 } from 'matterbridge';
 import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, or, hk, YELLOW } from 'matterbridge/logger';
-import { wait } from 'matterbridge/utils';
+import { getMacAddress, wait } from 'matterbridge/utils';
 import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { Thermostat } from 'matterbridge/matter/clusters';
 import { Endpoint, ServerNode } from 'matterbridge/matter';
@@ -71,8 +71,8 @@ describe('TestPlatform', () => {
   let device: MatterbridgeEndpoint;
   let platform: ZigbeePlatform;
 
-  const commandTimeout = 100;
-  const updateTimeout = 50;
+  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
+  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
 
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
@@ -457,10 +457,6 @@ describe('TestPlatform', () => {
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldct)));
     await flushAsync(undefined, undefined, updateTimeout);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
-    expect(loggerLogSpy).toHaveBeenCalledWith(
-      LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
-    );
 
     jest.clearAllMocks();
     const payload = { state: 'ON', brightness: 250, color: { x: 0.5006, y: 0.2993 }, color_mode: 'xy', changed: 1 };

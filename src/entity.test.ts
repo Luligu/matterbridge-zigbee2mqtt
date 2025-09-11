@@ -14,6 +14,7 @@ import { AnsiLogger, db, debugStringify, LogLevel, rs, TimestampFormat } from 'm
 import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { Endpoint, ServerNode } from 'matterbridge/matter';
 import { PowerSource } from 'matterbridge/matter/clusters';
+import { getMacAddress } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './platform.ts';
 import { Zigbee2MQTT } from './zigbee2mqtt.ts';
@@ -63,8 +64,8 @@ describe('TestPlatform', () => {
   let device: MatterbridgeEndpoint;
   let platform: ZigbeePlatform;
 
-  const commandTimeout = 100;
-  const updateTimeout = 50;
+  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
+  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 50;
 
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
