@@ -64,7 +64,7 @@ describe('TestPlatform', () => {
   let platform: ZigbeePlatform;
 
   const commandTimeout = 100;
-  const updateTimeout = 100;
+  const updateTimeout = 50;
 
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
@@ -184,7 +184,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'on');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -197,7 +197,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'off');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -210,7 +210,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -227,7 +227,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { state: 'OFF' };
     platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
@@ -237,7 +237,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { state: 'ON' };
     platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
@@ -246,13 +246,13 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     platform.z2m.emit(`OFFLINE-${z2mGroup.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
 
     jest.clearAllMocks();
     platform.z2m.emit(`ONLINE-${z2mGroup.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
 
@@ -284,12 +284,12 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'on');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -302,7 +302,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'off');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -315,7 +315,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -332,7 +332,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { state: 'OFF' };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
@@ -342,7 +342,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { state: 'ON' };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
@@ -351,13 +351,13 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
     jest.clearAllMocks();
     platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
@@ -408,7 +408,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch1, 'OnOff', 'on');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -421,7 +421,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch1, 'OnOff', 'off');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -434,7 +434,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch1, 'OnOff', 'toggle');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -449,7 +449,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch2, 'OnOff', 'on');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -462,7 +462,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch2, 'OnOff', 'off');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -475,7 +475,7 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch2, 'OnOff', 'toggle');
-    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
     expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
@@ -492,7 +492,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { state_l1: 'OFF', state_l2: 'OFF', energy: 123.4, voltage: 230, power: 0, current: 0 };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
     expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
     expect(device.getAttribute('ElectricalEnergyMeasurement', 'cumulativeEnergyImported')).toEqual({ energy: 123400000 });
@@ -507,7 +507,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { state_l1: 'ON', state_l2: 'ON', energy: 124, voltage: 220, power: 56, current: 0.789 };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
     expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
     expect(device.getAttribute('ElectricalEnergyMeasurement', 'cumulativeEnergyImported')).toEqual({ energy: 124000000 });
@@ -521,13 +521,13 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
     jest.clearAllMocks();
     platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
@@ -563,7 +563,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { temperature: 22.5, humidity: 55.3, pressure: 1013.2, linkquality: 120, battery: 95, voltage: 2900 };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(2250);
     expect(device.getAttribute('RelativeHumidityMeasurement', 'measuredValue')).toBe(5530);
     expect(device.getAttribute('PressureMeasurement', 'measuredValue')).toBe(1013.2);
@@ -578,13 +578,13 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
     jest.clearAllMocks();
     platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
@@ -618,7 +618,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     payload = { illuminance: 539, occupancy: true, linkquality: 120, battery: 95, voltage: 2900 };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('OccupancySensing', 'occupancy')).toEqual({ occupied: true });
     expect(device.getAttribute('IlluminanceMeasurement', 'measuredValue')).toBe(27316); // 10 * log10(illuminance) * 1000
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
@@ -632,13 +632,13 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
     jest.clearAllMocks();
     platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, 10);
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
