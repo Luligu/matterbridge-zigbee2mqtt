@@ -10,7 +10,7 @@ import path from 'node:path';
 
 import { jest } from '@jest/globals';
 import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
-import { AnsiLogger, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
+import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
 import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { Endpoint, ServerNode } from 'matterbridge/matter';
 import { PowerSource } from 'matterbridge/matter/clusters';
@@ -64,8 +64,8 @@ describe('TestPlatform', () => {
   let device: MatterbridgeEndpoint;
   let platform: ZigbeePlatform;
 
-  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
-  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 50;
+  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 100;
+  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 50 : 50;
 
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
@@ -117,6 +117,8 @@ describe('TestPlatform', () => {
   beforeEach(() => {
     // Clears the call history before each test
     jest.clearAllMocks();
+    // Reset debug state
+    setDebug(false);
   });
 
   afterEach(async () => {
@@ -169,7 +171,7 @@ describe('TestPlatform', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "onOff", "fixedLabel"]));
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "onOff", "fixedLabel"]);
     expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();
@@ -273,7 +275,7 @@ describe('TestPlatform', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "onOff", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement"]));
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "onOff", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement"]);
     expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();
@@ -378,7 +380,7 @@ describe('TestPlatform', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement", "fixedLabel"]));
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement", "fixedLabel"]);
     expect(device.getChildEndpoints()).toHaveLength(3); // 2 channels + root
     const ch1 = device.getChildEndpointByName('l1');
     expect(ch1).toBeInstanceOf(MatterbridgeEndpoint);
@@ -390,15 +392,15 @@ describe('TestPlatform', () => {
       // expect(['l1', 'l2'].includes(child.id)).toBe(true);
       if (child.id === 'l1') {
         // eslint-disable-next-line jest/no-conditional-expect
-        expect(child.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "identify", "onOff"]));
+        expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "onOff"]);
       }
       if (child.id === 'l2') {
         // eslint-disable-next-line jest/no-conditional-expect
-        expect(child.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "identify", "onOff"]));
+        expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "onOff"]);
       }
       if (child.id !== 'l1' && child.id !== 'l2') {
         // eslint-disable-next-line jest/no-conditional-expect
-        expect(child.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "identify", "switch"]));
+        expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "switch"]);
       }
     }
     jest.clearAllMocks();
@@ -520,17 +522,163 @@ describe('TestPlatform', () => {
       `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
     );
 
-    jest.clearAllMocks();
-    platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, updateTimeout);
-    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+    entity.destroy();
+  });
+
+  test('create a dimmer device', async () => {
+    const z2mDevice = singleDimmer;
+    const friendlyName = z2mDevice.friendly_name;
+    expect(z2mDevice).toBeDefined();
+    if (!z2mDevice) throw new Error('Z2M Device not found');
+    const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+    expect(entity).toBeDefined();
+    expect(entity.entityName).toBe(friendlyName);
+    const device = entity.bridgedDevice;
+    expect(device).toBeDefined();
+    expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+    if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+    // prettier-ignore
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "onOff", "levelControl", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement"]);
+    expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();
-    platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-    await flushAsync(undefined, undefined, updateTimeout);
+    expect(await addDevice(aggregator, device)).toBe(true);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+
+    // Test commands from the controller
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(
+        `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}Brightness${db} payload ${debugStringify({ brightness: 255 })}`,
+      ),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, state: 'ON' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'toggle');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(
+        `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}Brightness${db} payload ${debugStringify({ brightness: 255 })}`,
+      ),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, state: 'ON' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 128, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command moveToLevel called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevel', friendlyName, { brightness: 128, transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { brightness: 200, transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { state: 'OFF', transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 100, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+
+    // Test updates from Z2M
+    let payload: Payload = {};
+
+    jest.clearAllMocks();
+    payload = { state: 'OFF' };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 200 };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
 
     entity.destroy();
   });
@@ -548,7 +696,7 @@ describe('TestPlatform', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "temperatureMeasurement", "relativeHumidityMeasurement", "pressureMeasurement"]));
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "temperatureMeasurement", "relativeHumidityMeasurement", "pressureMeasurement"]);
     expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();
@@ -604,7 +752,7 @@ describe('TestPlatform', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(expect.arrayContaining(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "illuminanceMeasurement", "occupancySensing"]));
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "illuminanceMeasurement", "occupancySensing"]);
     expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();

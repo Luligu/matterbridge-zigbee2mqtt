@@ -18,6 +18,10 @@ It is possible that existing scenes on the controllers now render the color in a
 
 If this is the case, update the color attributes in the controller scenes.
 
+### Automations and scenes
+
+The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-automations) has been updated to version 3.0.0 that includes also scenes.
+
 ### Added
 
 - [adaptiveLighting]: Added support for **Apple Home Adaptive Lighting**. See https://github.com/Luligu/matterbridge/discussions/390.
