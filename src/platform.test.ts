@@ -71,6 +71,9 @@ describe('TestPlatform', () => {
   let device: MatterbridgeEndpoint;
   let platform: ZigbeePlatform;
 
+  const commandTimeout = 100;
+  const updateTimeout = 50;
+
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
     matterbridgeDirectory: HOMEDIR + '/.matterbridge',
@@ -442,6 +445,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     const oldxy = { state: 'OFF', brightness: 100, color: { x: 0.2927, y: 0.6349 }, color_mode: 'xy', changed: 0 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldxy)));
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
@@ -451,6 +455,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     const oldct = { state: 'OFF', brightness: 100, color_temp: 500, color_mode: 'color_temp', changed: 0 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldct)));
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
@@ -460,6 +465,7 @@ describe('TestPlatform', () => {
     jest.clearAllMocks();
     const payload = { state: 'ON', brightness: 250, color: { x: 0.5006, y: 0.2993 }, color_mode: 'xy', changed: 1 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(payload)));
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
