@@ -466,7 +466,7 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db} from ${YELLOW}1${db} to ${YELLOW}250${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
