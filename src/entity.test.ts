@@ -63,6 +63,9 @@ describe('TestPlatform', () => {
   let device: MatterbridgeEndpoint;
   let platform: ZigbeePlatform;
 
+  const commandTimeout = 100;
+  const updateTimeout = 100;
+
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
     matterbridgeDirectory: HOMEDIR + '/.matterbridge',
@@ -181,8 +184,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'on');
-    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -194,8 +197,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'off');
-    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -207,8 +210,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -281,12 +284,13 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
+    await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'on');
-    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -298,8 +302,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'off');
-    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -311,8 +315,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -404,8 +408,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch1, 'OnOff', 'on');
-    expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -417,8 +421,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch1, 'OnOff', 'off');
-    expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -430,8 +434,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch1, 'OnOff', 'toggle');
-    expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -445,8 +449,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch2, 'OnOff', 'on');
-    expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -458,8 +462,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch2, 'OnOff', 'off');
-    expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -471,8 +475,8 @@ describe('TestPlatform', () => {
 
     jest.clearAllMocks();
     await invokeBehaviorCommand(ch2, 'OnOff', 'toggle');
-    expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
     await flushAsync(undefined, undefined, 100); // Wait for the cachePublish timeout
+    expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
     clearTimeout((entity as any).noUpdateTimeout);
     (entity as any).noUpdate = false;
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
