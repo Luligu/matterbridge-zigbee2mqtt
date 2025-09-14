@@ -6,7 +6,7 @@
  * @version 2.3.3
  * @license Apache-2.0
  *
- * Copyright 2023, 2024, 2025 Luca Liguori.
+ * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

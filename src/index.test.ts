@@ -7,42 +7,15 @@ const HOMEDIR = path.join('jest', NAME);
 /* eslint-disable no-console */
 
 import path from 'node:path';
-import { rmSync } from 'node:fs';
 
 import { Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
-import { AnsiLogger, LogLevel } from 'matterbridge/logger';
+import { AnsiLogger } from 'matterbridge/logger';
 import { jest } from '@jest/globals';
 
 import { ZigbeePlatform } from './platform.ts';
 import { Zigbee2MQTT } from './zigbee2mqtt.ts';
 import initializePlugin from './index.ts';
-
-let loggerLogSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.log>;
-let consoleLogSpy: jest.SpiedFunction<typeof console.log>;
-let consoleDebugSpy: jest.SpiedFunction<typeof console.debug>;
-let consoleInfoSpy: jest.SpiedFunction<typeof console.info>;
-let consoleWarnSpy: jest.SpiedFunction<typeof console.warn>;
-let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
-const debug = false; // Set to true to enable debug logs
-
-if (!debug) {
-  loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log').mockImplementation((level: string, message: string, ...parameters: any[]) => {});
-  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation((...args: any[]) => {});
-  consoleDebugSpy = jest.spyOn(console, 'debug').mockImplementation((...args: any[]) => {});
-  consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation((...args: any[]) => {});
-  consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation((...args: any[]) => {});
-  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation((...args: any[]) => {});
-} else {
-  loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log');
-  consoleLogSpy = jest.spyOn(console, 'log');
-  consoleDebugSpy = jest.spyOn(console, 'debug');
-  consoleInfoSpy = jest.spyOn(console, 'info');
-  consoleWarnSpy = jest.spyOn(console, 'warn');
-  consoleErrorSpy = jest.spyOn(console, 'error');
-}
-
-// Cleanup the test environment
-rmSync(HOMEDIR, { recursive: true, force: true });
+import { createTestEnvironment, setupTest } from './jestHelpers.js';
 
 // Mock the Zigbee2MQTT methods
 const z2mStartSpy = jest.spyOn(Zigbee2MQTT.prototype, 'start').mockImplementation(() => {
@@ -61,6 +34,12 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
   console.log(`Mocked publish: ${topic} - ${message} queue ${queue}`);
   return Promise.resolve();
 });
+
+// Setup the test environment
+setupTest(NAME, false);
+
+// Setup the matter and test environment
+createTestEnvironment(HOMEDIR);
 
 describe('initializePlugin', () => {
   let mockMatterbridge: Matterbridge;
@@ -95,6 +74,7 @@ describe('initializePlugin', () => {
     mockConfig = {
       name: 'matterbridge-zigbee2mqtt',
       type: 'DynamicPlatform',
+      version: '1.0.0',
       topic: 'zigbee2mqtt',
       host: 'localhost',
       port: 1883,
@@ -109,6 +89,7 @@ describe('initializePlugin', () => {
       featureBlackList: ['device_temperature', 'consumption', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
       deviceFeatureBlackList: {},
       postfix: '',
+      debug: false,
       unregisterOnShutdown: false,
     } as PlatformConfig;
   });

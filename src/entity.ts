@@ -3,10 +3,10 @@
  * @file entity.ts
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 3.2.0
+ * @version 3.3.0
  * @license Apache-2.0
  *
- * Copyright 2023, 2024, 2025 Luca Liguori.
+ * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,21 +52,21 @@ import {
   rainSensor,
   smokeCoAlarm,
   extendedColorLight,
+  CommandHandlerData,
 } from 'matterbridge';
 import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
-import { deepCopy, deepEqual, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
+import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
 import { AtLeastOne, SwitchesTag, NumberTag } from 'matterbridge/matter';
 import { getClusterNameById, ClusterId, VendorId, Semtag } from 'matterbridge/matter/types';
 import {
   ElectricalEnergyMeasurement,
   ElectricalPowerMeasurement,
-  OnOffCluster,
-  LevelControlCluster,
   WindowCoveringCluster,
   DoorLockCluster,
   BridgedDeviceBasicInformation,
   OnOff,
+  Identify,
   LevelControl,
   ColorControl,
   ColorControlCluster,
@@ -155,14 +155,21 @@ export class ZigbeeEntity extends EventEmitter {
     }
   >();
 
-  protected lightTimeout: NodeJS.Timeout | undefined = undefined;
+  // Cache the commands
+  protected cachePayload: Payload = {};
+  protected cachePublishTimeout: NodeJS.Timeout | undefined = undefined;
+  protected cachePublishTimeoutTime = 100;
+  protected noUpdateTimeout: NodeJS.Timeout | undefined = undefined;
+  protected noUpdateTimeoutTime = 2000;
   protected thermostatTimeout: NodeJS.Timeout | undefined = undefined;
-  protected readonly thermostatSystemModeLookup = ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'];
+  protected thermostatTimeoutTime = 5000;
 
   protected composedType = '';
   protected hasEndpoints = false;
   public isRouter = false;
   protected noUpdate = false;
+
+  protected readonly thermostatSystemModeLookup = ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'];
 
   /**
    * Creates an instance of ZigbeeEntity.
@@ -230,6 +237,15 @@ export class ZigbeeEntity extends EventEmitter {
         this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
+      // Skip updates of all color attributes if state === OFF
+      if ('state' in payload && payload.state === 'OFF') {
+        this.log.debug(`*Skipping color attributes update (state is OFF) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
+        for (const key of Object.keys(payload)) {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          if (['brightness', 'color_temp', 'color', 'color_mode'].includes(key)) delete payload[key];
+        }
+      }
+
       this.log.info(
         `${db}${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for device ${this.ien}${this.entityName}${rs}${db} payload: ${debugStringify(payload)}`,
       );
@@ -327,8 +343,8 @@ export class ZigbeeEntity extends EventEmitter {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, Thermostat.Cluster.id, 'occupiedCoolingSetpoint', value * 100);
         }
 
-        // ColorControl colorTemperatureMired and colorMode
-        if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp') {
+        // ColorControl colorTemperatureMired (clamped to value_min and value_max) and colorMode
+        if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp' && isValidNumber(value)) {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds);
           const colorTemp = this.propertyMap.get('color_temp');
           this.updateAttributeIfChanged(
@@ -336,17 +352,21 @@ export class ZigbeeEntity extends EventEmitter {
             undefined,
             ColorControl.Cluster.id,
             'colorTemperatureMireds',
-            Math.max(colorTemp?.value_min ?? 147, Math.min(colorTemp?.value_max ?? 500, typeof value === 'number' ? value : 0)),
+            Math.max(colorTemp?.value_min ?? 147, Math.min(colorTemp?.value_max ?? 500, value)),
           );
         }
         // ColorControl currentHue, currentSaturation and colorMode
+        // prettier-ignore
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'hs') {
           const { hue, saturation } = value as { hue: number; saturation: number };
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round((hue / 360) * 254));
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round((saturation / 100) * 254));
+          if(isValidNumber(hue, 0, 360) && isValidNumber(saturation, 0, 100)) {
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round(hue / 360 * 254));
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(saturation / 100 * 254));
+          }
         }
         // ColorControl currentX, currentY and colorMode
+        // prettier-ignore
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
           /* not supported by Apple Home so we convert xy to hue and saturation
           const { x, y } = value as { x: number; y: number };
@@ -355,13 +375,15 @@ export class ZigbeeEntity extends EventEmitter {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentY', Math.max(Math.min(Math.round(y * 65536), 65279), 0));
           */
           const { x, y } = value as { x: number; y: number };
-          const hsl = color.xyToHsl(x, y);
-          const rgb = color.xyColorToRgbColor(x, y);
-          this.log.debug(`ColorControl xyToHsl ${CYAN}${x}${db} ${CYAN}${y}${db} => h ${CYAN}${hsl.h}${db} s ${CYAN}${hsl.s}${db} l ${CYAN}${hsl.l}${db}`);
-          this.log.debug(`ColorControl xyToRgb ${CYAN}${x}${db} ${CYAN}${y}${db} => r ${CYAN}${rgb.r}${db} g ${CYAN}${rgb.g}${db} b ${CYAN}${rgb.b}${db}`);
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round((hsl.h / 360) * 254));
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round((hsl.s / 100) * 254));
+          if (isValidNumber(x, 0, 1) && isValidNumber(y, 0, 1)) {
+            const hsl = color.xyToHsl(x, y);
+            const rgb = color.xyColorToRgbColor(x, y);
+            this.log.debug(`ColorControl xyToHsl ${CYAN}${x}${db} ${CYAN}${y}${db} => h ${CYAN}${hsl.h}${db} s ${CYAN}${hsl.s}${db} l ${CYAN}${hsl.l}${db}`);
+            this.log.debug(`ColorControl xyToRgb ${CYAN}${x}${db} ${CYAN}${y}${db} => r ${CYAN}${rgb.r}${db} g ${CYAN}${rgb.g}${db} b ${CYAN}${rgb.b}${db}`);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round(hsl.h / 360 * 254));
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(hsl.s / 100 * 254));
+          }
         }
       });
     });
@@ -392,15 +414,229 @@ export class ZigbeeEntity extends EventEmitter {
    */
   destroy() {
     this.removeAllListeners();
-    if (this.lightTimeout) clearTimeout(this.lightTimeout);
-    this.lightTimeout = undefined;
+    if (this.cachePublishTimeout) clearTimeout(this.cachePublishTimeout);
+    this.cachePublishTimeout = undefined;
     if (this.thermostatTimeout) clearTimeout(this.thermostatTimeout);
     this.thermostatTimeout = undefined;
+    if (this.noUpdateTimeout) clearTimeout(this.noUpdateTimeout);
+    this.noUpdateTimeout = undefined;
     this.device = undefined;
     this.group = undefined;
     this.bridgedDevice = undefined;
     this.mutableDevice.clear();
     this.propertyMap.clear();
+  }
+
+  /**
+   * Publish the cached commands with a delay of 100ms to group multiple commands into one.
+   * It optimizes the number of messages sent to the MQTT broker for huge scenes on the controller.
+   *
+   * @param {string} command - The command to publish, defaults to 'cachedPublishLight'
+   * @param {Payload} payload - The optional payload to add to the cached publish payload
+   * @param {number} transitionTime - The optional transition time to add to the cached publish payload
+   */
+  protected cachePublish(command: string = 'unknown', payload?: Payload, transitionTime?: number) {
+    if (payload) this.cachePayload = { ...this.cachePayload, ...payload };
+    if (this.transition && transitionTime && transitionTime / 10 >= 1) this.cachePayload['transition'] = Math.round(transitionTime / 10);
+    clearTimeout(this.cachePublishTimeout);
+    this.cachePublishTimeout = setTimeout(() => {
+      clearTimeout(this.cachePublishTimeout);
+      this.cachePublishTimeout = undefined;
+      if (isValidObject(this.cachePayload, 1)) this.publishCommand(command, (this.isGroup ? this.group?.friendly_name : this.device?.friendly_name) as string, this.cachePayload);
+      this.cachePayload = {};
+      this.noUpdate = true;
+      this.log.debug(
+        `****No update for 2 seconds to allow the device ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} to update its state`,
+      );
+      clearTimeout(this.noUpdateTimeout);
+      this.noUpdateTimeout = setTimeout(() => {
+        clearTimeout(this.noUpdateTimeout);
+        this.noUpdateTimeout = undefined;
+        this.log.debug(`****No update is now reset for the device ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db}`);
+        this.noUpdate = false;
+      }, this.noUpdateTimeoutTime).unref();
+    }, this.cachePublishTimeoutTime).unref();
+  }
+
+  /**
+   * Set the light attributes in the cache payload reading the clusters attributes.
+   * It is used when turning on the light to send the current stored attributes in one message.
+   *
+   * @param {MatterbridgeEndpoint} endpoint - The endpoint to get the attributes from
+   * @param {string} postfix - The postfix to add to the attribute names in the payload (e.g. '', '_1', '_2', etc.)
+   */
+  protected setCachePublishAttributes(endpoint: MatterbridgeEndpoint, postfix: string | undefined = undefined) {
+    // We need to add the cluster attributes if we are turning on the light and it was off
+    const brightness = endpoint.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')
+      ? Math.round((endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255)
+      : undefined;
+    if (isValidNumber(brightness, 1, 255)) this.cachePayload['brightness' + (postfix || '')] = brightness;
+    const color_temp =
+      endpoint.hasClusterServer(ColorControl.Cluster.id) &&
+      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds') &&
+      endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds
+        ? endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds')
+        : undefined;
+    if (isValidNumber(color_temp)) this.cachePayload['color_temp' + (postfix || '')] = color_temp;
+    const hs_color =
+      endpoint.hasClusterServer(ColorControl.Cluster.id) &&
+      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentHue') &&
+      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentSaturation') &&
+      endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation
+        ? [
+            Math.round((endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') / 254) * 360),
+            Math.round((endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') / 254) * 100),
+          ]
+        : undefined;
+    if (isValidArray(hs_color, 2)) {
+      this.cachePayload['color' + (postfix || '')] = { h: hs_color[0], s: hs_color[1] };
+    }
+    const xy_color =
+      endpoint.hasClusterServer(ColorControl.Cluster.id) &&
+      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentX') &&
+      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentY') &&
+      endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY
+        ? [endpoint.getAttribute(ColorControl.Cluster.id, 'currentX') / 65535, endpoint.getAttribute(ColorControl.Cluster.id, 'currentY') / 65535]
+        : undefined;
+    if (isValidArray(xy_color, 2)) this.cachePayload['color' + (postfix || '')] = { x: xy_color[0], y: xy_color[1] };
+    const lookupColorMode = [
+      'CurrentHueAndCurrentSaturation',
+      'CurrentXAndCurrentY',
+      'ColorTemperatureMireds',
+      'EnhancedCurrentHueAndCurrentSaturation',
+      'Brightness',
+      'OnOff',
+      'Unknown',
+    ];
+    let colorMode = 6;
+    if (endpoint.hasClusterServer(ColorControl.Cluster.id)) {
+      colorMode = endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode');
+    } else if (endpoint.hasClusterServer(LevelControl.Cluster.id)) {
+      colorMode = 4;
+    } else if (endpoint.hasClusterServer(OnOff.Cluster.id)) {
+      colorMode = 5;
+    }
+    this.log.debug(
+      `***Set attributes called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} colorMode ${CYAN}${lookupColorMode[colorMode]}${db} payload ${debugStringify(this.cachePayload)}`,
+    );
+  }
+
+  // prettier-ignore
+  protected async onCommandHandler(data: CommandHandlerData) {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === true) {
+      this.log.debug(`*Command on ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already ON`);
+      return;
+    }
+    this.log.debug(`Command on called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    this.setCachePublishAttributes(data.endpoint, this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : undefined);
+    this.cachePublish('on', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
+  }
+
+  // prettier-ignore
+  protected async offCommandHandler(data: CommandHandlerData) {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+      this.log.debug(`*Command off ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already OFF`);
+      return;
+    }
+    this.log.debug(`Command off called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    this.cachePublish('off', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
+  }
+
+  // prettier-ignore
+  protected async toggleCommandHandler(data: CommandHandlerData) {
+    this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+      this.setCachePublishAttributes(data.endpoint, this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : undefined);
+      this.cachePublish('toggle', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
+    } else {
+      this.cachePublish('toggle', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
+    }
+  }
+
+  // prettier-ignore
+  protected async moveToLevelCommandHandler(data: CommandHandlerData): Promise<void> {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') === data.request.level) {
+      this.log.debug(`*Command moveToLevel ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or level unchanged`);
+      return;
+    }
+    this.log.debug(`Command moveToLevel called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
+    this.cachePublish('moveToLevel', { ['brightness' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime);
+  }
+
+  // prettier-ignore
+  protected async moveToLevelWithOnOffCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
+    if (data.request['level'] <= (data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel') ?? 1)) {
+      if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+        this.log.debug(`*Command moveToLevelWithOnOff ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF`);
+        return;
+      }
+      data.endpoint.log.debug(`***Command moveToLevelWithOnOff received with level <= minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) => turn off the light`);
+      this.cachePublish('moveToLevelWithOnOff', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' }, data.request.transitionTime);
+    } else {
+      if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+        data.endpoint.log.debug(`***Command moveToLevelWithOnOff received with level > minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) and light is off => turn on the light with attributes`);
+        this.cachePayload['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')] = 'ON';
+        this.setCachePublishAttributes(data.endpoint, this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '');
+      }
+      this.cachePublish('moveToLevelWithOnOff', { ['brightness' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime); // Override the stored one
+    }
+  }
+
+  // prettier-ignore
+  protected async moveToColorTemperatureCommandHandler(data: CommandHandlerData): Promise<void> {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds) {
+      this.log.debug(`*Command moveToColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or colorTemperatureMireds unchanged`);
+      return;
+    }
+    this.log.debug(`Command moveToColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.colorTemperatureMireds} transition: ${data.request.transitionTime}`);
+    if (this.propertyMap.get('color_temp')) {
+      this.cachePublish('moveToColorTemperature', { ['color_temp' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.colorTemperatureMireds }, data.request.transitionTime);
+    } else {
+      const rgb = kelvinToRGB(miredToKelvin(data.request.colorTemperatureMireds)); // Convert mireds to RGB
+      this.cachePublish('moveToColorTemperature', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { r: rgb.r, g: rgb.g, b: rgb.b } }, data.request.transitionTime);
+      this.log.debug(`***Command moveToColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} but color_temp property is not available. Converting ${data.request.colorTemperatureMireds} to RGB ${debugStringify(rgb)}.`);
+    }
+  }
+
+  // prettier-ignore
+  protected async moveToColorCommandHandler(data: CommandHandlerData): Promise<void> {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentX') === data.request.colorX && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentY') === data.request.colorY)) {
+      this.log.debug(`*Command moveToColor ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or color unchanged`);
+      return;
+    }
+    this.log.debug(`Command moveToColor called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: X: ${data.request.colorX} Y: ${data.request.colorY} transition: ${data.request.transitionTime}`);
+    this.cachePublish('moveToColor', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { x: Math.round(data.request.colorX / 65536 * 10000) / 10000, y: Math.round(data.request.colorY / 65536 * 10000) / 10000 } }, data.request.transitionTime);
+  }
+
+  // prettier-ignore
+  protected async moveToHueCommandHandler(data: CommandHandlerData): Promise<void> {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue) {
+      this.log.debug(`*Command moveToHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue unchanged`);
+      return;
+    }
+    this.log.debug(`Command moveToHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`);
+    this.cachePublish('moveToHue', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
+  }
+
+  // prettier-ignore
+  protected async moveToSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation) {
+      this.log.debug(`*Command moveToSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or saturation unchanged`);
+      return;
+    }
+    this.log.debug(`Command moveToSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`);
+    this.cachePublish('moveToSaturation', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+  }
+
+  // prettier-ignore
+  protected async moveToHueAndSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
+      this.log.debug(`*Command moveToHueAndSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue/saturation unchanged`);
+      return;
+    }
+    this.log.debug(`Command moveToHueAndSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} - ${data.request.saturation} transition: ${data.request.transitionTime}`);
+    this.cachePublish('moveToHueAndSaturation', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
   protected addBridgedDeviceBasicInformation(): MatterbridgeEndpoint {
@@ -636,7 +872,7 @@ export class ZigbeeEntity extends EventEmitter {
    * Otherwise, it publishes the payload with a 'set' suffix.
    */
   protected publishCommand(command: string, entityName: string, payload: Payload) {
-    this.log.debug(`executeCommand ${command} called for ${this.ien}${entityName}${rs}${db} payload: ${debugStringify(payload)}`);
+    this.log.debug(`PublishCommand ${command} called for ${this.ien}${entityName}${rs}${db} payload: ${debugStringify(payload)}`);
     if (entityName.startsWith('bridge/request')) {
       this.platform.publish(entityName, '', JSON.stringify(payload));
     } else {
@@ -701,7 +937,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
 
     // Set the device entity select
-    // zigbeeGroup.log.debug(`***Group ${zigbeeGroup.en}${group.friendly_name}${db} adds select device "group-${group.id}" "${group.friendly_name}" "wifi"`);
     platform.setSelectDevice(`group-${group.id}`, group.friendly_name, 'wifi');
 
     let useState = false;
@@ -828,36 +1063,11 @@ export class ZigbeeGroup extends ZigbeeEntity {
     // Verify the device
     if (!zigbeeGroup.bridgedDevice || !zigbeeGroup.verifyMutableDevice(zigbeeGroup.bridgedDevice)) return zigbeeGroup;
 
+    // Clear the mutable device from memory
     zigbeeGroup.mutableDevice.clear();
 
     // Log properties
     zigbeeGroup.logPropertyMap();
-
-    // Cache the commands
-    let lastRequestedHue = -1;
-    let lastRequestedSaturation = -1;
-    let nextPayload: Payload = {};
-
-    /**
-     * Publish the cached commands
-     *
-     * @param {string} command - The command to execute, default is 'cachedPublishLight'.
-     */
-    function cachePublishLight(command: string = 'cachedPublishLight') {
-      clearTimeout(zigbeeGroup.lightTimeout);
-      zigbeeGroup.lightTimeout = setTimeout(() => {
-        clearTimeout(zigbeeGroup.lightTimeout);
-        zigbeeGroup.lightTimeout = undefined;
-        if (lastRequestedHue >= 0 && lastRequestedSaturation >= 0) {
-          const rgb = color.hslColorToRgbColor((lastRequestedHue / 254) * 360, (lastRequestedSaturation / 254) * 100, 50);
-          nextPayload['color'] = { r: rgb.r, g: rgb.g, b: rgb.b };
-        }
-        if (isValidObject(nextPayload, 1)) zigbeeGroup.publishCommand(command, group.friendly_name, nextPayload);
-        nextPayload = {};
-        lastRequestedHue = -1;
-        lastRequestedSaturation = -1;
-      }, 100).unref();
-    }
 
     // Add command handlers
     if (isSwitch || isLight) {
@@ -867,92 +1077,32 @@ export class ZigbeeGroup extends ZigbeeEntity {
         zigbeeGroup.log.debug(`Command identify called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
         // logEndpoint(zigbeeGroup.bridgedDevice!);
       });
-      zigbeeGroup.bridgedDevice.addCommandHandler('on', async () => {
-        zigbeeGroup.log.debug(`Command on called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
-        nextPayload['state'] = 'ON';
-        cachePublishLight();
-      });
-      zigbeeGroup.bridgedDevice.addCommandHandler('off', async () => {
-        zigbeeGroup.log.debug(`Command off called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
-        nextPayload['state'] = 'OFF';
-        cachePublishLight();
-      });
-      zigbeeGroup.bridgedDevice.addCommandHandler('toggle', async () => {
-        zigbeeGroup.log.debug(`Command toggle called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
-        nextPayload['state'] = 'TOGGLE';
-        cachePublishLight();
-      });
+      if (zigbeeGroup.bridgedDevice.hasClusterServer(OnOff.Cluster.id)) {
+        zigbeeGroup.bridgedDevice.addCommandHandler('on', zigbeeGroup.onCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
+      }
+      for (const child of zigbeeGroup.bridgedDevice.getChildEndpoints()) {
+        if (child.hasClusterServer(OnOff.Cluster.id)) {
+          child.addCommandHandler('on', zigbeeGroup.onCommandHandler.bind(zigbeeGroup));
+          child.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
+          child.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
+        }
+      }
     }
     if (isLight) {
       if (useBrightness) {
-        zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevel', async (data) => {
-          zigbeeGroup.log.debug(`Command moveToLevel called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${data.request.level}`);
-          nextPayload['state'] = 'ON';
-          nextPayload['brightness'] = data.request.level;
-          if (zigbeeGroup.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        });
-        zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async (data) => {
-          zigbeeGroup.log.debug(`Command moveToLevelWithOnOff called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${data.request.level}`);
-          nextPayload['state'] = 'ON';
-          nextPayload['brightness'] = data.request.level;
-          if (zigbeeGroup.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        });
+        zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevel', zigbeeGroup.moveToLevelCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', zigbeeGroup.moveToLevelWithOnOffCommandHandler.bind(zigbeeGroup));
       }
       if (useColorTemperature) {
-        zigbeeGroup.bridgedDevice.addCommandHandler('moveToColorTemperature', async (data) => {
-          zigbeeGroup.log.debug(`Command moveToColorTemperature called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${data.request.colorTemperatureMireds}`);
-          await zigbeeGroup.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds);
-          nextPayload['state'] = 'ON';
-          nextPayload['color_temp'] = data.request.colorTemperatureMireds;
-          if (zigbeeGroup.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        });
+        zigbeeGroup.bridgedDevice.addCommandHandler('moveToColorTemperature', zigbeeGroup.moveToColorTemperatureCommandHandler.bind(zigbeeGroup));
       }
       if (useColor) {
-        zigbeeGroup.bridgedDevice.addCommandHandler('moveToHue', async (data) => {
-          zigbeeGroup.log.debug(`Command moveToHue called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${data.request.hue}`);
-          await zigbeeGroup.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-          nextPayload['state'] = 'ON';
-          lastRequestedHue = data.request.hue;
-          if (zigbeeGroup.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        });
-        zigbeeGroup.bridgedDevice.addCommandHandler('moveToSaturation', async (data) => {
-          zigbeeGroup.log.debug(`Command moveToSaturation called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${data.request.saturation}`);
-          await zigbeeGroup.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-          nextPayload['state'] = 'ON';
-          lastRequestedSaturation = data.request.saturation;
-          if (zigbeeGroup.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        });
-        zigbeeGroup.bridgedDevice.addCommandHandler('moveToHueAndSaturation', async (data) => {
-          zigbeeGroup.log.debug(
-            `Command moveToHueAndSaturation called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: ${data.request.hue}-${data.request.saturation}`,
-          );
-          await zigbeeGroup.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-          nextPayload['state'] = 'ON';
-          const rgb = color.hslColorToRgbColor((data.request.hue / 254) * 360, (data.request.saturation / 254) * 100, 50);
-          nextPayload['color'] = { r: rgb.r, g: rgb.g, b: rgb.b };
-          if (zigbeeGroup.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        });
-        zigbeeGroup.bridgedDevice.addCommandHandler('moveToColor', async (data) => {
-          zigbeeGroup.log.debug(`Command moveToColor called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} request: X: ${data.request.colorX} Y: ${data.request.colorY}`);
-          await zigbeeGroup.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, zigbeeGroup.log);
-          nextPayload['state'] = 'ON';
-          nextPayload['color'] = { x: data.request.colorX / 65536, y: data.request.colorY / 65536 };
-          if (zigbeeGroup.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        });
+        zigbeeGroup.bridgedDevice.addCommandHandler('moveToHue', zigbeeGroup.moveToHueCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('moveToSaturation', zigbeeGroup.moveToSaturationCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('moveToHueAndSaturation', zigbeeGroup.moveToHueAndSaturationCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('moveToColor', zigbeeGroup.moveToColorCommandHandler.bind(zigbeeGroup));
       }
     }
     if (isCover) {
@@ -998,7 +1148,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
             zigbeeGroup.noUpdate = true;
             zigbeeGroup.thermostatTimeout = setTimeout(() => {
               zigbeeGroup.noUpdate = false;
-            }, 2 * 1000);
+            }, zigbeeGroup.thermostatTimeoutTime);
           }
         },
         zigbeeGroup.log,
@@ -1014,7 +1164,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
           zigbeeGroup.noUpdate = true;
           zigbeeGroup.thermostatTimeout = setTimeout(() => {
             zigbeeGroup.noUpdate = false;
-          }, 2 * 1000);
+          }, zigbeeGroup.thermostatTimeoutTime);
         },
         zigbeeGroup.log,
       );
@@ -1029,7 +1179,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
           zigbeeGroup.noUpdate = true;
           zigbeeGroup.thermostatTimeout = setTimeout(() => {
             zigbeeGroup.noUpdate = false;
-          }, 2 * 1000);
+          }, zigbeeGroup.thermostatTimeoutTime);
         },
         zigbeeGroup.log,
       );
@@ -1038,7 +1188,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
   }
 }
 
-export interface ZigbeeToMatter {
+interface ZigbeeToMatter {
   type: string;
   name: string;
   property: string;
@@ -1051,7 +1201,7 @@ export interface ZigbeeToMatter {
 }
 
 // prettier-ignore
-export const z2ms: ZigbeeToMatter[] = [
+const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffSwitch, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
   { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
   { type: 'switch', name: 'color_hs', property: 'color_hs', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
@@ -1606,274 +1756,68 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Log properties
     zigbeeDevice.logPropertyMap();
 
-    // Cache the commands
-    let lastRequestedHue = -1;
-    let lastRequestedSaturation = -1;
-    let nextPayload: Payload = {};
-
-    /**
-     * Publish the cached commands
-     *
-     * @param {string} command - The command to publish, defaults to 'cachedPublishLight'
-     */
-    function cachePublishLight(command: string = 'cachedPublishLight') {
-      clearTimeout(zigbeeDevice.lightTimeout);
-      zigbeeDevice.lightTimeout = setTimeout(() => {
-        clearTimeout(zigbeeDevice.lightTimeout);
-        zigbeeDevice.lightTimeout = undefined;
-        if (lastRequestedHue >= 0 && lastRequestedSaturation >= 0) {
-          const rgb = color.hslColorToRgbColor((lastRequestedHue / 254) * 360, (lastRequestedSaturation / 254) * 100, 50);
-          nextPayload['color'] = { r: rgb.r, g: rgb.g, b: rgb.b };
-        }
-        if (isValidObject(nextPayload, 1)) zigbeeDevice.publishCommand(command, device.friendly_name, nextPayload);
-        nextPayload = {};
-        lastRequestedHue = -1;
-        lastRequestedSaturation = -1;
-      }, 100).unref();
-    }
-
     // Add command handlers
-    zigbeeDevice.bridgedDevice.addCommandHandler('identify', async (data) => {
-      zigbeeDevice.log.debug(
-        `Command identify called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request identifyTime:${data.request.identifyTime} `,
-      );
-    });
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(OnOffCluster.id) || zigbeeDevice.hasEndpoints) {
-      for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-        if (child.hasClusterServer(OnOffCluster)) {
-          child.addCommandHandler('on', async (data) => {
-            zigbeeDevice.log.debug(`Command on called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            cachePublishLight();
-          });
-          child.addCommandHandler('off', async (data) => {
-            zigbeeDevice.log.debug(`Command off called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'OFF';
-            cachePublishLight();
-          });
-          child.addCommandHandler('toggle', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command toggle called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`,
-            );
-            nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'TOGGLE';
-            cachePublishLight();
-          });
-        }
-      }
-      zigbeeDevice.bridgedDevice.addCommandHandler('on', async (data) => {
-        zigbeeDevice.log.debug(`Command on called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-        nextPayload['state'] = 'ON';
-        cachePublishLight();
-      });
-      zigbeeDevice.bridgedDevice.addCommandHandler('off', async (data) => {
-        zigbeeDevice.log.debug(`Command off called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-        nextPayload['state'] = 'OFF';
-        cachePublishLight();
-      });
-      zigbeeDevice.bridgedDevice.addCommandHandler('toggle', async (data) => {
-        zigbeeDevice.log.debug(`Command toggle called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-        nextPayload['state'] = 'TOGGLE';
-        cachePublishLight();
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(Identify.Cluster.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+        zigbeeDevice.log.debug(`Command identify called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
+        // logEndpoint(zigbeeDevice.bridgedDevice!);
       });
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(LevelControlCluster.id) || zigbeeDevice.hasEndpoints) {
-      for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-        if (child.hasClusterServer(LevelControlCluster)) {
-          child.addCommandHandler('moveToLevel', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command moveToLevel called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
-            );
-            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            nextPayload['brightness_' + data.endpoint.uniqueStorageKey] = data.request.level;
-            if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-              nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-            cachePublishLight();
-          });
-          child.addCommandHandler('moveToLevelWithOnOff', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command moveToLevelWithOnOff called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
-            );
-            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            nextPayload['brightness_' + data.endpoint.uniqueStorageKey] = data.request.level;
-            if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-              nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-            cachePublishLight();
-          });
-        }
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(OnOff.Cluster.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('on', zigbeeDevice.onCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('off', zigbeeDevice.offCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('toggle', zigbeeDevice.toggleCommandHandler.bind(zigbeeDevice));
+    }
+    for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
+      if (child.hasClusterServer(OnOff.Cluster.id)) {
+        child.addCommandHandler('on', zigbeeDevice.onCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('off', zigbeeDevice.offCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('toggle', zigbeeDevice.toggleCommandHandler.bind(zigbeeDevice));
       }
-      zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevel', async (data) => {
-        zigbeeDevice.log.debug(
-          `Command moveToLevel called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
-        );
-        // nextPayload['state'] = 'ON';
-        nextPayload['brightness'] = data.request.level;
-        if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-          nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-        cachePublishLight();
-      });
-      zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', async (data) => {
-        zigbeeDevice.log.debug(
-          `Command moveToLevelWithOnOff called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`,
-        );
-        // nextPayload['state'] = 'ON';
-        nextPayload['brightness'] = data.request.level;
-        if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-          nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-        cachePublishLight();
-      });
     }
 
-    if (zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControlCluster.id, 'colorTemperatureMireds') || zigbeeDevice.hasEndpoints) {
-      for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-        if (child.hasAttributeServer(ColorControlCluster.id, 'colorTemperatureMireds')) {
-          child.addCommandHandler('moveToColorTemperature', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.colorTemperatureMireds} transition: ${data.request.transitionTime}`,
-            );
-            await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, zigbeeDevice.log);
-            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            if (zigbeeDevice.propertyMap.get('color_temp')) {
-              nextPayload['color_temp_' + data.endpoint.uniqueStorageKey] = data.request.colorTemperatureMireds;
-              if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-                nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-              cachePublishLight();
-            } else {
-              // Convert mireds to RGB
-              const rgb = kelvinToRGB(miredToKelvin(data.request.colorTemperatureMireds));
-              nextPayload['color_' + data.endpoint.uniqueStorageKey] = { r: rgb.r, g: rgb.g, b: rgb.b };
-              if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-                nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-              cachePublishLight();
-              zigbeeDevice.log.info(
-                `Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${nf} but color_temp property is not available. Converting ${data.request.colorTemperatureMireds} to RGB ${debugStringify(rgb)}.`,
-              );
-            }
-          });
-        }
-      }
-      zigbeeDevice.bridgedDevice.addCommandHandler('moveToColorTemperature', async (data) => {
-        zigbeeDevice.log.debug(
-          `Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.colorTemperatureMireds} transition: ${data.request.transitionTime}`,
-        );
-        await data.endpoint?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds, zigbeeDevice.log);
-        // nextPayload['state'] = 'ON';
-        if (zigbeeDevice.propertyMap.get('color_temp')) {
-          nextPayload['color_temp'] = data.request.colorTemperatureMireds;
-          if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-        } else {
-          // Convert mireds to RGB
-          const rgb = kelvinToRGB(miredToKelvin(data.request.colorTemperatureMireds));
-          nextPayload['color'] = { r: rgb.r, g: rgb.g, b: rgb.b };
-          if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-            nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-          cachePublishLight();
-          zigbeeDevice.log.info(
-            `Command moveToColorTemperature called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${nf} but color_temp property is not available. Converting ${data.request.colorTemperatureMireds} to RGB ${debugStringify(rgb)}.`,
-          );
-        }
-      });
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(LevelControl.Cluster.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevel', zigbeeDevice.moveToLevelCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', zigbeeDevice.moveToLevelWithOnOffCommandHandler.bind(zigbeeDevice));
     }
-    if (zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControlCluster.id, 'currentX') || zigbeeDevice.hasEndpoints) {
-      for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-        if (child.hasAttributeServer(ColorControlCluster.id, 'currentX')) {
-          child.addCommandHandler('moveToColor', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command moveToColor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: X: ${data.request.colorX} Y: ${data.request.colorY} transition: ${data.request.transitionTime}`,
-            );
-            await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, zigbeeDevice.log);
-            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            nextPayload['color_' + data.endpoint.uniqueStorageKey] = { x: data.request.colorX / 65536, y: data.request.colorY / 65536 };
-            if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-              nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-            cachePublishLight();
-          });
-        }
+    for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
+      if (child.hasClusterServer(LevelControl.Cluster.id)) {
+        child.addCommandHandler('moveToLevel', zigbeeDevice.moveToLevelCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('moveToLevelWithOnOff', zigbeeDevice.moveToLevelWithOnOffCommandHandler.bind(zigbeeDevice));
       }
-      zigbeeDevice.bridgedDevice.addCommandHandler('moveToColor', async (data) => {
-        zigbeeDevice.log.debug(
-          `Command moveToColor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: X: ${data.request.colorX} Y: ${data.request.colorY} transition: ${data.request.transitionTime}`,
-        );
-        await data.endpoint?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY, zigbeeDevice.log);
-        // nextPayload['state'] = 'ON';
-        nextPayload['color'] = { x: data.request.colorX / 65536, y: data.request.colorY / 65536 };
-        if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-          nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-        cachePublishLight();
-      });
     }
-    if (zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControlCluster.id, 'currentHue') || zigbeeDevice.hasEndpoints) {
-      for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-        if (child.hasAttributeServer(ColorControlCluster.id, 'currentHue')) {
-          child.addCommandHandler('moveToHue', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command moveToHue called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`,
-            );
-            await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            lastRequestedHue = data.request.hue;
-            if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-              nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-            cachePublishLight();
-          });
-          child.addCommandHandler('moveToSaturation', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command moveToSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`,
-            );
-            await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            lastRequestedSaturation = data.request.saturation;
-            if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-              nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-            cachePublishLight();
-          });
-          child.addCommandHandler('moveToHueAndSaturation', async (data) => {
-            zigbeeDevice.log.debug(
-              `Command moveToHueAndSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue}-${data.request.saturation} transition: ${data.request.transitionTime}`,
-            );
-            await child.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-            // nextPayload['state_' + data.endpoint.uniqueStorageKey] = 'ON';
-            const rgb = color.hslColorToRgbColor((data.request.hue / 254) * 360, (data.request.saturation / 254) * 100, 50);
-            nextPayload['color_' + data.endpoint.uniqueStorageKey] = { r: rgb.r, g: rgb.g, b: rgb.b };
-            cachePublishLight();
-          });
-        }
+
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.Cluster.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('moveToColorTemperature', zigbeeDevice.moveToColorTemperatureCommandHandler.bind(zigbeeDevice));
+    }
+    for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
+      if (child.hasClusterServer(ColorControl.Cluster.id) && child.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+        child.addCommandHandler('moveToColorTemperature', zigbeeDevice.moveToColorTemperatureCommandHandler.bind(zigbeeDevice));
       }
-      zigbeeDevice.bridgedDevice.addCommandHandler('moveToHue', async (data) => {
-        zigbeeDevice.log.debug(
-          `Command moveToHue called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`,
-        );
-        await zigbeeDevice.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-        // nextPayload['state'] = 'ON';
-        lastRequestedHue = data.request.hue;
-        if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-          nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-        cachePublishLight();
-      });
-      zigbeeDevice.bridgedDevice.addCommandHandler('moveToSaturation', async (data) => {
-        zigbeeDevice.log.debug(
-          `Command moveToSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`,
-        );
-        await zigbeeDevice.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-        // nextPayload['state'] = 'ON';
-        lastRequestedSaturation = data.request.saturation;
-        if (zigbeeDevice.transition && data.request.transitionTime && data.request.transitionTime / 10 >= 1)
-          nextPayload['transition'] = Math.round(data.request.transitionTime / 10);
-        cachePublishLight();
-      });
-      zigbeeDevice.bridgedDevice.addCommandHandler('moveToHueAndSaturation', async (data) => {
-        zigbeeDevice.log.debug(
-          `Command moveToHueAndSaturation called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue}-${data.request.saturation} transition: ${data.request.transitionTime}`,
-        );
-        await zigbeeDevice.bridgedDevice?.setAttribute(ColorControlCluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation, zigbeeDevice.log);
-        // nextPayload['state'] = 'ON';
-        const rgb = color.hslColorToRgbColor((data.request.hue / 254) * 360, (data.request.saturation / 254) * 100, 50);
-        nextPayload['color'] = { r: rgb.r, g: rgb.g, b: rgb.b };
-        cachePublishLight();
-      });
+    }
+
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.Cluster.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.Cluster.id, 'currentX')) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('moveToColor', zigbeeDevice.moveToColorCommandHandler.bind(zigbeeDevice));
+    }
+    for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
+      if (child.hasClusterServer(ColorControl.Cluster.id) && child.hasAttributeServer(ColorControl.Cluster.id, 'currentX')) {
+        child.addCommandHandler('moveToColor', zigbeeDevice.moveToColorCommandHandler.bind(zigbeeDevice));
+      }
+    }
+
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.Cluster.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.Cluster.id, 'currentHue')) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('moveToHue', zigbeeDevice.moveToHueCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('moveToSaturation', zigbeeDevice.moveToSaturationCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('moveToHueAndSaturation', zigbeeDevice.moveToHueAndSaturationCommandHandler.bind(zigbeeDevice));
+    }
+    for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
+      if (child.hasClusterServer(ColorControl.Cluster.id) && child.hasAttributeServer(ColorControl.Cluster.id, 'currentHue')) {
+        child.addCommandHandler('moveToHue', zigbeeDevice.moveToHueCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('moveToSaturation', zigbeeDevice.moveToSaturationCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('moveToHueAndSaturation', zigbeeDevice.moveToHueAndSaturationCommandHandler.bind(zigbeeDevice));
+      }
     }
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(WindowCoveringCluster.id)) {
@@ -1963,7 +1907,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, 5 * 1000);
+            }, zigbeeDevice.thermostatTimeoutTime);
           }
         },
         zigbeeDevice.log,
@@ -1981,7 +1925,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, 5 * 1000);
+            }, zigbeeDevice.thermostatTimeoutTime);
           },
           zigbeeDevice.log,
         );
@@ -1998,7 +1942,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, 5 * 1000);
+            }, zigbeeDevice.thermostatTimeoutTime);
           },
           zigbeeDevice.log,
         );

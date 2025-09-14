@@ -7,8 +7,7 @@ const HOMEDIR = path.join('jest', NAME);
 /* eslint-disable no-console */
 
 import path from 'node:path';
-import { readFileSync, rmSync } from 'node:fs';
-import { group } from 'node:console';
+import { readFileSync } from 'node:fs';
 
 import { jest } from '@jest/globals';
 import {
@@ -26,38 +25,15 @@ import {
   thermostatDevice,
 } from 'matterbridge';
 import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, or, hk, YELLOW } from 'matterbridge/logger';
-import { wait } from 'matterbridge/utils';
-import { RootEndpoint, AggregatorEndpoint } from 'matterbridge/matter/endpoints';
+import { getMacAddress, wait } from 'matterbridge/utils';
+import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { Thermostat } from 'matterbridge/matter/clusters';
-import { Endpoint, Environment, ServerNode, LogFormat as MatterLogFormat, LogLevel as MatterLogLevel, DeviceTypeId, VendorId, MdnsService } from 'matterbridge/matter';
+import { Endpoint, ServerNode } from 'matterbridge/matter';
 
 import { ZigbeePlatform } from './platform.ts';
 import { Zigbee2MQTT } from './zigbee2mqtt.ts';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.ts';
-
-let loggerLogSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.log>;
-let consoleLogSpy: jest.SpiedFunction<typeof console.log>;
-let consoleDebugSpy: jest.SpiedFunction<typeof console.debug>;
-let consoleInfoSpy: jest.SpiedFunction<typeof console.info>;
-let consoleWarnSpy: jest.SpiedFunction<typeof console.warn>;
-let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
-const debug = false; // Set to true to enable debug logs
-
-if (!debug) {
-  loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log').mockImplementation((level: string, message: string, ...parameters: any[]) => {});
-  consoleLogSpy = jest.spyOn(console, 'log').mockImplementation((...args: any[]) => {});
-  consoleDebugSpy = jest.spyOn(console, 'debug').mockImplementation((...args: any[]) => {});
-  consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation((...args: any[]) => {});
-  consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation((...args: any[]) => {});
-  consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation((...args: any[]) => {});
-} else {
-  loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log');
-  consoleLogSpy = jest.spyOn(console, 'log');
-  consoleDebugSpy = jest.spyOn(console, 'debug');
-  consoleInfoSpy = jest.spyOn(console, 'info');
-  consoleWarnSpy = jest.spyOn(console, 'warn');
-  consoleErrorSpy = jest.spyOn(console, 'error');
-}
+import { createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -83,79 +59,80 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
   return Promise.resolve();
 });
 
-const environment = Environment.default;
-let server: ServerNode<ServerNode.RootEndpoint>;
-let aggregator: Endpoint<AggregatorEndpoint>;
-let device: MatterbridgeEndpoint;
+// Setup the test environment
+setupTest(NAME, false);
 
-const mockMatterbridge = {
-  matterbridgeDirectory: HOMEDIR + '/.matterbridge',
-  matterbridgePluginDirectory: HOMEDIR + '/Matterbridge',
-  systemInformation: {
-    ipv4Address: undefined,
-    ipv6Address: undefined,
-    osRelease: 'xx.xx.xx.xx.xx.xx',
-    nodeVersion: '22.1.10',
-  },
-  matterbridgeVersion: '3.0.4',
-  getDevices: jest.fn(() => []),
-  getPlugins: jest.fn(() => []),
-  addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
-    await aggregator.add(device);
-  }),
-  removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {}),
-  removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
-} as unknown as Matterbridge;
-
-const mockConfig = {
-  name: 'matterbridge-zigbee2mqtt',
-  type: 'DynamicPlatform',
-  host: 'mqtt://localhost',
-  port: 1883,
-  protocolVersion: 5,
-  username: undefined,
-  password: undefined,
-  topic: 'zigbee2mqtt',
-  zigbeeFrontend: 'http://localhost:8080',
-  blackList: [],
-  whiteList: [],
-  switchList: [],
-  lightList: [],
-  outletList: [],
-  featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
-  deviceFeatureBlackList: {},
-  scenesType: 'outlet',
-  scenesPrefix: false,
-  postfix: 'JEST',
-  debug: true,
-  unregisterOnShutdown: false,
-
-  // Old properties to delete
-  postfixHostname: true,
-  deviceScenes: true,
-  groupScenes: true,
-} as PlatformConfig;
-
-let platform: ZigbeePlatform;
+// Setup the matter and test environment
+createTestEnvironment(HOMEDIR);
 
 describe('TestPlatform', () => {
+  let server: ServerNode<ServerNode.RootEndpoint>;
+  let aggregator: Endpoint<AggregatorEndpoint>;
+  let device: MatterbridgeEndpoint;
+  let platform: ZigbeePlatform;
+
+  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
+  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
+
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
+  const mockMatterbridge = {
+    matterbridgeDirectory: HOMEDIR + '/.matterbridge',
+    matterbridgePluginDirectory: HOMEDIR + '/Matterbridge',
+    systemInformation: {
+      ipv4Address: undefined,
+      ipv6Address: undefined,
+      osRelease: 'xx.xx.xx.xx.xx.xx',
+      nodeVersion: '22.1.10',
+    },
+    matterbridgeVersion: '3.0.4',
+    getDevices: jest.fn(() => []),
+    getPlugins: jest.fn(() => []),
+    addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
+      await aggregator.add(device);
+    }),
+    removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {}),
+    removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
+  } as unknown as Matterbridge;
 
-  beforeAll(() => {
-    // Cleanup the matter environment
-    rmSync(HOMEDIR, { recursive: true, force: true });
+  const mockConfig = {
+    name: 'matterbridge-zigbee2mqtt',
+    type: 'DynamicPlatform',
+    version: '1.0.0',
+    host: 'mqtt://localhost',
+    port: 1883,
+    protocolVersion: 5,
+    username: undefined,
+    password: undefined,
+    topic: 'zigbee2mqtt',
+    zigbeeFrontend: 'http://localhost:8080',
+    blackList: [],
+    whiteList: [],
+    switchList: [],
+    lightList: [],
+    outletList: [],
+    featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
+    deviceFeatureBlackList: {},
+    scenesType: 'outlet',
+    scenesPrefix: false,
+    postfix: 'JEST',
+    debug: true,
+    unregisterOnShutdown: false,
 
-    // Setup the matter environment
-    environment.vars.set('log.level', MatterLogLevel.NOTICE);
-    environment.vars.set('log.format', MatterLogFormat.ANSI);
-    environment.vars.set('path.root', HOMEDIR);
-    environment.vars.set('runtime.signals', false);
-    environment.vars.set('runtime.exitcode', false);
-  });
+    // Old properties to delete
+    postfixHostname: true,
+    deviceScenes: true,
+    groupScenes: true,
+  } as PlatformConfig;
+
+  beforeAll(() => {});
 
   beforeEach(() => {
     // Clears the call history before each test
     jest.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await flushAsync();
   });
 
   afterAll(() => {
@@ -163,70 +140,10 @@ describe('TestPlatform', () => {
     jest.restoreAllMocks();
   });
 
-  test('create the server node', async () => {
-    // Create the server node
-    server = await ServerNode.create({
-      id: NAME + 'ServerNode',
-
-      productDescription: {
-        name: NAME + 'ServerNode',
-        deviceType: DeviceTypeId(RootEndpoint.deviceType),
-        vendorId: VendorId(0xfff1),
-        productId: 0x8000,
-      },
-
-      // Provide defaults for the BasicInformation cluster on the Root endpoint
-      basicInformation: {
-        vendorId: VendorId(0xfff1),
-        vendorName: 'Matterbridge',
-        productId: 0x8000,
-        productName: 'Matterbridge ' + NAME,
-        nodeLabel: NAME + 'ServerNode',
-        hardwareVersion: 1,
-        softwareVersion: 1,
-        reachable: true,
-      },
-
-      network: {
-        port: MATTER_PORT,
-      },
-    });
-    expect(server).toBeDefined();
-    expect(server.lifecycle.isReady).toBeTruthy();
-  });
-
-  test('create the aggregator node', async () => {
-    aggregator = new Endpoint(AggregatorEndpoint, {
-      id: NAME + 'AggregatorNode',
-    });
-    expect(aggregator).toBeDefined();
-  });
-
-  test('add the aggregator node to the server', async () => {
+  test('create and start the server node', async () => {
+    [server, aggregator] = await startServerNode(NAME, MATTER_PORT);
     expect(server).toBeDefined();
     expect(aggregator).toBeDefined();
-    await server.add(aggregator);
-    expect(server.parts.has(aggregator.id)).toBeTruthy();
-    expect(server.parts.has(aggregator)).toBeTruthy();
-    expect(aggregator.lifecycle.isReady).toBeTruthy();
-  });
-
-  test('start the server node', async () => {
-    // Run the server
-    expect(server.lifecycle.isReady).toBeTruthy();
-    expect(server.lifecycle.isOnline).toBeFalsy();
-
-    // Wait for the server to be online
-    await new Promise<void>((resolve) => {
-      server.lifecycle.online.on(async () => {
-        resolve();
-      });
-      server.start();
-    });
-
-    // Check if the server is online
-    expect(server.lifecycle.isReady).toBeTruthy();
-    expect(server.lifecycle.isOnline).toBeTruthy();
   });
 
   it('should not initialize platform with wrong version', () => {
@@ -506,9 +423,6 @@ describe('TestPlatform', () => {
     expect(logEntries).toBeDefined();
     expect(logEntries.length).toBe(702);
 
-    consoleWarnSpy.mockRestore();
-    consoleWarnSpy = jest.spyOn(console, 'warn');
-
     logEntries.forEach((entry: { entity: string; service: string; payload: string }) => {
       const payloadJson: Record<string, boolean | number | string | undefined | null | object> = JSON.parse(entry.payload);
       const entity = platform.zigbeeEntities.find((entity) => entity.entityName === entry.entity);
@@ -524,37 +438,47 @@ describe('TestPlatform', () => {
   }, 60000);
 
   it('should update /Lights/set', async () => {
+    // setDebug(true);
+
     const entity = 'Lights';
 
+    jest.clearAllMocks();
     const oldxy = { state: 'OFF', brightness: 100, color: { x: 0.2927, y: 0.6349 }, color_mode: 'xy', changed: 0 };
     (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldxy)));
-
-    const oldct = { state: 'OFF', brightness: 100, color_temp: 500, color_mode: 'color_temp', changed: 0 };
-    (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldct)));
-
-    const payload = { state: 'ON', brightness: 250, color: { x: 0.7006, y: 0.2993 }, color_mode: 'xy', changed: 1 };
-    (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(payload)));
+    await flushAsync(undefined, undefined, updateTimeout);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
     );
+
+    jest.clearAllMocks();
+    const oldct = { state: 'OFF', brightness: 100, color_temp: 500, color_mode: 'color_temp', changed: 0 };
+    (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(oldct)));
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
+
+    jest.clearAllMocks();
+    const payload = { state: 'ON', brightness: 250, color: { x: 0.5006, y: 0.2993 }, color_mode: 'xy', changed: 1 };
+    (platform.z2m as any).messageHandler('zigbee2mqtt/' + entity, Buffer.from(JSON.stringify(payload)));
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}254${db} to ${YELLOW}250${db}
+        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db}`, // from ${YELLOW}xy${db} to ${YELLOW}xy${db}
+        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}63${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -563,6 +487,7 @@ describe('TestPlatform', () => {
         `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
       ),
     );
+    // setDebug(false);
   });
 
   it('should add NewGroup', async () => {
@@ -651,16 +576,21 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.executeCommandHandler('identify', { identifyTime: 10 });
-    await device.executeCommandHandler('on');
-    await device.executeCommandHandler('off');
-    await device.executeCommandHandler('toggle');
-    await device.executeCommandHandler('moveToLevel', { level: 100 });
-    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 0 });
-    await device.executeCommandHandler('moveToColorTemperature', { colorTemperatureMireds: 400 });
-    await device.executeCommandHandler('moveToColor', { colorX: 0.2927, colorY: 0.6349 });
-    await device.executeCommandHandler('moveToHue', { hue: 200 });
-    await device.executeCommandHandler('moveToSaturation', { saturation: 90 });
-    await device.executeCommandHandler('moveToHueAndSaturation', { hue: 200, saturation: 90 });
+    await device.setAttribute('onOff', 'onOff', false);
+    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.setAttribute('onOff', 'onOff', true);
+    await device.executeCommandHandler('off', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('toggle', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.setAttribute('onOff', 'onOff', true);
+    await device.executeCommandHandler('moveToLevel', { level: 100 }, 'levelControl', {}, device);
+    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 50 }, 'levelControl', {}, device);
+    await device.executeCommandHandler('moveToColorTemperature', { colorTemperatureMireds: 400 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToColor', { colorX: 0.2927, colorY: 0.6349 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToHue', { hue: 200 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToSaturation', { saturation: 90 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToHueAndSaturation', { hue: 200, saturation: 90 }, 'colorControl', {}, device);
 
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${idn}${friendlyName}${rs}${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${idn}${friendlyName}${rs}${db}`));
@@ -778,16 +708,20 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.executeCommandHandler('identify', { identifyTime: 10 });
-    await device.executeCommandHandler('on');
-    await device.executeCommandHandler('off');
-    await device.executeCommandHandler('toggle');
-    await device.executeCommandHandler('moveToLevel', { level: 100 });
-    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 0 });
-    await device.executeCommandHandler('moveToColorTemperature', { colorTemperatureMireds: 400 });
-    await device.executeCommandHandler('moveToColor', { colorX: 0.2927, colorY: 0.6349 });
-    await device.executeCommandHandler('moveToHue', { hue: 200 });
-    await device.executeCommandHandler('moveToSaturation', { saturation: 90 });
-    await device.executeCommandHandler('moveToHueAndSaturation', { hue: 200, saturation: 90 });
+    await device.setAttribute('onOff', 'onOff', false);
+    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.setAttribute('onOff', 'onOff', true);
+    await device.executeCommandHandler('off', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('off', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('toggle', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('moveToLevel', { level: 100 }, 'levelControl', {}, device);
+    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 0 }, 'levelControl', {}, device);
+    await device.executeCommandHandler('moveToColorTemperature', { colorTemperatureMireds: 400 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToColor', { colorX: 0.2927, colorY: 0.6349 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToHue', { hue: 200 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToSaturation', { saturation: 90 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToHueAndSaturation', { hue: 200, saturation: 90 }, 'colorControl', {}, device);
 
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${ign}${friendlyName}${rs}${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${ign}${friendlyName}${rs}${db}`));
@@ -833,17 +767,7 @@ describe('TestPlatform', () => {
 
   test('close the server node', async () => {
     expect(server).toBeDefined();
-    expect(server.lifecycle.isReady).toBeTruthy();
-    expect(server.lifecycle.isOnline).toBeTruthy();
-    await server.close();
-    expect(server.lifecycle.isReady).toBeTruthy();
-    expect(server.lifecycle.isOnline).toBeFalsy();
-  });
-
-  test('stop the mDNS service', async () => {
-    await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for async operations in matter.js to complete
-    expect(server).toBeDefined();
-    await server.env.get(MdnsService)[Symbol.asyncDispose]();
-    await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for async operations in matter.js to complete
+    await stopServerNode(server);
+    await flushAsync(1, 1, 500);
   });
 });

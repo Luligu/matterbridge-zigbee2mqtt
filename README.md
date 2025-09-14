@@ -19,6 +19,8 @@ Matterbridge zigbee2mqtt is a matterbridge production-level plugin that expose a
 
 No hub or dedicated hardware needed.
 
+No cloud: all is local and fast.
+
 Interested in super fast and autonomous **[automations for zigbee2mqtt](https://github.com/Luligu/zigbee2mqtt-automations)**? Try this: https://github.com/Luligu/zigbee2mqtt-automations.
 
 If you like this project and find it useful, please consider giving it a star on GitHub at https://github.com/Luligu/matterbridge-zigbee2mqtt and sponsoring it.
@@ -26,6 +28,12 @@ If you like this project and find it useful, please consider giving it a star on
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
+
+## Introduction
+
+Matterbridge enables non-Matter devices (Zigbee devices) to integrate with the Matter communication protocol. Bridges allow platforms that use other protocol standards to interoperate with the Matter ecosystem by integrating a Matter server into, or between, existing smart gateways, controllers, and hubs. Many commercial smart gateways provide a built-in Matter bridge that translates Matter to Zigbee or other protocols, making it possible for other ecosystems to communicate with them.
+
+The Matterbridge zigbee2mqtt plugin acts as a Matter Bridge, exposing all Zigbee devices and groups from [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) as Matter devices to third-party Matter controllers like Apple Home, Google Home, Amazon Alexa, and SmartThings, all while remaining local on the user's network. This allows fast, secure, and cloud-free control of Zigbee2MQTT-connected Zigbee devices from all major voice assistants as well as other third-party Matter clients.
 
 ## Prerequisites
 
