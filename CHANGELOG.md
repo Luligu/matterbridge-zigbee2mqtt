@@ -14,8 +14,6 @@ If you like this project and find it useful, please consider giving it a star on
 
 The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-automations) has been updated to version 3.0.0 that includes also scenes.
 
-### Added
-
 ### Changed
 
 - [package]: Updated dependencies.
@@ -23,6 +21,10 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [workflows]: Ignore any .md in codeql.yaml.
 - [workflows]: Ignore any .md in codecov.yaml.
 - [jest]: Updated jestHelpers to v. 1.0.6.
+
+### Fixed
+
+- [platform]: Fixed command handlers execution when the controllers send scenes.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
