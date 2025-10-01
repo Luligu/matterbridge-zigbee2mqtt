@@ -8,6 +8,25 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## [2.8.1] - 2025-10-01
+
+### Automations and scenes
+
+The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-automations) has been updated to version 3.0.0 that includes also scenes.
+
+### Added
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Updated package to Automator v. 2.0.6.
+- [workflows]: Ignore any .md anywhere.
+- [workflows]: Improved speed on Node CI.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [2.8.0] - 2025-09-14
 
 ### Breaking changes

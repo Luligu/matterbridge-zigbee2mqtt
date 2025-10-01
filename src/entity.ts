@@ -1049,7 +1049,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       group.scenes.forEach((scene) => {
         zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
         platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
-        platform.registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, async () => {
+        platform._registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, async () => {
           zigbeeGroup.log.info(`Triggered scene "${scene.name}" id ${scene.id} from group ${group.friendly_name}`);
           zigbeeGroup.publishCommand('scene_recall', group.friendly_name, { scene_recall: scene.id });
         });
@@ -1346,7 +1346,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         Object.values(endpoint.scenes).forEach((scene) => {
           zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
           platform.setSelectDeviceEntity(device.ieee_address, 'scenes', 'Scenes', 'component');
-          platform.registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, async () => {
+          platform._registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, async () => {
             zigbeeDevice.log.info(`Triggered scene "${scene.name}" id ${scene.id} from device ${device.friendly_name}`);
             zigbeeDevice.publishCommand('scene_recall', device.friendly_name, { scene_recall: scene.id });
           });

@@ -609,7 +609,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     return matterGroup;
   }
 
-  public registerVirtualDevice(name: string, callback: () => Promise<void>) {
+  public _registerVirtualDevice(name: string, callback: () => Promise<void>) {
     let aggregator;
     if (this.matterbridge.bridgeMode === 'bridge') {
       aggregator = this.matterbridge.aggregatorNode;
