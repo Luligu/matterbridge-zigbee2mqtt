@@ -19,9 +19,10 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 ### Changed
 
 - [package]: Updated dependencies.
-- [package]: Updated package to Automator v. 2.0.6.
-- [workflows]: Ignore any .md anywhere.
-- [workflows]: Improved speed on Node CI.
+- [workflows]: Ignore any .md in build.yaml.
+- [workflows]: Ignore any .md in codeql.yaml.
+- [workflows]: Ignore any .md in codecov.yaml.
+- [jest]: Updated jestHelpers to v. 1.0.6.
 
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
