@@ -592,7 +592,7 @@ export class ZigbeeEntity extends EventEmitter {
   // prettier-ignore
   protected async moveToColorTemperatureCommandHandler(data: CommandHandlerData): Promise<void> {
     delete this.cachePayload['color'];
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds)) {
+    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (this.propertyMap.get('color_temp') && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds)) {
       this.log.debug(`*Command moveToColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or colorTemperatureMireds unchanged`);
       return;
     }

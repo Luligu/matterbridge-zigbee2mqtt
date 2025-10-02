@@ -8,7 +8,7 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
-## [2.8.1] - 2025-10-01
+## [2.8.1] - 2025-10-02
 
 ### Automations and scenes
 
