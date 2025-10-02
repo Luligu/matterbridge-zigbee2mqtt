@@ -17,6 +17,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 ### Changed
 
 - [package]: Updated dependencies.
+- [package]: Updated package to Automator v. 2.0.7.
 - [workflows]: Ignore any .md in build.yaml.
 - [workflows]: Ignore any .md in codeql.yaml.
 - [workflows]: Ignore any .md in codecov.yaml.
