@@ -8,6 +8,29 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## [2.8.1] - 2025-10-02
+
+### Automations and scenes
+
+The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-automations) has been updated to version 3.0.0 that includes also scenes.
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Updated package to Automator v. 2.0.7.
+- [workflows]: Ignore any .md in build.yaml.
+- [workflows]: Ignore any .md in codeql.yaml.
+- [workflows]: Ignore any .md in codecov.yaml.
+- [jest]: Updated jestHelpers to v. 1.0.6.
+
+### Fixed
+
+- [platform]: Fixed command handlers execution when the controllers send scenes.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [2.8.0] - 2025-09-14
 
 ### Breaking changes
