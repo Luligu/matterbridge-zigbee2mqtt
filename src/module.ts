@@ -1,12 +1,12 @@
 /**
  * @description This file contains the class ZigbeePlatform.
- * @file platform.ts
+ * @file module.ts
  * @author Luca Liguori
  * @created 2023-12-29
  * @version 2.2.2
  * @license Apache-2.0
  *
- * Copyright 2023, 2024, 2025 Luca Liguori.
+ * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@
 
 import path from 'node:path';
 
-import { addVirtualDevice, Matterbridge, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
+import { addVirtualDevice, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf, LogLevel } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
@@ -34,6 +34,46 @@ import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
 
 type DeviceFeatureBlackList = Record<string, string[]>;
+
+export interface ZigbeePlatformConfig extends PlatformConfig {
+  host: string;
+  port: number;
+  protocolVersion: number;
+  username: string;
+  password: string;
+  ca: string;
+  rejectUnauthorized: boolean;
+  cert: string;
+  key: string;
+  topic: string;
+  zigbeeFrontend: string;
+  whiteList: string[];
+  blackList: string[];
+  switchList: string[];
+  lightList: string[];
+  outletList: string[];
+  featureBlackList: string[];
+  deviceFeatureBlackList: DeviceFeatureBlackList;
+  scenesType: string;
+  scenesPrefix: boolean;
+  postfix: string;
+}
+
+/**
+ * This is the standard interface for Matterbridge plugins.
+ * Each plugin should export a default function that follows this signature.
+ * Each plugin should return the platform.
+ *
+ * Initializes the Zigbee2mqtt plugin.
+ *
+ * @param {PlatformMatterbridge} matterbridge - The Matterbridge instance.
+ * @param {AnsiLogger} log - The logger instance.
+ * @param {PlatformConfig} config - The platform configuration.
+ * @returns {ZigbeePlatform} The initialized Zigbee platform.
+ */
+export default function initializePlugin(matterbridge: PlatformMatterbridge, log: AnsiLogger, config: ZigbeePlatformConfig): ZigbeePlatform {
+  return new ZigbeePlatform(matterbridge, log, config);
+}
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
@@ -75,13 +115,13 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private z2mEntityPayload = new Map<string, Payload>();
   private availabilityTimer: NodeJS.Timeout | undefined;
 
-  constructor(matterbridge: Matterbridge, log: AnsiLogger, config: PlatformConfig) {
+  constructor(matterbridge: PlatformMatterbridge, log: AnsiLogger, config: ZigbeePlatformConfig) {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.0.4')) {
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.3.0')) {
       throw new Error(
-        `This plugin requires Matterbridge version >= "3.0.4". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`,
+        `This plugin requires Matterbridge version >= "3.3.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`,
       );
     }
 
@@ -94,20 +134,20 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.mqttHost = config.host;
       this.mqttHost = !this.mqttHost.startsWith('mqtt://') && !this.mqttHost.startsWith('mqtts://') ? 'mqtt://' + this.mqttHost : this.mqttHost;
     }
-    if (config.port) this.mqttPort = config.port as number;
-    if (config.topic) this.mqttTopic = config.topic as string;
-    if (config.username) this.mqttUsername = config.username as string;
-    if (config.password) this.mqttPassword = config.password as string;
+    if (config.port) this.mqttPort = config.port;
+    if (config.topic) this.mqttTopic = config.topic;
+    if (config.username) this.mqttUsername = config.username;
+    if (config.password) this.mqttPassword = config.password;
     if (config.protocolVersion && typeof config.protocolVersion === 'number' && config.protocolVersion >= 3 && config.protocolVersion <= 5) {
       this.mqttProtocol = config.protocolVersion as 4 | 5 | 3;
     } else {
       this.mqttProtocol = 5; // Default to MQTT v5
     }
-    if (config.switchList) this.switchList = config.switchList as string[];
-    if (config.lightList) this.lightList = config.lightList as string[];
-    if (config.outletList) this.outletList = config.outletList as string[];
-    if (config.featureBlackList) this.featureBlackList = config.featureBlackList as string[];
-    if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList as DeviceFeatureBlackList;
+    if (config.switchList) this.switchList = config.switchList;
+    if (config.lightList) this.lightList = config.lightList;
+    if (config.outletList) this.outletList = config.outletList;
+    if (config.featureBlackList) this.featureBlackList = config.featureBlackList;
+    if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList;
     if (config.postfix && typeof config.postfix === 'string') {
       this.postfix = config.postfix;
     }
@@ -118,8 +158,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.port = this.mqttPort;
     config.protocolVersion = this.mqttProtocol;
     config.topic = this.mqttTopic;
-    config.username = this.mqttUsername;
-    config.password = this.mqttPassword;
+    config.username = this.mqttUsername ?? '';
+    config.password = this.mqttPassword ?? '';
     config.postfix = this.postfix;
     if (config.postfixHostname !== undefined) delete config.postfixHostname;
     if (config.deviceScenes !== undefined) delete config.deviceScenes;
@@ -129,7 +169,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
-    // this.log.debug(`Config:')}${rs}`, config);
+    this.log.debug(`Config:\n${rs}${JSON.stringify(config, null, 2)}${rs}`);
 
     this.z2m = new Zigbee2MQTT(
       this.mqttHost,

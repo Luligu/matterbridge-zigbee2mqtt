@@ -16,12 +16,12 @@ import { Endpoint, ServerNode } from 'matterbridge/matter';
 import { PowerSource } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
 
-import { ZigbeePlatform } from './platform.ts';
-import { Zigbee2MQTT } from './zigbee2mqtt.ts';
-import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './jestHelpers.js';
-import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.ts';
-import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.ts';
-import { Payload } from './payloadTypes.ts';
+import { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
+import { Zigbee2MQTT } from './zigbee2mqtt.js';
+import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
+import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
+import { Payload } from './payloadTypes.js';
+import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -77,7 +77,7 @@ describe('TestPlatform', () => {
       osRelease: 'xx.xx.xx.xx.xx.xx',
       nodeVersion: '22.1.10',
     },
-    matterbridgeVersion: '3.0.4',
+    matterbridgeVersion: '3.3.0',
     getDevices: jest.fn(() => []),
     getPlugins: jest.fn(() => []),
     addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
@@ -87,15 +87,19 @@ describe('TestPlatform', () => {
     removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
   } as unknown as Matterbridge;
 
-  const mockConfig = {
+  const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
     type: 'DynamicPlatform',
     version: '1.0.0',
     host: 'mqtt://localhost',
     port: 1883,
     protocolVersion: 5,
-    username: undefined,
-    password: undefined,
+    username: '',
+    password: '',
+    ca: '',
+    rejectUnauthorized: true,
+    cert: '',
+    key: '',
     topic: 'zigbee2mqtt',
     zigbeeFrontend: 'http://localhost:8080',
     blackList: [],
@@ -110,7 +114,7 @@ describe('TestPlatform', () => {
     postfix: 'JEST',
     debug: true,
     unregisterOnShutdown: false,
-  } as PlatformConfig;
+  };
 
   beforeAll(() => {});
 

@@ -3,7 +3,7 @@
  * @file src/helpers.test.ts
  * @author Luca Liguori
  * @created 2025-09-03
- * @version 1.0.10
+ * @version 1.0.11
  * @license Apache-2.0
  *
  * Copyright 2025, 2026, 2027 Luca Liguori.
@@ -63,6 +63,7 @@ export const removeBridgedEndpointSpy = jest.spyOn(Matterbridge.prototype, 'remo
 export const removeAllBridgedEndpointsSpy = jest.spyOn(Matterbridge.prototype, 'removeAllBridgedEndpoints');
 
 export let matterbridge: Matterbridge;
+export let environment: Environment;
 export let server: ServerNode<ServerNode.RootEndpoint>;
 export let aggregator: Endpoint<AggregatorEndpoint>;
 export let log: AnsiLogger;
@@ -340,14 +341,14 @@ export function createTestEnvironment(name: string): Environment {
   rmSync(path.join('jest', name), { recursive: true, force: true });
 
   // Setup the matter environment
-  const environment = Environment.default;
+  environment = Environment.default;
   environment.vars.set('log.level', MatterLogLevel.DEBUG);
   environment.vars.set('log.format', MatterLogFormat.ANSI);
   environment.vars.set('path.root', path.join('jest', name, '.matterbridge', MATTER_STORAGE_NAME));
   environment.vars.set('runtime.signals', false);
   environment.vars.set('runtime.exitcode', false);
 
-  // Setup the mDNS service
+  // Setup the mDNS service in the environment
   new MdnsService(environment);
 
   return environment;
@@ -444,19 +445,14 @@ export async function assertAllEndpointNumbersPersisted(targetServer: ServerNode
  *
  * @param {string} name Name of the server (used for logging and product description).
  * @param {number} port TCP port to listen on.
- * @param {Environment | undefined} environment The optional matter environment to use.
  * @returns {Promise<[ServerNode<ServerNode.RootEndpoint>, Endpoint<AggregatorEndpoint>]>} Resolves to an array containing the created ServerNode and its AggregatorNode.
  */
-export async function startServerNode(
-  name: string,
-  port: number,
-  environment: Environment | undefined,
-): Promise<[ServerNode<ServerNode.RootEndpoint>, Endpoint<AggregatorEndpoint>]> {
+export async function startServerNode(name: string, port: number): Promise<[ServerNode<ServerNode.RootEndpoint>, Endpoint<AggregatorEndpoint>]> {
   // Create the server node
-  const server = await ServerNode.create({
+  server = await ServerNode.create({
     id: name + 'ServerNode',
 
-    environment: environment,
+    environment,
 
     productDescription: {
       name: name + 'ServerNode',
@@ -485,7 +481,7 @@ export async function startServerNode(
   expect(server.lifecycle.isReady).toBeTruthy();
 
   // Create the aggregator node
-  const aggregator = new Endpoint(AggregatorEndpoint, {
+  aggregator = new Endpoint(AggregatorEndpoint, {
     id: name + 'AggregatorNode',
   });
   expect(aggregator).toBeDefined();
@@ -548,7 +544,7 @@ export async function stopServerNode(server: ServerNode<ServerNode.RootEndpoint>
   expect(server.lifecycle.isOnline).toBeFalsy();
 
   // stop the mDNS service
-  await server.env.get(MdnsService)[Symbol.asyncDispose]();
+  await environment.get(MdnsService)[Symbol.asyncDispose]();
 
   // Ensure the queue is empty and pause 100ms
   await flushAsync();

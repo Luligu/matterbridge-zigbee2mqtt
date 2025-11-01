@@ -1,4 +1,4 @@
-// src/platform.test.ts
+// src/module.test.ts
 
 const MATTER_PORT = 6000;
 const NAME = 'Platform';
@@ -30,10 +30,10 @@ import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { Thermostat } from 'matterbridge/matter/clusters';
 import { Endpoint, ServerNode } from 'matterbridge/matter';
 
-import { ZigbeePlatform } from './platform.ts';
-import { Zigbee2MQTT } from './zigbee2mqtt.ts';
-import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.ts';
-import { createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './jestHelpers.js';
+import initializePlugin, { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
+import { Zigbee2MQTT } from './zigbee2mqtt.js';
+import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
+import { createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -63,7 +63,7 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 setupTest(NAME, false);
 
 // Setup the matter and test environment
-createTestEnvironment(HOMEDIR);
+const environment = createTestEnvironment(HOMEDIR);
 
 describe('TestPlatform', () => {
   let server: ServerNode<ServerNode.RootEndpoint>;
@@ -84,7 +84,7 @@ describe('TestPlatform', () => {
       osRelease: 'xx.xx.xx.xx.xx.xx',
       nodeVersion: '22.1.10',
     },
-    matterbridgeVersion: '3.0.4',
+    matterbridgeVersion: '3.3.0',
     getDevices: jest.fn(() => []),
     getPlugins: jest.fn(() => []),
     addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
@@ -94,15 +94,19 @@ describe('TestPlatform', () => {
     removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
   } as unknown as Matterbridge;
 
-  const mockConfig = {
+  const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
     type: 'DynamicPlatform',
     version: '1.0.0',
     host: 'mqtt://localhost',
     port: 1883,
     protocolVersion: 5,
-    username: undefined,
-    password: undefined,
+    username: '',
+    password: '',
+    ca: '',
+    rejectUnauthorized: true,
+    cert: '',
+    key: '',
     topic: 'zigbee2mqtt',
     zigbeeFrontend: 'http://localhost:8080',
     blackList: [],
@@ -122,7 +126,7 @@ describe('TestPlatform', () => {
     postfixHostname: true,
     deviceScenes: true,
     groupScenes: true,
-  } as PlatformConfig;
+  };
 
   beforeAll(() => {});
 
@@ -146,6 +150,12 @@ describe('TestPlatform', () => {
     expect(aggregator).toBeDefined();
   });
 
+  it('should return an instance of ZigbeePlatform', () => {
+    const platform = initializePlugin(mockMatterbridge, log, mockConfig);
+    expect(platform).toBeInstanceOf(ZigbeePlatform);
+    platform.onShutdown();
+  });
+
   it('should not initialize platform with wrong version', () => {
     const saveVersion = mockMatterbridge.matterbridgeVersion;
     mockMatterbridge.matterbridgeVersion = '1.0.0';
@@ -163,8 +173,8 @@ describe('TestPlatform', () => {
     config.postfixHostname = undefined;
     config.deviceScenes = undefined;
     config.groupScenes = undefined;
-    config.scenesType = undefined;
-    config.scenesPrefix = undefined;
+    config.scenesType = 'outlet';
+    config.scenesPrefix = true;
     const platform = new ZigbeePlatform(mockMatterbridge, log, config);
     expect(platform).toBeDefined();
 

@@ -92,7 +92,7 @@ import {
   SmokeCoAlarm,
 } from 'matterbridge/matter/clusters';
 
-import { ZigbeePlatform } from './platform.js';
+import { ZigbeePlatform } from './module.js';
 import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
 
