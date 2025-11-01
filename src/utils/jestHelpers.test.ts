@@ -182,7 +182,6 @@ describe('Matter.js instance', () => {
 
   test('should stop a matter.js server node', async () => {
     await stopServerNode(server);
-    await server.env.get(MdnsService)[Symbol.asyncDispose]();
     expect(server).toBeDefined();
     expect(server).toBeInstanceOf(ServerNode);
   });

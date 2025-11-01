@@ -20,20 +20,17 @@ import {
   Matterbridge,
   MatterbridgeEndpoint,
   onOffLight,
-  PlatformConfig,
   powerSource,
   thermostatDevice,
 } from 'matterbridge';
 import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, or, hk, YELLOW } from 'matterbridge/logger';
 import { getMacAddress, wait } from 'matterbridge/utils';
-import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { Thermostat } from 'matterbridge/matter/clusters';
-import { Endpoint, ServerNode } from 'matterbridge/matter';
 
 import initializePlugin, { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
-import { createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
+import { aggregator, createTestEnvironment, flushAsync, loggerLogSpy, server, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -63,12 +60,9 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 setupTest(NAME, false);
 
 // Setup the matter and test environment
-const environment = createTestEnvironment(HOMEDIR);
+createTestEnvironment(NAME);
 
 describe('TestPlatform', () => {
-  let server: ServerNode<ServerNode.RootEndpoint>;
-  let aggregator: Endpoint<AggregatorEndpoint>;
-  let device: MatterbridgeEndpoint;
   let platform: ZigbeePlatform;
 
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
@@ -76,8 +70,9 @@ describe('TestPlatform', () => {
 
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
-    matterbridgeDirectory: HOMEDIR + '/.matterbridge',
-    matterbridgePluginDirectory: HOMEDIR + '/Matterbridge',
+    matterbridgeDirectory: path.join(HOMEDIR, '.matterbridge'),
+    matterbridgePluginDirectory: path.join(HOMEDIR, 'Matterbridge'),
+    matterbridgeCertDirectory: path.join(HOMEDIR, '.mattercert'),
     systemInformation: {
       ipv4Address: undefined,
       ipv6Address: undefined,
@@ -85,8 +80,6 @@ describe('TestPlatform', () => {
       nodeVersion: '22.1.10',
     },
     matterbridgeVersion: '3.3.0',
-    getDevices: jest.fn(() => []),
-    getPlugins: jest.fn(() => []),
     addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
       await aggregator.add(device);
     }),
@@ -145,7 +138,7 @@ describe('TestPlatform', () => {
   });
 
   test('create and start the server node', async () => {
-    [server, aggregator] = await startServerNode(NAME, MATTER_PORT);
+    await startServerNode(NAME, MATTER_PORT);
     expect(server).toBeDefined();
     expect(aggregator).toBeDefined();
   });
@@ -778,6 +771,6 @@ describe('TestPlatform', () => {
   test('close the server node', async () => {
     expect(server).toBeDefined();
     await stopServerNode(server);
-    await flushAsync(1, 1, 500);
+    // await flushAsync(1, 1, 500);
   });
 });

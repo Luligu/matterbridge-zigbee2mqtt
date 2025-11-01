@@ -9,10 +9,8 @@ const HOMEDIR = path.join('jest', NAME);
 import path from 'node:path';
 
 import { jest } from '@jest/globals';
-import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
+import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
-import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
-import { Endpoint, ServerNode } from 'matterbridge/matter';
 import { PowerSource } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
 
@@ -21,7 +19,7 @@ import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Payload } from './payloadTypes.js';
-import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
+import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, server, aggregator, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -56,12 +54,9 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 setupTest(NAME, false);
 
 // Setup the matter and test environment
-createTestEnvironment(HOMEDIR);
+createTestEnvironment(NAME);
 
 describe('TestPlatform', () => {
-  let server: ServerNode<ServerNode.RootEndpoint>;
-  let aggregator: Endpoint<AggregatorEndpoint>;
-  let device: MatterbridgeEndpoint;
   let platform: ZigbeePlatform;
 
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 100;
@@ -69,8 +64,9 @@ describe('TestPlatform', () => {
 
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
-    matterbridgeDirectory: HOMEDIR + '/.matterbridge',
-    matterbridgePluginDirectory: HOMEDIR + '/Matterbridge',
+    matterbridgeDirectory: path.join(HOMEDIR, '.matterbridge'),
+    matterbridgePluginDirectory: path.join(HOMEDIR, 'Matterbridge'),
+    matterbridgeCertDirectory: path.join(HOMEDIR, '.mattercert'),
     systemInformation: {
       ipv4Address: undefined,
       ipv6Address: undefined,
@@ -78,8 +74,6 @@ describe('TestPlatform', () => {
       nodeVersion: '22.1.10',
     },
     matterbridgeVersion: '3.3.0',
-    getDevices: jest.fn(() => []),
-    getPlugins: jest.fn(() => []),
     addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
       await aggregator.add(device);
     }),
@@ -135,7 +129,7 @@ describe('TestPlatform', () => {
   });
 
   test('create and start the server node', async () => {
-    [server, aggregator] = await startServerNode(NAME, MATTER_PORT);
+    await startServerNode(NAME, MATTER_PORT);
     expect(server).toBeDefined();
     expect(aggregator).toBeDefined();
   });
@@ -801,7 +795,7 @@ describe('TestPlatform', () => {
   test('close the server node', async () => {
     expect(server).toBeDefined();
     await stopServerNode(server);
-    await flushAsync(undefined, undefined, 500);
+    // await flushAsync(1, 1, 500);
   });
 });
 
@@ -2015,6 +2009,356 @@ const rgbCctController = {
   manufacturer: '_TZ3000_7hcgjxpc',
   model_id: 'TS0505B',
   network_address: 47517,
+  power_source: 'Mains (single phase)',
+  supported: true,
+  type: 'Router',
+};
+
+const doubleSwitch = {
+  date_code: '',
+  definition: {
+    description: 'Smart light switch module (2 gang)',
+    exposes: [
+      {
+        endpoint: 'l1',
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the switch',
+            endpoint: 'l1',
+            label: 'State',
+            name: 'state',
+            property: 'state_l1',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        endpoint: 'l2',
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the switch',
+            endpoint: 'l2',
+            label: 'State',
+            name: 'state',
+            property: 'state_l2',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        access: 7,
+        category: 'config',
+        description: 'Controls the behavior when the device is powered on after power loss',
+        label: 'Power-on behavior',
+        name: 'power_on_behavior',
+        property: 'power_on_behavior',
+        type: 'enum',
+        values: ['off', 'previous', 'on'],
+      },
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Link quality (signal strength)',
+        label: 'Linkquality',
+        name: 'linkquality',
+        property: 'linkquality',
+        type: 'numeric',
+        unit: 'lqi',
+        value_max: 255,
+        value_min: 0,
+      },
+    ],
+    model: 'MS-104BZ',
+    options: [
+      {
+        access: 2,
+        description: "State actions will also be published as 'action' when true (default false).",
+        label: 'State action',
+        name: 'state_action',
+        property: 'state_action',
+        type: 'binary',
+        value_off: false,
+        value_on: true,
+      },
+    ],
+    supports_ota: false,
+    vendor: 'Moes',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [
+        {
+          cluster: 'genOnOff',
+          target: {
+            endpoint: 1,
+            ieee_address: '0x00124b0025e1f196',
+            type: 'endpoint',
+          },
+        },
+      ],
+      clusters: {
+        input: ['genBasic', 'genIdentify', 'genGroups', 'genScenes', 'genOnOff', '57344', 'manuSpecificTuya_3'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [
+        {
+          attribute: 'onOff',
+          cluster: 'genOnOff',
+          maximum_report_interval: 3600,
+          minimum_report_interval: 0,
+          reportable_change: 0,
+        },
+      ],
+      scenes: [],
+    },
+    '2': {
+      bindings: [
+        {
+          cluster: 'genOnOff',
+          target: {
+            endpoint: 1,
+            ieee_address: '0x00124b0025e1f196',
+            type: 'endpoint',
+          },
+        },
+      ],
+      clusters: {
+        input: ['genIdentify', 'genGroups', 'genScenes', 'genOnOff', '57344', 'manuSpecificTuya_3'],
+        output: [],
+      },
+      configured_reportings: [
+        {
+          attribute: 'onOff',
+          cluster: 'genOnOff',
+          maximum_report_interval: 3600,
+          minimum_report_interval: 0,
+          reportable_change: 0,
+        },
+      ],
+      scenes: [],
+    },
+    '242': {
+      bindings: [],
+      clusters: {
+        input: [],
+        output: ['greenPower'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Moes switch double',
+  ieee_address: '0xcc86ecfffe4e9d25',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: '_TZ3000_pmz6mjyu',
+  model_id: 'TS011F',
+  network_address: 49638,
+  power_source: 'Mains (single phase)',
+  supported: true,
+  type: 'Router',
+};
+
+const doubleDimmer = {
+  date_code: '',
+  definition: {
+    description: '2 gang smart dimmer',
+    exposes: [
+      {
+        endpoint: 'l1',
+        features: [
+          {
+            access: 3,
+            description: 'On/off state of this light',
+            endpoint: 'l1',
+            label: 'State',
+            name: 'state',
+            property: 'state_l1',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+          {
+            access: 3,
+            description: 'Brightness of this light',
+            endpoint: 'l1',
+            label: 'Brightness',
+            name: 'brightness',
+            property: 'brightness_l1',
+            type: 'numeric',
+            value_max: 254,
+            value_min: 0,
+          },
+          {
+            access: 3,
+            description: 'Minimum light brightness',
+            endpoint: 'l1',
+            label: 'Min brightness',
+            name: 'min_brightness',
+            property: 'min_brightness_l1',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+          {
+            access: 3,
+            description: 'Maximum light brightness',
+            endpoint: 'l1',
+            label: 'Max brightness',
+            name: 'max_brightness',
+            property: 'max_brightness_l1',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+        ],
+        type: 'light',
+      },
+      {
+        access: 3,
+        description: 'Countdown to turn device off after a certain time',
+        endpoint: 'l1',
+        label: 'Countdown',
+        name: 'countdown',
+        property: 'countdown_l1',
+        type: 'numeric',
+        unit: 's',
+        value_max: 43200,
+        value_min: 0,
+        value_step: 1,
+      },
+      {
+        endpoint: 'l2',
+        features: [
+          {
+            access: 3,
+            description: 'On/off state of this light',
+            endpoint: 'l2',
+            label: 'State',
+            name: 'state',
+            property: 'state_l2',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+          {
+            access: 3,
+            description: 'Brightness of this light',
+            endpoint: 'l2',
+            label: 'Brightness',
+            name: 'brightness',
+            property: 'brightness_l2',
+            type: 'numeric',
+            value_max: 254,
+            value_min: 0,
+          },
+          {
+            access: 3,
+            description: 'Minimum light brightness',
+            endpoint: 'l2',
+            label: 'Min brightness',
+            name: 'min_brightness',
+            property: 'min_brightness_l2',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+          {
+            access: 3,
+            description: 'Maximum light brightness',
+            endpoint: 'l2',
+            label: 'Max brightness',
+            name: 'max_brightness',
+            property: 'max_brightness_l2',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+        ],
+        type: 'light',
+      },
+      {
+        access: 3,
+        description: 'Countdown to turn device off after a certain time',
+        endpoint: 'l2',
+        label: 'Countdown',
+        name: 'countdown',
+        property: 'countdown_l2',
+        type: 'numeric',
+        unit: 's',
+        value_max: 43200,
+        value_min: 0,
+        value_step: 1,
+      },
+      {
+        access: 3,
+        category: 'config',
+        description: 'Controls the behavior when the device is powered on after power loss',
+        label: 'Power-on behavior',
+        name: 'power_on_behavior',
+        property: 'power_on_behavior',
+        type: 'enum',
+        values: ['off', 'on', 'previous'],
+      },
+      {
+        access: 3,
+        description: 'Mode of the backlight',
+        label: 'Backlight mode',
+        name: 'backlight_mode',
+        property: 'backlight_mode',
+        type: 'enum',
+        values: ['off', 'normal', 'inverted'],
+      },
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Link quality (signal strength)',
+        label: 'Linkquality',
+        name: 'linkquality',
+        property: 'linkquality',
+        type: 'numeric',
+        unit: 'lqi',
+        value_max: 255,
+        value_min: 0,
+      },
+    ],
+    model: 'TS0601_dimmer_2',
+    options: [],
+    supports_ota: false,
+    vendor: 'Tuya',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [],
+      clusters: {
+        input: ['genBasic', 'genGroups', 'genScenes', 'manuSpecificTuya'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Moes dimmer double',
+  ieee_address: '0x847127fffeaff50a',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: '_TZE200_e3oitdyu',
+  model_id: 'TS0601',
+  network_address: 63077,
   power_source: 'Mains (single phase)',
   supported: true,
   type: 'Router',
