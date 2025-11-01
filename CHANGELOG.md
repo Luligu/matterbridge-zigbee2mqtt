@@ -31,6 +31,10 @@ If you like this project and find it useful, please consider giving it a star on
 - [devcontainer]: Added the plugin name to the container.
 - [devcontainer]: Improved performance of first build with shallow clone.
 
+### Fixed
+
+- [platform]: Fixed specific zbminir2 device case for all devices. Thanks subst4nc3 (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/126).
+
 <a href="https://www.buymeacoffee.com/luligugithub">
   <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
 </a>

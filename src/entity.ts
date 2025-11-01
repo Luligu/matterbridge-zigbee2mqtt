@@ -534,8 +534,9 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command on called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-    this.setCachePublishAttributes(data.endpoint, this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : undefined);
-    this.cachePublish('on', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : undefined);
+    this.cachePublish('on', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
   }
 
   // prettier-ignore
@@ -545,17 +546,19 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command off called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-    this.cachePublish('off', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.cachePublish('off', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
   }
 
   // prettier-ignore
   protected async toggleCommandHandler(data: CommandHandlerData) {
     this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
-      this.setCachePublishAttributes(data.endpoint, this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : undefined);
-      this.cachePublish('toggle', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
+      this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : undefined);
+      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
     } else {
-      this.cachePublish('toggle', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
+      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
     }
   }
 
@@ -566,26 +569,28 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command moveToLevel called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
-    this.cachePublish('moveToLevel', { ['brightness' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.cachePublish('moveToLevel', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime);
   }
 
   // prettier-ignore
   protected async moveToLevelWithOnOffCommandHandler(data: CommandHandlerData): Promise<void> {
     this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (data.request['level'] <= (data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel') ?? 1)) {
       if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
         this.log.debug(`*Command moveToLevelWithOnOff ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF`);
         return;
       }
       data.endpoint.log.debug(`***Command moveToLevelWithOnOff received with level <= minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) => turn off the light`);
-      this.cachePublish('moveToLevelWithOnOff', { ['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' }, data.request.transitionTime);
+      this.cachePublish('moveToLevelWithOnOff', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' }, data.request.transitionTime);
     } else {
       if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
         data.endpoint.log.debug(`***Command moveToLevelWithOnOff received with level > minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) and light is off => turn on the light with attributes`);
-        this.cachePayload['state' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')] = 'ON';
-        this.setCachePublishAttributes(data.endpoint, this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '');
+        this.cachePayload['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')] = 'ON';
+        this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '');
       }
-      this.cachePublish('moveToLevelWithOnOff', { ['brightness' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime); // Override the stored one
+      this.cachePublish('moveToLevelWithOnOff', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime); // Override the stored one
     }
   }
 
@@ -597,11 +602,12 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command moveToColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.colorTemperatureMireds} transition: ${data.request.transitionTime}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (this.propertyMap.get('color_temp')) {
-      this.cachePublish('moveToColorTemperature', { ['color_temp' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.colorTemperatureMireds }, data.request.transitionTime);
+      this.cachePublish('moveToColorTemperature', { ['color_temp' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.colorTemperatureMireds }, data.request.transitionTime);
     } else {
       const rgb = kelvinToRGB(miredToKelvin(data.request.colorTemperatureMireds)); // Convert mireds to RGB
-      this.cachePublish('moveToColorTemperature', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { r: rgb.r, g: rgb.g, b: rgb.b } }, data.request.transitionTime);
+      this.cachePublish('moveToColorTemperature', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { r: rgb.r, g: rgb.g, b: rgb.b } }, data.request.transitionTime);
       this.log.debug(`***Command moveToColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} but color_temp property is not available. Converting ${data.request.colorTemperatureMireds} to RGB ${debugStringify(rgb)}.`);
     }
   }
@@ -614,7 +620,8 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command moveToColor called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: X: ${data.request.colorX} Y: ${data.request.colorY} transition: ${data.request.transitionTime}`);
-    this.cachePublish('moveToColor', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { x: Math.round(data.request.colorX / 65536 * 10000) / 10000, y: Math.round(data.request.colorY / 65536 * 10000) / 10000 } }, data.request.transitionTime);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.cachePublish('moveToColor', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { x: Math.round(data.request.colorX / 65536 * 10000) / 10000, y: Math.round(data.request.colorY / 65536 * 10000) / 10000 } }, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -625,7 +632,8 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command moveToHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`);
-    this.cachePublish('moveToHue', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -636,7 +644,8 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command moveToSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`);
-    this.cachePublish('moveToSaturation', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -647,7 +656,8 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command moveToHueAndSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} - ${data.request.saturation} transition: ${data.request.transitionTime}`);
-    this.cachePublish('moveToHueAndSaturation', { ['color' + (this.hasEndpoints ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.cachePublish('moveToHueAndSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
   protected addBridgedDeviceBasicInformation(): MatterbridgeEndpoint {
