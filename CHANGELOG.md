@@ -18,8 +18,8 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [package]: Updated dependencies.
 - [package]: Bumped platform to v.1.0.0.
-- [package]: Bumped package to automator v.2.0.11
-- [jest]: Bumped jestHelpers to v.1.0.10.
+- [package]: Bumped package to automator v.2.0.10.
+- [jest]: Bumped jestHelpers to v.1.0.11.
 - [package]: Require matterbridge v.3.3.0.
 - [package]: Added default config.
 - [package]: Added typed ZigbeePlatformConfig.

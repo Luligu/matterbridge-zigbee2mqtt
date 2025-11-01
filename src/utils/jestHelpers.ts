@@ -76,6 +76,7 @@ export let log: AnsiLogger;
  * @param {string} name The name of the test suite.
  * @param {boolean} debug If true, the logging is not mocked.
  *
+ * @example
  * ```typescript
  * import { consoleDebugSpy, consoleErrorSpy, consoleInfoSpy, consoleLogSpy, consoleWarnSpy, loggerLogSpy, setDebug, setupTest } from './jestHelpers.js';
  *
@@ -114,6 +115,7 @@ export function setupTest(name: string, debug: boolean = false): void {
  *
  * @param {boolean} debug If true, the logging is not mocked.
  *
+ * @example
  * ```typescript
  * // Set the debug mode in test environment
  * setDebug(true);
@@ -154,6 +156,7 @@ export function setDebug(debug: boolean): void {
  * @param {string} name - Name for the environment (jest/name).
  * @returns {Promise<Matterbridge>} The Matterbridge instance.
  *
+ * @example
  * ```typescript
  * // Create Matterbridge environment
  * await createMatterbridgeEnvironment(NAME);
@@ -191,6 +194,7 @@ export async function createMatterbridgeEnvironment(name: string): Promise<Matte
  * @param {number} port The matter server port.
  * @returns {Promise<[ServerNode<ServerNode.RootEndpoint>, Endpoint<AggregatorEndpoint>]>} The started server and aggregator.
  *
+ * @example
  * ```typescript
  * // Create Matterbridge environment
  * await createMatterbridgeEnvironment(NAME);
@@ -255,6 +259,7 @@ export async function startMatterbridgeEnvironment(port: number = 5540): Promise
  * @param {MatterbridgePlatform} platform The platform to add.
  * @param {string} name The platform name.
  *
+ * @example
  * ```typescript
  * // Add the platform to the Matterbridge environment
  * addMatterbridgePlatform(platform, 'matterbridge-test');
@@ -271,6 +276,7 @@ export function addMatterbridgePlatform(platform: MatterbridgePlatform, name: st
 /**
  * Stop the matterbridge environment
  *
+ * @example
  * ```typescript
  * // Destroy Matterbridge environment
  * await stopMatterbridgeEnvironment();
@@ -312,14 +318,19 @@ export async function stopMatterbridgeEnvironment(): Promise<void> {
 /**
  * Destroy the matterbridge environment
  *
+ * @param {number} timeout The timeout for the destroy operation (default 250ms).
+ *
+ * @example
  * ```typescript
  * // Destroy Matterbridge environment
  * await stopMatterbridgeEnvironment();
  * await destroyMatterbridgeEnvironment();
  * ```
  */
-export async function destroyMatterbridgeEnvironment(): Promise<void> {
-  await matterbridge.destroyInstance(10);
+export async function destroyMatterbridgeEnvironment(timeout: number = 250): Promise<void> {
+  // @ts-expect-error - accessing private member for testing
+  await matterbridge.cleanup('destroying instance...', false, timeout);
+  await environment.get(MdnsService)[Symbol.asyncDispose]();
   // @ts-expect-error - accessing private member for testing
   Matterbridge.instance = undefined;
 }
