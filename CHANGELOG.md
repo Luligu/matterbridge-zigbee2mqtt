@@ -10,6 +10,10 @@ If you like this project and find it useful, please consider giving it a star on
 
 ## [2.9.0] - 2025-11-02
 
+### Added
+
+- [tvoc]: Added voc_index to the converter. Thanks Funca (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/129).
+
 ### Changed
 
 - [package]: Updated dependencies.
