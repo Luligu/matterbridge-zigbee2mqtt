@@ -795,7 +795,6 @@ describe('TestPlatform', () => {
   test('close the server node', async () => {
     expect(server).toBeDefined();
     await stopServerNode(server);
-    // await flushAsync(1, 1, 500);
   });
 });
 

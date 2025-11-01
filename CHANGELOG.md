@@ -24,9 +24,6 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Added default config.
 - [package]: Added typed ZigbeePlatformConfig.
 - [platform]: Updated to new signature PlatformMatterbridge.
-- [workflows]: Ignore any .md in build.yaml.
-- [workflows]: Ignore any .md in codeql.yaml.
-- [workflows]: Ignore any .md in codecov.yaml.
 - [workflows]: Improved speed on Node CI.
 - [devcontainer]: Added the plugin name to the container.
 - [devcontainer]: Improved performance of first build with shallow clone.

@@ -30,7 +30,7 @@ import { Thermostat } from 'matterbridge/matter/clusters';
 import initializePlugin, { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
-import { aggregator, createTestEnvironment, flushAsync, loggerLogSpy, server, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
+import { aggregator, createTestEnvironment, flushAsync, loggerLogSpy, server, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -126,6 +126,8 @@ describe('TestPlatform', () => {
   beforeEach(() => {
     // Clears the call history before each test
     jest.clearAllMocks();
+    // Reset debug state
+    setDebug(false);
   });
 
   afterEach(async () => {
@@ -771,6 +773,5 @@ describe('TestPlatform', () => {
   test('close the server node', async () => {
     expect(server).toBeDefined();
     await stopServerNode(server);
-    // await flushAsync(1, 1, 500);
   });
 });
