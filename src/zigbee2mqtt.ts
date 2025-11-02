@@ -65,7 +65,8 @@ export class Zigbee2MQTT extends EventEmitter {
   public z2mBridge: BridgeInfo;
   public z2mDevices: BridgeDevice[];
   public z2mGroups: BridgeGroup[];
-  loggedEntries = 0;
+  loggedBridgePayloads = 0;
+  loggedPublishPayloads = 0;
 
   // Define default MQTT options
   private options: IClientOptions = {
@@ -214,6 +215,12 @@ export class Zigbee2MQTT extends EventEmitter {
       fs.unlinkSync(filePath);
     } catch (error) {
       this.log.debug(`Error deleting bridge-payloads.txt: ${error}`);
+    }
+    try {
+      const filePath = path.join(this.mqttDataPath, 'bridge-publish-payloads.txt');
+      fs.unlinkSync(filePath);
+    } catch (error) {
+      this.log.debug(`Error deleting bridge-publish-payloads.txt: ${error}`);
     }
   }
 
@@ -421,6 +428,12 @@ export class Zigbee2MQTT extends EventEmitter {
         this.log.debug(`Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message}`);
         this.emit('mqtt_published');
         this.mqttPublishInflights--;
+        // Log the first 10000 payloads
+        if (this.log.logLevel === LogLevel.DEBUG && this.loggedPublishPayloads < 10000) {
+          const filePath = path.join(this.mqttDataPath, 'bridge-publish-payloads.txt');
+          fs.appendFileSync(filePath, `${new Date().toLocaleString()} - ` + JSON.stringify({ topic, message }).replaceAll('\\"', '"') + '\n');
+          this.loggedPublishPayloads++;
+        }
       } catch (error) {
         this.mqttPublishInflights--;
         this.log.error(`****Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message}`);
@@ -614,16 +627,16 @@ export class Zigbee2MQTT extends EventEmitter {
         return;
       }
 
-      // Log the first 1000 payloads
-      if (this.log.logLevel === LogLevel.DEBUG && this.loggedEntries < 1000) {
+      // Log the first 10000 payloads
+      if (this.log.logLevel === LogLevel.DEBUG && this.loggedBridgePayloads < 10000) {
         const logEntry = {
           entity,
           service,
           payload: payload.toString(),
         };
         const filePath = path.join(this.mqttDataPath, 'bridge-payloads.txt');
-        fs.appendFileSync(filePath, JSON.stringify(logEntry) + '\n');
-        this.loggedEntries++;
+        fs.appendFileSync(filePath, `${new Date().toLocaleString()} - ` + JSON.stringify(logEntry).replaceAll('\\"', '"') + '\n');
+        this.loggedBridgePayloads++;
       }
 
       const foundDevice = this.z2mDevices.find((device) => device.ieee_address === entity || device.friendly_name === entity);
