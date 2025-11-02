@@ -266,7 +266,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
         for (const bridgedEntity of this.zigbeeEntities) {
           if (bridgedEntity.isDevice && bridgedEntity.device) await this.requestDeviceUpdate(bridgedEntity.device);
-          bridgedEntity.configure();
+          await bridgedEntity.configure();
         }
       }
     });
@@ -290,7 +290,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
         for (const bridgedEntity of this.zigbeeEntities) {
           if (bridgedEntity.isGroup && bridgedEntity.group) await this.requestGroupUpdate(bridgedEntity.group);
-          bridgedEntity.configure();
+          await bridgedEntity.configure();
         }
       }
     });

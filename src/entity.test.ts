@@ -58,7 +58,7 @@ setupTest(NAME, false);
 // Setup the matter and test environment
 createTestEnvironment(NAME);
 
-describe('TestPlatform', () => {
+describe('TestEntity', () => {
   let platform: ZigbeePlatform;
 
   const executeTrue: TypeFromPartialBitSchema<typeof LevelControl.Options> = { executeIfOff: true };

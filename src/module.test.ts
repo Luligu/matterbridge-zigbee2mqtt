@@ -131,7 +131,7 @@ describe('TestPlatform', () => {
   });
 
   afterEach(async () => {
-    await flushAsync();
+    // await flushAsync();
   });
 
   afterAll(() => {
@@ -145,10 +145,10 @@ describe('TestPlatform', () => {
     expect(aggregator).toBeDefined();
   });
 
-  it('should return an instance of ZigbeePlatform', () => {
+  it('should return an instance of ZigbeePlatform', async () => {
     const platform = initializePlugin(mockMatterbridge, log, mockConfig);
     expect(platform).toBeInstanceOf(ZigbeePlatform);
-    platform.onShutdown();
+    await platform.onShutdown();
   });
 
   it('should not initialize platform with wrong version', () => {
@@ -351,7 +351,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = undefined;
     (platform.z2m as any).messageHandler('zigbee2mqtt/bridge/info', Buffer.from(JSON.stringify(info)));
     expect(platform.z2mBridgeInfo).toBeDefined();
-    await wait(500);
+    // await wait(500);
   });
 
   it('should update /bridge/devices', async () => {
@@ -363,7 +363,7 @@ describe('TestPlatform', () => {
     expect(platform.z2mBridgeDevices).toBeDefined();
     if (!platform.z2mBridgeDevices) return;
     expect((platform.z2mBridgeDevices as BridgeDevice[]).length).toBe(35);
-    await wait(500);
+    // await wait(500);
   });
 
   it('should update /bridge/groups', async () => {
@@ -375,35 +375,35 @@ describe('TestPlatform', () => {
     expect(platform.z2mBridgeGroups).toBeDefined();
     if (!platform.z2mBridgeGroups) return;
     expect((platform.z2mBridgeGroups as BridgeGroup[]).length).toBe(10);
-    await wait(500);
+    // await wait(500);
   });
 
   it('should update /Moes thermo/availability online', async () => {
     (platform.z2m as any).messageHandler('zigbee2mqtt/Moes thermo/availability', Buffer.from('{"state":"online"}'));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${idn}Moes thermo${rs}`);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `zigbee2MQTT entity Moes thermo is online`);
-    await wait(200);
+    // await wait(200);
   });
 
   it('should update /Moes thermo/availability offline', async () => {
     (platform.z2m as any).messageHandler('zigbee2mqtt/Moes thermo/availability', Buffer.from('{"state":"offline"}'));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${idn}Moes thermo${rs}`);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `zigbee2MQTT entity Moes thermo is offline`);
-    await wait(200);
+    // await wait(200);
   });
 
   it('should update /At home/availability online', async () => {
     (platform.z2m as any).messageHandler('zigbee2mqtt/At home/availability', Buffer.from('{"state":"online"}'));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${ign}At home${rs}`);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `zigbee2MQTT entity At home is online`);
-    await wait(200);
+    // await wait(200);
   });
 
   it('should update /At home/availability offline', async () => {
     (platform.z2m as any).messageHandler('zigbee2mqtt/At home/availability', Buffer.from('{"state":"offline"}'));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${ign}At home${rs}`);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `zigbee2MQTT entity At home is offline`);
-    await wait(200);
+    // await wait(200);
   });
 
   it('should update /At home/set', async () => {
@@ -415,7 +415,7 @@ describe('TestPlatform', () => {
       LogLevel.INFO,
       expect.stringContaining(`${db}Update endpoint ${or}MA-onoffswitch:50${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}false${db} to ${YELLOW}true${db}`),
     );
-    await wait(200);
+    // await wait(200);
   });
 
   it('should update entity MESSAGE', async () => {
@@ -767,7 +767,7 @@ describe('TestPlatform', () => {
   it('should call onShutdown with reason', async () => {
     await platform.onShutdown('Jest Test');
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Shutdown zigbee2mqtt dynamic platform/));
-    await new Promise((resolve) => setTimeout(resolve, 500)); // Wait for async operations to complete
+    await flushAsync();
   });
 
   test('close the server node', async () => {

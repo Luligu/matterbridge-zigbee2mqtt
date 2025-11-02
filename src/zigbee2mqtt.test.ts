@@ -38,7 +38,7 @@ const { Zigbee2MQTT } = await import('./zigbee2mqtt.js');
 // Setup the test environment
 setupTest(NAME, false);
 
-describe('TestPlatform', () => {
+describe('TestZigbee2MQTT', () => {
   let z2m: Zigbee2MQTTType;
 
   test('Zigbee2MQTT Initialization', async () => {
