@@ -11,8 +11,10 @@ import path from 'node:path';
 import { jest } from '@jest/globals';
 import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
-import { PowerSource } from 'matterbridge/matter/clusters';
-import { getMacAddress } from 'matterbridge/utils';
+import { ColorControl, LevelControl, PowerSource } from 'matterbridge/matter/clusters';
+import { getMacAddress, wait } from 'matterbridge/utils';
+import { Logger, LogLevel as MatterLogLevel } from 'matterbridge/matter';
+import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
 
 import { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
@@ -58,6 +60,8 @@ createTestEnvironment(NAME);
 
 describe('TestPlatform', () => {
   let platform: ZigbeePlatform;
+
+  const executeTrue: TypeFromPartialBitSchema<typeof LevelControl.Options> = { executeIfOff: true };
 
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 100;
   const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 50 : 50;
@@ -680,6 +684,337 @@ describe('TestPlatform', () => {
 
     entity.destroy();
   });
+
+  test('create a rgb device', async () => {
+    const z2mDevice = rgbCctController;
+    const friendlyName = z2mDevice.friendly_name;
+    expect(z2mDevice).toBeDefined();
+    if (!z2mDevice) throw new Error('Z2M Device not found');
+    const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+    expect(entity).toBeDefined();
+    expect(entity.entityName).toBe(friendlyName);
+    const device = entity.bridgedDevice;
+    expect(device).toBeDefined();
+    expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+    if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+    // prettier-ignore
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "colorControl","identify", "groups", "onOff", "levelControl"]);
+    expect(device.getChildEndpoints()).toHaveLength(0);
+
+    jest.clearAllMocks();
+    expect(await addDevice(aggregator, device)).toBe(true);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+    // Test commands from the controller
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(
+        `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 255, color: { h: 0, s: 0 } })}`,
+      ),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, color: { h: 0, s: 0 }, state: 'ON' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'toggle');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(
+        `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 255, color: { h: 0, s: 0 } })}`,
+      ),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, color: { h: 0, s: 0 }, state: 'ON' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 128, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command moveToLevel called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevel', friendlyName, { brightness: 128, transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { brightness: 200, transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { state: 'OFF', transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 100, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { state: 'ON', brightness: 100, color: { h: 0, s: 0 } });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColorTemperature', { colorTemperatureMireds: 200, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(200);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToColorTemperature', friendlyName, { color_temp: 200 });
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToHue', { hue: 150, transitionTime: null, direction: ColorControl.Direction.Up, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(150);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToHue', friendlyName, { color: { h: 213, s: 0 } });
+
+    jest.clearAllMocks();
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToSaturation', { saturation: 80, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(80);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToSaturation', friendlyName, { color: { h: 213, s: 31 } });
+
+    jest.clearAllMocks();
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 130, saturation: 70, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(130);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(70);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToHueAndSaturation', friendlyName, { color: { h: 184, s: 28 }, transition: 1 });
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColor', { colorX: 32000, colorY: 30000, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+    expect(device.getAttribute('ColorControl', 'currentX')).toBe(32000);
+    expect(device.getAttribute('ColorControl', 'currentY')).toBe(30000);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToColor', friendlyName, { color: { x: 0.4883, y: 0.4578 }, transition: 1 });
+
+    // Turn the light off and test that moveToLevel and moveToColorTemperature commands remember their state
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 160, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColorTemperature', { colorTemperatureMireds: 350, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 161, color_temp: 350 });
+
+    // Turn the light off and test that moveToLevel and moveToHueAndSaturation commands remember their state
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 135, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 125, saturation: 40, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    // prettier-ignore
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((135 / 254) * 255), color: { h: Math.round(125 / 254 * 360), s: Math.round(40 / 254 * 100) } });
+
+    // Turn the light off and test that moveToLevel and moveToColor commands remember their state
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 115, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColor', { colorX: 25000, colorY: 28000, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
+    expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
+    expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+    // prettier-ignore
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((115 / 254) * 255), color: { x: 25000 / 65535, y: 28000 / 65535 } });
+
+    // Clear the noUpdate flag to allow updates from Z2M
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+
+    // Test updates from Z2M
+    let payload: Payload = {};
+
+    jest.clearAllMocks();
+    payload = { state: 'OFF' };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 200 };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 150, color_mode: 'color_temp', color_temp: 260 };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(150);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(260);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 130, color_mode: 'hs', color: { hue: 150, saturation: 90 } };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(Math.round((150 / 360) * 254));
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(Math.round((90 / 100) * 254));
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 130, color_mode: 'xy', color: { x: 0.56, y: 0.92 } };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(49);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(254);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    entity.destroy();
+  }, 10000);
 
   test('create a temperature, humidity and pressure sensor device', async () => {
     const friendlyName = climateSensor.friendly_name;
@@ -2009,6 +2344,7 @@ const rgbCctController = {
   model_id: 'TS0505B',
   network_address: 47517,
   power_source: 'Mains (single phase)',
+  software_build_id: '2.9.2_r54',
   supported: true,
   type: 'Router',
 };

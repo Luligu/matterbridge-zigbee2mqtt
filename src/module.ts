@@ -3,7 +3,7 @@
  * @file module.ts
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 2.2.2
+ * @version 3.0.0
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -101,10 +101,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public postfix = '';
 
   // zigbee2Mqtt
-  public debugEnabled: boolean;
   public shouldStart: boolean;
   public shouldConfigure: boolean;
-  public z2m!: Zigbee2MQTT;
+  public z2m: Zigbee2MQTT;
   public z2mDevicesRegistered = false;
   public z2mGroupsRegistered = false;
   public z2mBridgeOnline: boolean | undefined;
@@ -126,7 +125,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
 
     // this.log.debug(`Config:')}${rs}`, config);
-    this.debugEnabled = config.debug as boolean;
     this.shouldStart = false;
     this.shouldConfigure = false;
 
@@ -169,7 +167,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
-    this.log.debug(`Config:\n${rs}${JSON.stringify(config, null, 2)}${rs}`);
+    // this.log.debug(`Config:\n${rs}${JSON.stringify(config, null, 2)}${rs}`);
 
     this.z2m = new Zigbee2MQTT(
       this.mqttHost,
@@ -182,9 +180,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.config.rejectUnauthorized as boolean | undefined,
       this.config.cert as string | undefined,
       this.config.key as string | undefined,
-      this.debugEnabled,
+      config.debug,
     );
-    this.z2m.setLogDebug(this.debugEnabled);
+    this.z2m.setLogDebug(config.debug);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
     if (isValidString(this.mqttHost) && isValidNumber(this.mqttPort, 1, 65535)) {
