@@ -246,12 +246,16 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (devices === null || devices === undefined) return;
       this.log.info(`zigbee2MQTT sent ${devices.length} devices ${this.z2mDevicesRegistered ? 'already registered' : ''}`);
       /* istanbul ignore next if */
-      if (config.injectDevices) {
-        this.log.warn(`***Injecting virtual devices from ${path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string)}`);
-        const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices as string));
-        this.log.warn(`***Injecting ${data.devices.length} devices from ${config.injectDevices}`);
-        this.z2mBridgeDevices = [devices, data.devices].flat();
-      } else this.z2mBridgeDevices = devices;
+      /*
+      if (config.injectDevices && typeof config.injectDevices === 'string') {
+        this.log.warn(`***Injecting virtual devices from ${path.join(matterbridge.matterbridgeDirectory, config.injectDevices)}`);
+        const data = this.z2m.readConfig(path.join(matterbridge.matterbridgeDirectory, config.injectDevices)) as BridgeDevice[] | null;
+        if (data) {
+          this.log.warn(`***Injecting ${data.length} devices from ${config.injectDevices}`);
+          this.z2mBridgeDevices = [devices, data].flat();
+        }
+      } else */
+      this.z2mBridgeDevices = devices;
 
       if (this.shouldStart) {
         if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
@@ -517,7 +521,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }, this.availabilityTimeout).unref();
 
     /* istanbul ignore next if */
-    if (this.config.injectPayloads) {
+    /*
+    if (this.config.injectPayloads && typeof this.config.injectPayloads === 'string') {
       this.injectTimer = setInterval(() => {
         const data = this.z2m.readConfig(path.join(this.matterbridge.matterbridgeDirectory, this.config.injectPayloads as string));
         this.log.warn(`***Injecting ${data.payloads.length} payloads from ${this.config.injectPayloads}`);
@@ -526,6 +531,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         }
       }, 60 * 1000).unref();
     }
+    */
     this.log.info(`Configured zigbee2mqtt dynamic platform v${this.version}`);
   }
 

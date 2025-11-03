@@ -21,6 +21,8 @@
  * limitations under the License.
  */
 
+/* eslint-disable jsdoc/reject-any-type */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -189,14 +191,29 @@ export class Zigbee2MQTT extends EventEmitter {
     );
   }
 
+  /**
+   * Set the log level to DEBUG or INFO.
+   *
+   * @param {boolean} logDebug - If true, set log level to DEBUG; otherwise, set to INFO.
+   */
   public setLogDebug(logDebug: boolean): void {
     this.log.logLevel = logDebug ? LogLevel.DEBUG : LogLevel.INFO;
   }
 
+  /**
+   * Set the log level.
+   *
+   * @param {LogLevel} logLevel - The desired log level.
+   */
   public setLogLevel(logLevel: LogLevel): void {
     this.log.logLevel = logLevel;
   }
 
+  /**
+   * Set the data path.
+   *
+   * @param {string} dataPath - The desired data path.
+   */
   public async setDataPath(dataPath: string): Promise<void> {
     try {
       await fs.promises.mkdir(dataPath, { recursive: true });
@@ -224,11 +241,18 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  // Get the URL for connect
+  /**
+   * Get the URL for the MQTT connection.
+   *
+   * @returns {string} The MQTT connection URL.
+   */
   private getUrl(): string {
     return this.mqttHost + ':' + this.mqttPort.toString();
   }
 
+  /**
+   * Start the MQTT connection.
+   */
   public async start() {
     this.log.debug(`Starting connection to ${this.getUrl()}...`);
 
@@ -324,6 +348,9 @@ export class Zigbee2MQTT extends EventEmitter {
       });
   }
 
+  /**
+   * Stop the MQTT connection.
+   */
   public async stop() {
     if (this.mqttKeepaliveInterval) {
       clearInterval(this.mqttKeepaliveInterval);
@@ -351,6 +378,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Subscribe to a topic.
+   *
+   * @param {string} topic - The MQTT topic to subscribe to.
+   */
   public async subscribe(topic: string) {
     if (this.mqttClient && this.mqttIsConnected) {
       this.log.debug(`Subscribing topic: ${topic}`);
@@ -370,7 +402,14 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  public async publish(topic: string, message: string, queue = false) {
+  /**
+   * Publish a message to a topic.
+   *
+   * @param {string} topic - The MQTT topic to publish to.
+   * @param {string} message - The message to publish.
+   * @param {boolean} queue - Whether to queue the message if the client is not connected.
+   */
+  public async publish(topic: string, message: string, queue: boolean = false) {
     const startInterval = () => {
       if (this.mqttPublishQueueTimeout) {
         return;
@@ -443,7 +482,14 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  private async writeBufferJSON(file: string, buffer: Buffer) {
+  /**
+   * Write a buffer to a JSON file.
+   *
+   * @param {string} file - The name of the file to write to.
+   * @param {Buffer} buffer - The buffer containing the data to write.
+   * @returns {Promise<void>}
+   */
+  private async writeBufferJSON(file: string, buffer: Buffer): Promise<void> {
     const filePath = path.join(this.mqttDataPath, file);
     let jsonData;
 
@@ -467,7 +513,14 @@ export class Zigbee2MQTT extends EventEmitter {
       });
   }
 
-  private async writeFile(file: string, data: string) {
+  /**
+   * Write data to a file.
+   *
+   * @param {string} file - The name of the file to write to.
+   * @param {string} data - The data to write.
+   * @returns {Promise<void>}
+   */
+  private async writeFile(file: string, data: string): Promise<void> {
     const filePath = path.join(this.mqttDataPath, file);
 
     // Write the data to a file
@@ -482,6 +535,12 @@ export class Zigbee2MQTT extends EventEmitter {
       });
   }
 
+  /**
+   * Tries to parse a JSON string.
+   *
+   * @param {string} text - The JSON string to parse.
+   * @returns {any} - The parsed JSON object or an empty object on error.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private tryJsonParse(text: string): any {
     try {
@@ -493,6 +552,12 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming MQTT messages.
+   *
+   * @param {string} topic - The MQTT topic the message was received on.
+   * @param {Buffer} payload - The message payload.
+   */
   private messageHandler(topic: string, payload: Buffer) {
     if (topic.startsWith(this.mqttTopic + '/bridge/state')) {
       const payloadString = payload.toString();
@@ -653,6 +718,14 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming device messages.
+   *
+   * @param {BridgeDevice} device - The device the message is for.
+   * @param {string} entity - The entity ID.
+   * @param {string} service - The service type.
+   * @param {Buffer} payload - The message payload.
+   */
   private handleDeviceMessage(device: BridgeDevice, entity: string, service: string, payload: Buffer) {
     if (payload.length === 0 || payload === null) {
       return;
@@ -715,6 +788,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming network map responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseNetworkmap(payload: Buffer) {
     /*
     "routes": [
@@ -839,6 +917,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming device rename responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseDeviceRename(payload: Buffer) {
     /*
     {
@@ -857,6 +940,11 @@ export class Zigbee2MQTT extends EventEmitter {
     this.emit('device_rename', device?.ieee_address, json.data.from, json.data.to);
   }
 
+  /**
+   * Handle incoming device remove responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseDeviceRemove(payload: Buffer) {
     /*
     {
@@ -870,6 +958,11 @@ export class Zigbee2MQTT extends EventEmitter {
     this.emit('device_remove', json.data.id, json.status, json.data.block, json.data.force);
   }
 
+  /**
+   * Handle incoming device options responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseDeviceOptions(payload: Buffer) {
     /*
     {
@@ -898,6 +991,11 @@ export class Zigbee2MQTT extends EventEmitter {
     this.emit('device_options', json.data.id, json.status, json.data.from, json.data.to);
   }
 
+  /**
+   * Handle incoming group add responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupAdd(payload: Buffer) {
     /*
     {
@@ -913,6 +1011,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group remove responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupRemove(payload: Buffer) {
     /*
     {
@@ -928,6 +1031,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group rename responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupRename(payload: Buffer) {
     /*
     {
@@ -943,6 +1051,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group add member responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupAddMember(payload: Buffer) {
     /*
     {
@@ -958,6 +1071,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group remove member responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupRemoveMember(payload: Buffer) {
     /*
     {
@@ -973,6 +1091,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming permit join responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponsePermitJoin(payload: Buffer) {
     /*
     {
@@ -988,6 +1111,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming event messages.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleEvent(payload: Buffer) {
     const json = this.tryJsonParse(payload.toString());
     switch (json.type) {
@@ -1066,8 +1194,13 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  // Function to read JSON config from a file
-  public readConfig(filename: string) {
+  /**
+   * Read JSON config from a file.
+   *
+   * @param {string} filename - The name of the file to read from.
+   * @returns {object|null} The parsed JSON object or null if an error occurred.
+   */
+  public readConfig(filename: string): object | null {
     this.log.debug(`Reading config from ${filename}`);
     try {
       const rawdata = fs.readFileSync(filename, 'utf-8');
@@ -1079,9 +1212,14 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  // Function to write JSON config to a file
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public writeConfig(filename: string, data: any): boolean {
+  /**
+   * Write JSON config to a file.
+   *
+   * @param {string} filename - The name of the file to write to.
+   * @param {object} data - The JSON data to write.
+   * @returns {boolean} True if the write was successful, false otherwise.
+   */
+  public writeConfig(filename: string, data: object): boolean {
     this.log.debug(`Writing config to ${filename}`);
     try {
       const jsonString = JSON.stringify(data, null, 2);
@@ -1089,10 +1227,16 @@ export class Zigbee2MQTT extends EventEmitter {
       return true;
     } catch (err) {
       this.log.error('writeConfig error', err);
-      return true;
+      return false;
     }
   }
 
+  /**
+   * Emit a payload event for a specific entity.
+   *
+   * @param {string} entity - The entity ID.
+   * @param {Payload} data - The payload data.
+   */
   public emitPayload(entity: string, data: Payload) {
     this.emit('MESSAGE-' + entity, data);
   }
