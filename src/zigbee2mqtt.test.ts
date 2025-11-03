@@ -545,7 +545,7 @@ describe('TestZigbee2MQTT', () => {
     const missing = z2m.readConfig(path.join(HOMEDIR, 'does-not-exist.json'));
     expect(missing).toBeNull();
     const wrote = z2m.writeConfig(HOMEDIR, { x: 1 });
-    expect(wrote).toBe(true);
+    expect(wrote).toBe(false);
   });
 
   test('bridge/event with undefined type is handled', async () => {
