@@ -8,7 +8,7 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
-## [3.0.0] - 2025-11-02
+## [3.0.0] - 2025-11-03
 
 ### Added
 
@@ -20,13 +20,14 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bumped platform to v.3.0.0.
 - [package]: Bumped entity to v.3.3.0.
 - [package]: Bumped zigbee to v.3.0.0.
-- [package]: Bumped package to automator v.2.0.10.
+- [package]: Bumped package to automator v.2.0.11.
 - [jest]: Bumped jestHelpers to v.1.0.11.
 - [package]: Require matterbridge v.3.3.0.
 - [package]: Added default config.
 - [package]: Added typed ZigbeePlatformConfig.
 - [platform]: Updated to new signature PlatformMatterbridge.
 - [workflows]: Improved speed on Node CI.
+- [workflows]: Use shallow clones and --no-fund --no-audit for faster builds.
 - [devcontainer]: Added the plugin name to the container.
 - [devcontainer]: Improved performance of first build with shallow clone.
 
