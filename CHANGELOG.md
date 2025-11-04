@@ -8,11 +8,12 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
-## [3.0.0] - 2025-11-03
+## [3.0.0] - 2025-11-04
 
 ### Added
 
 - [tvoc]: Added voc_index to the converter. Thanks Funca (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/129).
+- [cover]: Added check for reverse_direction === 'back' and reverse_direction === true (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/121 and https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/131).
 
 ### Changed
 
