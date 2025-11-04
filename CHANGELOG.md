@@ -14,6 +14,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [tvoc]: Added voc_index to the converter. Thanks Funca (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/129).
 - [cover]: Added check for reverse_direction === 'back' and reverse_direction === true (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/121 and https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/131).
+- [test]: Improved test coverage to 85%.
 
 ### Changed
 

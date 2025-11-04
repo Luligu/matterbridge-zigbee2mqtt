@@ -125,6 +125,8 @@ matterbridge
 
 # Config file
 
+All configurations can (and should) be done with the frontend.
+
 If needed you can configure the mqtt host, port, topic, username and password.
 
 If the whiteList is defined only the devices included are exposed to Matter.
@@ -153,15 +155,16 @@ These are the default vules:
 {
   "name": "matterbridge-zigbee2mqtt",
   "type": "DynamicPlatform",
+  "version": "3.0.0",
   "host": "mqtt://localhost",
   "port": 1883,
   "protocolVersion": 5,
   "topic": "zigbee2mqtt",
   "username": "",
   "password": "",
-  "ca": undefined,
-  "cert": undefined,
-  "key": undefined,
+  "ca": "",
+  "cert": "",
+  "key": "",
   "rejectUnauthorized": true,
   "whiteList": [],
   "blackList": [],
