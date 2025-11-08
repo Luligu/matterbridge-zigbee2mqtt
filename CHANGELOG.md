@@ -8,6 +8,39 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## [3.0.0] - 2025-11-08
+
+### Added
+
+- [tvoc]: Added voc_index to the converter. Thanks Funca (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/129).
+- [cover]: Added check for reverse_direction === 'back' and reverse_direction === true (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/121 and https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/131).
+- [test]: Improved test coverage to 85%.
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Bumped platform to v.3.0.0.
+- [package]: Bumped entity to v.3.3.0.
+- [package]: Bumped zigbee to v.3.0.0.
+- [package]: Bumped package to automator v.2.0.11.
+- [jest]: Bumped jestHelpers to v.1.0.11.
+- [package]: Require matterbridge v.3.3.0.
+- [package]: Added default config.
+- [package]: Added typed ZigbeePlatformConfig.
+- [platform]: Updated to new signature PlatformMatterbridge.
+- [workflows]: Improved speed on Node CI.
+- [workflows]: Use shallow clones and --no-fund --no-audit for faster builds.
+- [devcontainer]: Added the plugin name to the container.
+- [devcontainer]: Improved performance of first build with shallow clone.
+
+### Fixed
+
+- [platform]: Fixed specific zbminir2 device case for all devices. Thanks subst4nc3 (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/126).
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [2.8.1] - 2025-10-02
 
 ### Automations and scenes

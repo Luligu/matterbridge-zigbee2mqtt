@@ -9,19 +9,19 @@ const HOMEDIR = path.join('jest', NAME);
 import path from 'node:path';
 
 import { jest } from '@jest/globals';
-import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint, PlatformConfig } from 'matterbridge';
+import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
-import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
-import { Endpoint, ServerNode } from 'matterbridge/matter';
-import { PowerSource } from 'matterbridge/matter/clusters';
-import { getMacAddress } from 'matterbridge/utils';
+import { ColorControl, LevelControl, PowerSource } from 'matterbridge/matter/clusters';
+import { getMacAddress, wait } from 'matterbridge/utils';
+import { Logger, LogLevel as MatterLogLevel } from 'matterbridge/matter';
+import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
 
-import { ZigbeePlatform } from './platform.ts';
-import { Zigbee2MQTT } from './zigbee2mqtt.ts';
-import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, setDebug, setupTest, startServerNode, stopServerNode } from './jestHelpers.js';
-import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.ts';
-import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.ts';
-import { Payload } from './payloadTypes.ts';
+import { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
+import { Zigbee2MQTT } from './zigbee2mqtt.js';
+import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
+import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
+import { Payload } from './payloadTypes.js';
+import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, server, aggregator, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -56,30 +56,28 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 setupTest(NAME, false);
 
 // Setup the matter and test environment
-createTestEnvironment(HOMEDIR);
+createTestEnvironment(NAME);
 
-describe('TestPlatform', () => {
-  let server: ServerNode<ServerNode.RootEndpoint>;
-  let aggregator: Endpoint<AggregatorEndpoint>;
-  let device: MatterbridgeEndpoint;
+describe('TestEntity', () => {
   let platform: ZigbeePlatform;
+
+  const executeTrue: TypeFromPartialBitSchema<typeof LevelControl.Options> = { executeIfOff: true };
 
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 100;
   const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 50 : 50;
 
   const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
   const mockMatterbridge = {
-    matterbridgeDirectory: HOMEDIR + '/.matterbridge',
-    matterbridgePluginDirectory: HOMEDIR + '/Matterbridge',
+    matterbridgeDirectory: path.join(HOMEDIR, '.matterbridge'),
+    matterbridgePluginDirectory: path.join(HOMEDIR, 'Matterbridge'),
+    matterbridgeCertDirectory: path.join(HOMEDIR, '.mattercert'),
     systemInformation: {
       ipv4Address: undefined,
       ipv6Address: undefined,
       osRelease: 'xx.xx.xx.xx.xx.xx',
       nodeVersion: '22.1.10',
     },
-    matterbridgeVersion: '3.0.4',
-    getDevices: jest.fn(() => []),
-    getPlugins: jest.fn(() => []),
+    matterbridgeVersion: '3.3.0',
     addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
       await aggregator.add(device);
     }),
@@ -87,15 +85,19 @@ describe('TestPlatform', () => {
     removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
   } as unknown as Matterbridge;
 
-  const mockConfig = {
+  const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
     type: 'DynamicPlatform',
     version: '1.0.0',
     host: 'mqtt://localhost',
     port: 1883,
     protocolVersion: 5,
-    username: undefined,
-    password: undefined,
+    username: '',
+    password: '',
+    ca: '',
+    rejectUnauthorized: true,
+    cert: '',
+    key: '',
     topic: 'zigbee2mqtt',
     zigbeeFrontend: 'http://localhost:8080',
     blackList: [],
@@ -110,7 +112,7 @@ describe('TestPlatform', () => {
     postfix: 'JEST',
     debug: true,
     unregisterOnShutdown: false,
-  } as PlatformConfig;
+  };
 
   beforeAll(() => {});
 
@@ -131,7 +133,7 @@ describe('TestPlatform', () => {
   });
 
   test('create and start the server node', async () => {
-    [server, aggregator] = await startServerNode(NAME, MATTER_PORT);
+    await startServerNode(NAME, MATTER_PORT);
     expect(server).toBeDefined();
     expect(aggregator).toBeDefined();
   });
@@ -683,6 +685,337 @@ describe('TestPlatform', () => {
     entity.destroy();
   });
 
+  test('create a rgb device', async () => {
+    const z2mDevice = rgbCctController;
+    const friendlyName = z2mDevice.friendly_name;
+    expect(z2mDevice).toBeDefined();
+    if (!z2mDevice) throw new Error('Z2M Device not found');
+    const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+    expect(entity).toBeDefined();
+    expect(entity.entityName).toBe(friendlyName);
+    const device = entity.bridgedDevice;
+    expect(device).toBeDefined();
+    expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+    if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+    // prettier-ignore
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "colorControl","identify", "groups", "onOff", "levelControl"]);
+    expect(device.getChildEndpoints()).toHaveLength(0);
+
+    jest.clearAllMocks();
+    expect(await addDevice(aggregator, device)).toBe(true);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+    // Test commands from the controller
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(
+        `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 255, color: { h: 0, s: 0 } })}`,
+      ),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, color: { h: 0, s: 0 }, state: 'ON' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'toggle');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(
+        `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 255, color: { h: 0, s: 0 } })}`,
+      ),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, color: { h: 0, s: 0 }, state: 'ON' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 128, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command moveToLevel called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevel', friendlyName, { brightness: 128, transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { brightness: 200, transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { state: 'OFF', transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 100, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { state: 'ON', brightness: 100, color: { h: 0, s: 0 } });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColorTemperature', { colorTemperatureMireds: 200, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(200);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToColorTemperature', friendlyName, { color_temp: 200 });
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToHue', { hue: 150, transitionTime: null, direction: ColorControl.Direction.Up, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(150);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToHue', friendlyName, { color: { h: 213, s: 0 } });
+
+    jest.clearAllMocks();
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToSaturation', { saturation: 80, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(80);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToSaturation', friendlyName, { color: { h: 213, s: 31 } });
+
+    jest.clearAllMocks();
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 130, saturation: 70, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(130);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(70);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToHueAndSaturation', friendlyName, { color: { h: 184, s: 28 }, transition: 1 });
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColor', { colorX: 32000, colorY: 30000, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+    expect(device.getAttribute('ColorControl', 'currentX')).toBe(32000);
+    expect(device.getAttribute('ColorControl', 'currentY')).toBe(30000);
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToColor', friendlyName, { color: { x: 0.4883, y: 0.4578 }, transition: 1 });
+
+    // Turn the light off and test that moveToLevel and moveToColorTemperature commands remember their state
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 160, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColorTemperature', { colorTemperatureMireds: 350, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 161, color_temp: 350 });
+
+    // Turn the light off and test that moveToLevel and moveToHueAndSaturation commands remember their state
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 135, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 125, saturation: 40, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    // prettier-ignore
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((135 / 254) * 255), color: { h: Math.round(125 / 254 * 360), s: Math.round(40 / 254 * 100) } });
+
+    // Turn the light off and test that moveToLevel and moveToColor commands remember their state
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 115, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    // prettier-ignore
+    await invokeBehaviorCommand(device, 'ColorControl', 'moveToColor', { colorX: 25000, colorY: 28000, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
+    expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+    expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
+    expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+    // prettier-ignore
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((115 / 254) * 255), color: { x: 25000 / 65535, y: 28000 / 65535 } });
+
+    // Clear the noUpdate flag to allow updates from Z2M
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+
+    // Test updates from Z2M
+    let payload: Payload = {};
+
+    jest.clearAllMocks();
+    payload = { state: 'OFF' };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 200 };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 150, color_mode: 'color_temp', color_temp: 260 };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(150);
+    expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(260);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 130, color_mode: 'hs', color: { hue: 150, saturation: 90 } };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(Math.round((150 / 360) * 254));
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(Math.round((90 / 100) * 254));
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON', brightness: 130, color_mode: 'xy', color: { x: 0.56, y: 0.92 } };
+    platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
+    expect(device.getAttribute('ColorControl', 'currentHue')).toBe(49);
+    expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(254);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    entity.destroy();
+  }, 10000);
+
   test('create a temperature, humidity and pressure sensor device', async () => {
     const friendlyName = climateSensor.friendly_name;
     const z2mDevice = climateSensor;
@@ -797,7 +1130,6 @@ describe('TestPlatform', () => {
   test('close the server node', async () => {
     expect(server).toBeDefined();
     await stopServerNode(server);
-    await flushAsync(undefined, undefined, 500);
   });
 });
 
@@ -2011,6 +2343,357 @@ const rgbCctController = {
   manufacturer: '_TZ3000_7hcgjxpc',
   model_id: 'TS0505B',
   network_address: 47517,
+  power_source: 'Mains (single phase)',
+  software_build_id: '2.9.2_r54',
+  supported: true,
+  type: 'Router',
+};
+
+const doubleSwitch = {
+  date_code: '',
+  definition: {
+    description: 'Smart light switch module (2 gang)',
+    exposes: [
+      {
+        endpoint: 'l1',
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the switch',
+            endpoint: 'l1',
+            label: 'State',
+            name: 'state',
+            property: 'state_l1',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        endpoint: 'l2',
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the switch',
+            endpoint: 'l2',
+            label: 'State',
+            name: 'state',
+            property: 'state_l2',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        access: 7,
+        category: 'config',
+        description: 'Controls the behavior when the device is powered on after power loss',
+        label: 'Power-on behavior',
+        name: 'power_on_behavior',
+        property: 'power_on_behavior',
+        type: 'enum',
+        values: ['off', 'previous', 'on'],
+      },
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Link quality (signal strength)',
+        label: 'Linkquality',
+        name: 'linkquality',
+        property: 'linkquality',
+        type: 'numeric',
+        unit: 'lqi',
+        value_max: 255,
+        value_min: 0,
+      },
+    ],
+    model: 'MS-104BZ',
+    options: [
+      {
+        access: 2,
+        description: "State actions will also be published as 'action' when true (default false).",
+        label: 'State action',
+        name: 'state_action',
+        property: 'state_action',
+        type: 'binary',
+        value_off: false,
+        value_on: true,
+      },
+    ],
+    supports_ota: false,
+    vendor: 'Moes',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [
+        {
+          cluster: 'genOnOff',
+          target: {
+            endpoint: 1,
+            ieee_address: '0x00124b0025e1f196',
+            type: 'endpoint',
+          },
+        },
+      ],
+      clusters: {
+        input: ['genBasic', 'genIdentify', 'genGroups', 'genScenes', 'genOnOff', '57344', 'manuSpecificTuya_3'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [
+        {
+          attribute: 'onOff',
+          cluster: 'genOnOff',
+          maximum_report_interval: 3600,
+          minimum_report_interval: 0,
+          reportable_change: 0,
+        },
+      ],
+      scenes: [],
+    },
+    '2': {
+      bindings: [
+        {
+          cluster: 'genOnOff',
+          target: {
+            endpoint: 1,
+            ieee_address: '0x00124b0025e1f196',
+            type: 'endpoint',
+          },
+        },
+      ],
+      clusters: {
+        input: ['genIdentify', 'genGroups', 'genScenes', 'genOnOff', '57344', 'manuSpecificTuya_3'],
+        output: [],
+      },
+      configured_reportings: [
+        {
+          attribute: 'onOff',
+          cluster: 'genOnOff',
+          maximum_report_interval: 3600,
+          minimum_report_interval: 0,
+          reportable_change: 0,
+        },
+      ],
+      scenes: [],
+    },
+    '242': {
+      bindings: [],
+      clusters: {
+        input: [],
+        output: ['greenPower'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Moes switch double',
+  ieee_address: '0xcc86ecfffe4e9d25',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: '_TZ3000_pmz6mjyu',
+  model_id: 'TS011F',
+  network_address: 49638,
+  power_source: 'Mains (single phase)',
+  supported: true,
+  type: 'Router',
+};
+
+const doubleDimmer = {
+  date_code: '',
+  definition: {
+    description: '2 gang smart dimmer',
+    exposes: [
+      {
+        endpoint: 'l1',
+        features: [
+          {
+            access: 3,
+            description: 'On/off state of this light',
+            endpoint: 'l1',
+            label: 'State',
+            name: 'state',
+            property: 'state_l1',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+          {
+            access: 3,
+            description: 'Brightness of this light',
+            endpoint: 'l1',
+            label: 'Brightness',
+            name: 'brightness',
+            property: 'brightness_l1',
+            type: 'numeric',
+            value_max: 254,
+            value_min: 0,
+          },
+          {
+            access: 3,
+            description: 'Minimum light brightness',
+            endpoint: 'l1',
+            label: 'Min brightness',
+            name: 'min_brightness',
+            property: 'min_brightness_l1',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+          {
+            access: 3,
+            description: 'Maximum light brightness',
+            endpoint: 'l1',
+            label: 'Max brightness',
+            name: 'max_brightness',
+            property: 'max_brightness_l1',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+        ],
+        type: 'light',
+      },
+      {
+        access: 3,
+        description: 'Countdown to turn device off after a certain time',
+        endpoint: 'l1',
+        label: 'Countdown',
+        name: 'countdown',
+        property: 'countdown_l1',
+        type: 'numeric',
+        unit: 's',
+        value_max: 43200,
+        value_min: 0,
+        value_step: 1,
+      },
+      {
+        endpoint: 'l2',
+        features: [
+          {
+            access: 3,
+            description: 'On/off state of this light',
+            endpoint: 'l2',
+            label: 'State',
+            name: 'state',
+            property: 'state_l2',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+          {
+            access: 3,
+            description: 'Brightness of this light',
+            endpoint: 'l2',
+            label: 'Brightness',
+            name: 'brightness',
+            property: 'brightness_l2',
+            type: 'numeric',
+            value_max: 254,
+            value_min: 0,
+          },
+          {
+            access: 3,
+            description: 'Minimum light brightness',
+            endpoint: 'l2',
+            label: 'Min brightness',
+            name: 'min_brightness',
+            property: 'min_brightness_l2',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+          {
+            access: 3,
+            description: 'Maximum light brightness',
+            endpoint: 'l2',
+            label: 'Max brightness',
+            name: 'max_brightness',
+            property: 'max_brightness_l2',
+            type: 'numeric',
+            value_max: 255,
+            value_min: 1,
+          },
+        ],
+        type: 'light',
+      },
+      {
+        access: 3,
+        description: 'Countdown to turn device off after a certain time',
+        endpoint: 'l2',
+        label: 'Countdown',
+        name: 'countdown',
+        property: 'countdown_l2',
+        type: 'numeric',
+        unit: 's',
+        value_max: 43200,
+        value_min: 0,
+        value_step: 1,
+      },
+      {
+        access: 3,
+        category: 'config',
+        description: 'Controls the behavior when the device is powered on after power loss',
+        label: 'Power-on behavior',
+        name: 'power_on_behavior',
+        property: 'power_on_behavior',
+        type: 'enum',
+        values: ['off', 'on', 'previous'],
+      },
+      {
+        access: 3,
+        description: 'Mode of the backlight',
+        label: 'Backlight mode',
+        name: 'backlight_mode',
+        property: 'backlight_mode',
+        type: 'enum',
+        values: ['off', 'normal', 'inverted'],
+      },
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Link quality (signal strength)',
+        label: 'Linkquality',
+        name: 'linkquality',
+        property: 'linkquality',
+        type: 'numeric',
+        unit: 'lqi',
+        value_max: 255,
+        value_min: 0,
+      },
+    ],
+    model: 'TS0601_dimmer_2',
+    options: [],
+    supports_ota: false,
+    vendor: 'Tuya',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [],
+      clusters: {
+        input: ['genBasic', 'genGroups', 'genScenes', 'manuSpecificTuya'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Moes dimmer double',
+  ieee_address: '0x847127fffeaff50a',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: '_TZE200_e3oitdyu',
+  model_id: 'TS0601',
+  network_address: 63077,
   power_source: 'Mains (single phase)',
   supported: true,
   type: 'Router',

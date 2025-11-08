@@ -3,7 +3,7 @@
  * @file zigbee2mqtt.ts
  * @author Luca Liguori
  * @created 2023-06-30
- * @version 2.3.3
+ * @version 3.0.0
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -21,211 +21,18 @@
  * limitations under the License.
  */
 
+/* eslint-disable jsdoc/reject-any-type */
+
 import fs from 'node:fs';
 import path from 'node:path';
-import * as util from 'node:util';
-import * as crypto from 'node:crypto';
+import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { mkdir } from 'node:fs/promises';
 
 import { MqttClient, IClientOptions, connectAsync, ErrorWithReasonCode, IConnackPacket, IDisconnectPacket, IPublishPacket, Packet } from 'mqtt';
 import { AnsiLogger, TimestampFormat, rs, db, dn, gn, er, zb, hk, id, idn, ign, REVERSE, REVERSEOFF, LogLevel } from 'node-ansi-logger';
 
-import { BridgeExtension, KeyValue, Topology } from './zigbee2mqttTypes.js';
+import { BridgeDevice, BridgeExtension, BridgeGroup, BridgeInfo, Topology } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
-
-const writeFile = util.promisify(fs.writeFile);
-
-interface Group {
-  friendly_name: string;
-  id: number;
-  members: Member[];
-  scenes: Scene[];
-}
-
-interface Member {
-  endpoint: number;
-  ieee_address: string;
-}
-
-interface Scene {
-  id: number;
-  name: string;
-}
-
-interface Preset {
-  description: string;
-  name: string;
-  value: number;
-}
-
-interface Features {
-  category: string;
-  access: number;
-  description: string;
-  name: string;
-  property: string;
-  label: string;
-  type: string;
-  endpoint: string;
-  value_off: string;
-  value_on: string;
-  value_toggle: string;
-  unit: string;
-  value_max: number;
-  value_min: number;
-  value_step: number;
-  values: string[];
-  presets: Preset[];
-}
-
-interface Exposes {
-  category: string;
-  type: string;
-  endpoint: string;
-  name: string;
-  property: string;
-  label: string;
-  description: string;
-  access: number;
-  value_off: string;
-  value_on: string;
-  value_toggle: string;
-  unit: string;
-  value_max: number;
-  value_min: number;
-  value_step: number;
-  values: string[];
-  presets: Preset[];
-  features: Features[];
-}
-
-interface Definition {
-  model: string;
-  vendor: string;
-  description: string;
-  exposes: Exposes[];
-  options: Exposes[];
-  supports_ota: boolean;
-}
-
-interface Target {
-  endpoint: number;
-  ieee_address: string;
-  type: string;
-}
-
-interface Binding {
-  cluster: string;
-  target: Target;
-}
-
-interface Reporting {
-  attribute: string;
-  cluster: string;
-  maximum_report_interval: number;
-  minimum_report_interval: number;
-  reportable_change: number;
-}
-
-interface Scenes {
-  id: number;
-  name: string;
-}
-
-interface Endpoint {
-  bindings: Binding[];
-  clusters: {
-    input: string[];
-    output: string[];
-  };
-  configured_reportings: Reporting[];
-  scenes: Scenes[];
-}
-
-interface z2mEndpoints {
-  endpoint?: string;
-  bindings: Binding[];
-  clusters: {
-    input: string[];
-    output: string[];
-  };
-  configured_reportings: Reporting[];
-  scenes: Scenes[];
-}
-
-interface Device {
-  date_code: string;
-  definition: Definition;
-  disabled: boolean;
-  endpoints: Record<number, Endpoint>;
-  friendly_name: string;
-  ieee_address: string;
-  interview_completed: boolean;
-  interviewing: boolean;
-  manufacturer: string;
-  model_id: string;
-  network_address: number;
-  power_source: string;
-  software_build_id: string;
-  supported: boolean;
-  type: string;
-}
-
-export interface z2mFeature {
-  category: string;
-  access: number;
-  description: string;
-  name: string;
-  property: string;
-  label: string;
-  type: string;
-  endpoint: string;
-  value_off: string; // TODO boolean or string
-  value_on: string; // TODO boolean or string
-  value_toggle: string;
-  unit: string;
-  value_max: number;
-  value_min: number;
-  value_step: number;
-  values: string[];
-  presets: Preset[];
-}
-
-export interface z2mDevice {
-  index: number;
-  logName: string;
-  ieee_address: string;
-  friendly_name: string;
-  getPayload: KeyValue | undefined;
-  description: string;
-  manufacturer: string;
-  model_id: string;
-  vendor: string;
-  model: string;
-  date_code: string;
-  software_build_id: string;
-  power_source: string;
-  isAvailabilityEnabled: boolean;
-  isOnline: boolean;
-  category: string; // light or switch
-  hasEndpoints: boolean;
-  exposes: z2mFeature[]; // Exposes specific and generic
-  options: z2mFeature[]; // Exposes options like state_action
-  endpoints: z2mEndpoints[];
-}
-
-export interface z2mGroup {
-  index: number;
-  logName: string;
-  id: number;
-  friendly_name: string;
-  getPayload: KeyValue | undefined;
-  isAvailabilityEnabled: boolean;
-  isOnline: boolean;
-  members: Member[];
-  scenes: Scene[];
-}
 
 interface PublishQueue {
   topic: string;
@@ -257,11 +64,13 @@ export class Zigbee2MQTT extends EventEmitter {
   private z2mPermitJoin: boolean;
   private z2mPermitJoinTimeout: number;
   private z2mVersion: string;
-  public z2mDevices: z2mDevice[];
-  public z2mGroups: z2mGroup[];
-  loggedEntries = 0;
+  public z2mBridge: BridgeInfo;
+  public z2mDevices: BridgeDevice[];
+  public z2mGroups: BridgeGroup[];
+  loggedBridgePayloads = 0;
+  loggedPublishPayloads = 0;
 
-  // Define our MQTT options
+  // Define default MQTT options
   private options: IClientOptions = {
     clientId: 'matterbridge_' + crypto.randomBytes(8).toString('hex'),
     keepalive: 60,
@@ -307,7 +116,7 @@ export class Zigbee2MQTT extends EventEmitter {
     rejectUnauthorized?: boolean,
     cert?: string,
     key?: string,
-    debug = false,
+    debug: boolean = false,
   ) {
     super();
 
@@ -373,6 +182,7 @@ export class Zigbee2MQTT extends EventEmitter {
     this.z2mPermitJoin = false;
     this.z2mPermitJoinTimeout = 0;
     this.z2mVersion = '';
+    this.z2mBridge = {} as BridgeInfo;
     this.z2mDevices = [];
     this.z2mGroups = [];
 
@@ -381,17 +191,32 @@ export class Zigbee2MQTT extends EventEmitter {
     );
   }
 
+  /**
+   * Set the log level to DEBUG or INFO.
+   *
+   * @param {boolean} logDebug - If true, set log level to DEBUG; otherwise, set to INFO.
+   */
   public setLogDebug(logDebug: boolean): void {
     this.log.logLevel = logDebug ? LogLevel.DEBUG : LogLevel.INFO;
   }
 
+  /**
+   * Set the log level.
+   *
+   * @param {LogLevel} logLevel - The desired log level.
+   */
   public setLogLevel(logLevel: LogLevel): void {
     this.log.logLevel = logLevel;
   }
 
+  /**
+   * Set the data path.
+   *
+   * @param {string} dataPath - The desired data path.
+   */
   public async setDataPath(dataPath: string): Promise<void> {
     try {
-      await mkdir(dataPath, { recursive: true });
+      await fs.promises.mkdir(dataPath, { recursive: true });
       this.mqttDataPath = dataPath;
       this.log.debug(`Data directory ${this.mqttDataPath} created successfully.`);
     } catch (e) {
@@ -408,13 +233,26 @@ export class Zigbee2MQTT extends EventEmitter {
     } catch (error) {
       this.log.debug(`Error deleting bridge-payloads.txt: ${error}`);
     }
+    try {
+      const filePath = path.join(this.mqttDataPath, 'bridge-publish-payloads.txt');
+      fs.unlinkSync(filePath);
+    } catch (error) {
+      this.log.debug(`Error deleting bridge-publish-payloads.txt: ${error}`);
+    }
   }
 
-  // Get the URL for connect
+  /**
+   * Get the URL for the MQTT connection.
+   *
+   * @returns {string} The MQTT connection URL.
+   */
   private getUrl(): string {
     return this.mqttHost + ':' + this.mqttPort.toString();
   }
 
+  /**
+   * Start the MQTT connection.
+   */
   public async start() {
     this.log.debug(`Starting connection to ${this.getUrl()}...`);
 
@@ -510,6 +348,9 @@ export class Zigbee2MQTT extends EventEmitter {
       });
   }
 
+  /**
+   * Stop the MQTT connection.
+   */
   public async stop() {
     if (this.mqttKeepaliveInterval) {
       clearInterval(this.mqttKeepaliveInterval);
@@ -537,6 +378,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Subscribe to a topic.
+   *
+   * @param {string} topic - The MQTT topic to subscribe to.
+   */
   public async subscribe(topic: string) {
     if (this.mqttClient && this.mqttIsConnected) {
       this.log.debug(`Subscribing topic: ${topic}`);
@@ -556,7 +402,14 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  public async publish(topic: string, message: string, queue = false) {
+  /**
+   * Publish a message to a topic.
+   *
+   * @param {string} topic - The MQTT topic to publish to.
+   * @param {string} message - The message to publish.
+   * @param {boolean} queue - Whether to queue the message if the client is not connected.
+   */
+  public async publish(topic: string, message: string, queue: boolean = false) {
     const startInterval = () => {
       if (this.mqttPublishQueueTimeout) {
         return;
@@ -614,6 +467,12 @@ export class Zigbee2MQTT extends EventEmitter {
         this.log.debug(`Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} success on topic: ${topic} message: ${message}`);
         this.emit('mqtt_published');
         this.mqttPublishInflights--;
+        // Log the first 10000 payloads
+        if (this.log.logLevel === LogLevel.DEBUG && this.loggedPublishPayloads < 10000) {
+          const filePath = path.join(this.mqttDataPath, 'bridge-publish-payloads.txt');
+          fs.appendFileSync(filePath, `${new Date().toLocaleString()} - ` + JSON.stringify({ topic, message }).replaceAll('\\"', '"') + '\n');
+          this.loggedPublishPayloads++;
+        }
       } catch (error) {
         this.mqttPublishInflights--;
         this.log.error(`****Publish ${REVERSE}[${this.mqttPublishInflights}]${REVERSEOFF} error: ${error} on topic: ${topic} message: ${message}`);
@@ -623,7 +482,14 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  private async writeBufferJSON(file: string, buffer: Buffer) {
+  /**
+   * Write a buffer to a JSON file.
+   *
+   * @param {string} file - The name of the file to write to.
+   * @param {Buffer} buffer - The buffer containing the data to write.
+   * @returns {Promise<void>}
+   */
+  private async writeBufferJSON(file: string, buffer: Buffer): Promise<void> {
     const filePath = path.join(this.mqttDataPath, file);
     let jsonData;
 
@@ -636,7 +502,8 @@ export class Zigbee2MQTT extends EventEmitter {
     }
 
     // Write the JSON data to a file
-    writeFile(`${filePath}.json`, JSON.stringify(jsonData, null, 2))
+    fs.promises
+      .writeFile(`${filePath}.json`, JSON.stringify(jsonData, null, 2))
       .then(() => {
         this.log.debug(`Successfully wrote to ${filePath}.json`);
         return;
@@ -646,11 +513,19 @@ export class Zigbee2MQTT extends EventEmitter {
       });
   }
 
-  private async writeFile(file: string, data: string) {
+  /**
+   * Write data to a file.
+   *
+   * @param {string} file - The name of the file to write to.
+   * @param {string} data - The data to write.
+   * @returns {Promise<void>}
+   */
+  private async writeFile(file: string, data: string): Promise<void> {
     const filePath = path.join(this.mqttDataPath, file);
 
     // Write the data to a file
-    writeFile(`${filePath}`, data)
+    fs.promises
+      .writeFile(`${filePath}`, data)
       .then(() => {
         this.log.debug(`Successfully wrote to ${filePath}`);
         return;
@@ -660,6 +535,12 @@ export class Zigbee2MQTT extends EventEmitter {
       });
   }
 
+  /**
+   * Tries to parse a JSON string.
+   *
+   * @param {string} text - The JSON string to parse.
+   * @returns {any} - The parsed JSON object or an empty object on error.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private tryJsonParse(text: string): any {
     try {
@@ -671,6 +552,12 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming MQTT messages.
+   *
+   * @param {string} topic - The MQTT topic the message was received on.
+   * @param {Buffer} payload - The message payload.
+   */
   private messageHandler(topic: string, payload: Buffer) {
     if (topic.startsWith(this.mqttTopic + '/bridge/state')) {
       const payloadString = payload.toString();
@@ -690,155 +577,32 @@ export class Zigbee2MQTT extends EventEmitter {
       }
       this.log.debug(`Message bridge/state online => ${this.z2mIsOnline}`);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/info')) {
-      const data = this.tryJsonParse(payload.toString());
-      // this.log.info('classZigbee2MQTT=>Message bridge/info', data);
-      this.z2mPermitJoin = data.permit_join ? data.permit_join : false;
-      this.z2mPermitJoinTimeout = data.permit_join_timeout ? data.permit_join_timeout : 0;
-      this.z2mVersion = data.version ? data.version : '';
-      this.z2mIsAvailabilityEnabled = data.config.availability ? true : false;
+      this.z2mBridge = this.tryJsonParse(payload.toString()) as BridgeInfo;
+      this.z2mPermitJoin = this.z2mBridge.permit_join;
+      this.z2mPermitJoinTimeout = this.z2mBridge.permit_join_timeout;
+      this.z2mVersion = this.z2mBridge.version;
+      this.z2mIsAvailabilityEnabled = this.z2mBridge.config.availability !== undefined;
       this.log.debug(`Message bridge/info availability => ${this.z2mIsAvailabilityEnabled}`);
       this.log.debug(`Message bridge/info version => ${this.z2mVersion}`);
       this.log.debug(`Message bridge/info permit_join => ${this.z2mPermitJoin} timeout => ${this.z2mPermitJoinTimeout}`);
-      this.log.debug(`Message bridge/info advanced.output => ${data.config.advanced.output}`);
-      this.log.debug(`Message bridge/info advanced.legacy_api => ${data.config.advanced.legacy_api}`);
-      this.log.debug(`Message bridge/info advanced.legacy_availability_payload => ${data.config.advanced.legacy_availability_payload}`);
-      if (data.config.advanced.output === 'attribute')
-        this.log.error(`Message bridge/info advanced.output must be 'json' or 'attribute_and_json'. Now is ${data.config.advanced.output}`);
-      if (data.config.advanced.legacy_api === true) this.log.info(`Message bridge/info advanced.legacy_api is ${data.config.advanced.legacy_api}`);
-      if (data.config.advanced.legacy_availability_payload === true)
-        this.log.info(`Message bridge/info advanced.legacy_availability_payload is ${data.config.advanced.legacy_availability_payload}`);
-      this.emit('info', this.z2mVersion, this.z2mIsAvailabilityEnabled, this.z2mPermitJoin, this.z2mPermitJoinTimeout);
-      this.emit('bridge-info', data);
+      this.log.debug(`Message bridge/info advanced.output => ${this.z2mBridge.config.advanced.output}`);
+      this.log.debug(`Message bridge/info advanced.legacy_api => ${this.z2mBridge.config.advanced.legacy_api}`);
+      this.log.debug(`Message bridge/info advanced.legacy_availability_payload => ${this.z2mBridge.config.advanced.legacy_availability_payload}`);
+      if (this.z2mBridge.config.advanced.output === 'attribute')
+        this.log.error(`Message bridge/info advanced.output must be 'json' or 'attribute_and_json'. Now is ${this.z2mBridge.config.advanced.output}`);
+      if (this.z2mBridge.config.advanced.legacy_api === true) this.log.info(`Message bridge/info advanced.legacy_api is ${this.z2mBridge.config.advanced.legacy_api}`);
+      if (this.z2mBridge.config.advanced.legacy_availability_payload === true)
+        this.log.info(`Message bridge/info advanced.legacy_availability_payload is ${this.z2mBridge.config.advanced.legacy_availability_payload}`);
+      this.emit('bridge-info', this.z2mBridge);
       if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('bridge-info', payload);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/devices')) {
-      this.z2mDevices.splice(0, this.z2mDevices.length);
-      const devices: Device[] = this.tryJsonParse(payload.toString());
-      const data = this.tryJsonParse(payload.toString());
       if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('bridge-devices', payload);
-      this.emit('bridge-devices', data);
-      let index = 1;
-      for (const device of devices) {
-        if (device.type === 'Coordinator' && device.supported === true && device.disabled === false && device.interview_completed === true && device.interviewing === false) {
-          const z2m: z2mDevice = {
-            logName: 'Coordinator',
-            index: 0,
-            ieee_address: device.ieee_address,
-            friendly_name: device.friendly_name,
-            getPayload: undefined,
-            description: '',
-            manufacturer: '',
-            model_id: '',
-            vendor: 'zigbee2MQTT',
-            model: 'coordinator',
-            date_code: '',
-            software_build_id: '',
-            power_source: 'Mains (single phase)',
-            isAvailabilityEnabled: false,
-            isOnline: false,
-            category: '',
-            hasEndpoints: false,
-            exposes: [],
-            options: [],
-            endpoints: [],
-          };
-          this.z2mDevices.push(z2m);
-        }
-        if (device.type !== 'Coordinator' && device.supported === true && device.disabled === false && device.interview_completed === true && device.interviewing === false) {
-          const z2m: z2mDevice = {
-            logName: 'Dev#' + index.toString().padStart(2, '0'),
-            index: index++,
-            ieee_address: device.ieee_address,
-            friendly_name: device.friendly_name,
-            getPayload: undefined,
-            description: device.definition.description || '',
-            manufacturer: device.manufacturer || '',
-            model_id: device.model_id || '',
-            vendor: device.definition.vendor || '',
-            model: device.definition.model || '',
-            date_code: device.date_code || '',
-            software_build_id: device.software_build_id || '',
-            power_source: device.power_source,
-            isAvailabilityEnabled: false,
-            isOnline: false,
-            category: '',
-            hasEndpoints: false,
-            exposes: [],
-            options: [],
-            endpoints: [],
-          };
-          for (const expose of device.definition.exposes) {
-            if (!expose.property && !expose.name && expose.features && expose.type) {
-              // Specific expose https://www.zigbee2mqtt.io/guide/usage/exposes.html
-              if (z2m.category === '') {
-                // Only the first type: light, switch ...
-                z2m.category = expose.type;
-              }
-              for (const feature of expose.features) {
-                // Exposes nested inside features
-                feature.category = expose.type;
-                z2m.exposes.push(feature);
-                if (feature.endpoint) {
-                  z2m.hasEndpoints = true;
-                }
-              }
-            } else {
-              // Generic expose https://www.zigbee2mqtt.io/guide/usage/exposes.html
-              expose.category = '';
-              z2m.exposes.push(expose);
-            }
-          }
-          for (const option of device.definition.options) {
-            const feature = option as z2mFeature;
-            z2m.options.push(feature);
-          }
-          for (const key in device.endpoints) {
-            interface EndpointWithKey extends Endpoint {
-              endpoint: string;
-            }
-            const endpoint: Endpoint = device.endpoints[key];
-            const endpointWithKey: EndpointWithKey = {
-              ...endpoint,
-              endpoint: key,
-            };
-            z2m.endpoints.push(endpointWithKey);
-            // this.log.debug('classZigbee2MQTT=>Message bridge/devices endpoints=>', device.friendly_name, key, endpoint);
-          }
-          this.z2mDevices.push(z2m);
-        }
-      }
-      this.log.debug(`Received ${this.z2mDevices.length} devices`);
-      this.emit('devices');
-      // this.printDevices();
+      this.z2mDevices = this.tryJsonParse(payload.toString());
+      this.emit('bridge-devices', this.z2mDevices);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/groups')) {
-      this.z2mGroups.splice(0, this.z2mGroups.length);
-      const groups: Group[] = this.tryJsonParse(payload.toString());
-      const data = this.tryJsonParse(payload.toString());
       if (this.log.logLevel === LogLevel.DEBUG) this.writeBufferJSON('bridge-groups', payload);
-      this.emit('bridge-groups', data);
-      let index = 1;
-      for (const group of groups) {
-        const z2m: z2mGroup = {
-          logName: 'Grp#' + index.toString().padStart(2, '0'),
-          index: index++,
-          id: group.id,
-          friendly_name: group.friendly_name,
-          getPayload: undefined,
-          isAvailabilityEnabled: false,
-          isOnline: false,
-          members: [],
-          scenes: [],
-        };
-        for (const member of group.members) {
-          z2m.members.push(member);
-        }
-        for (const scene of group.scenes) {
-          z2m.scenes.push(scene);
-        }
-        this.z2mGroups.push(z2m);
-      }
-      this.log.debug(`Received ${this.z2mGroups.length} groups`);
-      this.emit('groups');
-      // this.printGroups();
+      this.z2mGroups = this.tryJsonParse(payload.toString());
+      this.emit('bridge-groups', this.z2mGroups);
     } else if (topic.startsWith(this.mqttTopic + '/bridge/extensions')) {
       const extensions = this.tryJsonParse(payload.toString()) as BridgeExtension[];
       for (const extension of extensions) {
@@ -892,18 +656,6 @@ export class Zigbee2MQTT extends EventEmitter {
       }
       const data = this.tryJsonParse(payload.toString());
       this.log.debug(`Message topic: ${topic} payload:${rs}`, data);
-      /*
-      [05/09/2023, 20:35:26] [z2m] classZigbee2MQTT=>Message bridge/response zigbee2mqtt/bridge/response/group/add {
-        data: { friendly_name: 'Guest', id: 1 },
-        status: 'ok',
-        transaction: '1nqux-2'
-      }
-      [11/09/2023, 15:13:54] [z2m] classZigbee2MQTT=>Message bridge/response zigbee2mqtt/bridge/response/group/members/add {
-        data: { device: '0x84fd27fffe83066f/1', group: 'Master Guest room' },
-        status: 'ok',
-        transaction: '2ww7l-5'
-      }
-      */
     } else if (topic.startsWith(this.mqttTopic + '/bridge/logging')) {
       // const data = JSON.parse(payload.toString());
       // this.log.debug('classZigbee2MQTT=>Message bridge/logging', data);
@@ -940,48 +692,42 @@ export class Zigbee2MQTT extends EventEmitter {
         return;
       }
 
-      // Log the first 1000 payloads
-      if (this.log.logLevel === LogLevel.DEBUG && this.loggedEntries < 1000) {
+      // Log the first 10000 payloads
+      if (this.log.logLevel === LogLevel.DEBUG && this.loggedBridgePayloads < 10000) {
         const logEntry = {
           entity,
           service,
           payload: payload.toString(),
         };
         const filePath = path.join(this.mqttDataPath, 'bridge-payloads.txt');
-        fs.appendFileSync(filePath, JSON.stringify(logEntry) + '\n');
-        this.loggedEntries++;
+        fs.appendFileSync(filePath, `${new Date().toLocaleString()} - ` + JSON.stringify(logEntry).replaceAll('\\"', '"') + '\n');
+        this.loggedBridgePayloads++;
       }
 
-      const foundDevice = this.z2mDevices.findIndex((device) => device.ieee_address === entity || device.friendly_name === entity);
-      if (foundDevice !== -1) {
+      const foundDevice = this.z2mDevices.find((device) => device.ieee_address === entity || device.friendly_name === entity);
+      if (foundDevice) {
         this.handleDeviceMessage(foundDevice, entity, service, payload);
       } else {
-        const foundGroup = this.z2mGroups.findIndex((group) => group.friendly_name === entity);
-        if (foundGroup !== -1) {
+        const foundGroup = this.z2mGroups.find((group) => group.friendly_name === entity);
+        if (foundGroup) {
           this.handleGroupMessage(foundGroup, entity, service, payload);
         } else {
-          try {
-            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', payload);
-          } catch {
-            this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload: error');
-          }
+          this.log.debug('Message for ***unknown*** entity:', entity, 'service:', service, 'payload:', payload);
         }
       }
     }
   }
 
-  public getDevice(name: string): z2mDevice | undefined {
-    return this.z2mDevices.find((device) => device.ieee_address === name || device.friendly_name === name);
-  }
-
-  public getGroup(name: string): z2mGroup | undefined {
-    return this.z2mGroups.find((group) => group.friendly_name === name);
-  }
-
-  private handleDeviceMessage(deviceIndex: number, entity: string, service: string, payload: Buffer) {
-    // this.log.info(`classZigbee2MQTT=>handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
+  /**
+   * Handle incoming device messages.
+   *
+   * @param {BridgeDevice} device - The device the message is for.
+   * @param {string} entity - The entity ID.
+   * @param {string} service - The service type.
+   * @param {Buffer} payload - The message payload.
+   */
+  private handleDeviceMessage(device: BridgeDevice, entity: string, service: string, payload: Buffer) {
     if (payload.length === 0 || payload === null) {
-      // this.log.warn(`handleDeviceMessage ${id}#${deviceIndex + 1}${rs} entity ${dn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
     const payloadString = payload.toString();
@@ -993,14 +739,9 @@ export class Zigbee2MQTT extends EventEmitter {
     }
     if (service === 'availability') {
       if (data.state === 'online') {
-        this.z2mDevices[deviceIndex].isAvailabilityEnabled = true;
-        this.z2mDevices[deviceIndex].isOnline = true;
-        // this.log.warn('handleDeviceMessage availability payload: ', data);
         this.emit('availability', entity, true);
         this.emit('ONLINE-' + entity);
       } else if (data.state === 'offline') {
-        this.z2mDevices[deviceIndex].isOnline = false;
-        // this.log.warn('handleDeviceMessage availability payload: ', data);
         this.emit('availability', entity, false);
         this.emit('OFFLINE-' + entity);
       }
@@ -1009,7 +750,6 @@ export class Zigbee2MQTT extends EventEmitter {
     } else if (service === 'set') {
       // Do nothing
     } else if (service === undefined) {
-      // this.log.debug(`classZigbee2MQTT=>emitting message for device ${dn}${entity}${rs} payload ${pl}${payload}${rs}`);
       this.emit('message', entity, data);
       this.emit('MESSAGE-' + entity, data);
     } else {
@@ -1017,10 +757,8 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  private handleGroupMessage(groupIndex: number, entity: string, service: string, payload: Buffer) {
-    // this.log.info(`classZigbee2MQTT=>handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload ${pl}${payload}${rs}`);
+  private handleGroupMessage(group: BridgeGroup, entity: string, service: string, payload: Buffer) {
     if (payload.length === 0 || payload === null) {
-      // this.log.warn(`handleGroupMessage ${id}#${groupIndex + 1}${rs} entity ${gn}${entity}${rs} service ${zb}${service}${rs} payload null`);
       return;
     }
     const payloadString = payload.toString();
@@ -1033,12 +771,9 @@ export class Zigbee2MQTT extends EventEmitter {
     data['last_seen'] = new Date().toISOString();
     if (service === 'availability') {
       if (data.state === 'online') {
-        this.z2mGroups[groupIndex].isAvailabilityEnabled = true;
-        this.z2mGroups[groupIndex].isOnline = true;
         this.emit('availability', entity, true);
         this.emit('ONLINE-' + entity);
       } else if (data.state === 'offline') {
-        this.z2mGroups[groupIndex].isOnline = false;
         this.emit('availability', entity, false);
         this.emit('OFFLINE-' + entity);
       }
@@ -1047,23 +782,27 @@ export class Zigbee2MQTT extends EventEmitter {
     } else if (service === 'set') {
       // Do nothing
     } else if (service === undefined) {
-      // this.log.debug(`classZigbee2MQTT=>emitting message for group ${gn}${entity}${rs} payload ${pl}${payload}${rs}`);
       this.emit('MESSAGE-' + entity, data);
     } else {
       // MQTT output attribute type
     }
   }
 
+  /**
+   * Handle incoming network map responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseNetworkmap(payload: Buffer) {
     /*
-        "routes": [
-            {
-              "destinationAddress": 31833,
-              "nextHop": 31833,
-              "status": "ACTIVE"
-            }
-          ],
-        */
+    "routes": [
+        {
+          "destinationAddress": 31833,
+          "nextHop": 31833,
+          "status": "ACTIVE"
+        }
+      ],
+    */
     const data = this.tryJsonParse(payload.toString());
 
     const topology: Topology = data.data.value;
@@ -1178,6 +917,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming device rename responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseDeviceRename(payload: Buffer) {
     /*
     {
@@ -1196,6 +940,11 @@ export class Zigbee2MQTT extends EventEmitter {
     this.emit('device_rename', device?.ieee_address, json.data.from, json.data.to);
   }
 
+  /**
+   * Handle incoming device remove responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseDeviceRemove(payload: Buffer) {
     /*
     {
@@ -1209,6 +958,11 @@ export class Zigbee2MQTT extends EventEmitter {
     this.emit('device_remove', json.data.id, json.status, json.data.block, json.data.force);
   }
 
+  /**
+   * Handle incoming device options responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseDeviceOptions(payload: Buffer) {
     /*
     {
@@ -1237,6 +991,11 @@ export class Zigbee2MQTT extends EventEmitter {
     this.emit('device_options', json.data.id, json.status, json.data.from, json.data.to);
   }
 
+  /**
+   * Handle incoming group add responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupAdd(payload: Buffer) {
     /*
     {
@@ -1252,6 +1011,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group remove responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupRemove(payload: Buffer) {
     /*
     {
@@ -1267,6 +1031,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group rename responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupRename(payload: Buffer) {
     /*
     {
@@ -1282,6 +1051,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group add member responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupAddMember(payload: Buffer) {
     /*
     {
@@ -1297,6 +1071,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming group remove member responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponseGroupRemoveMember(payload: Buffer) {
     /*
     {
@@ -1312,6 +1091,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming permit join responses.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleResponsePermitJoin(payload: Buffer) {
     /*
     {
@@ -1327,6 +1111,11 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
+  /**
+   * Handle incoming event messages.
+   *
+   * @param {Buffer} payload - The message payload.
+   */
   private handleEvent(payload: Buffer) {
     const json = this.tryJsonParse(payload.toString());
     switch (json.type) {
@@ -1405,8 +1194,13 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  // Function to read JSON config from a file
-  public readConfig(filename: string) {
+  /**
+   * Read JSON config from a file.
+   *
+   * @param {string} filename - The name of the file to read from.
+   * @returns {object|null} The parsed JSON object or null if an error occurred.
+   */
+  public readConfig(filename: string): object | null {
     this.log.debug(`Reading config from ${filename}`);
     try {
       const rawdata = fs.readFileSync(filename, 'utf-8');
@@ -1418,9 +1212,14 @@ export class Zigbee2MQTT extends EventEmitter {
     }
   }
 
-  // Function to write JSON config to a file
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public writeConfig(filename: string, data: any): boolean {
+  /**
+   * Write JSON config to a file.
+   *
+   * @param {string} filename - The name of the file to write to.
+   * @param {object} data - The JSON data to write.
+   * @returns {boolean} True if the write was successful, false otherwise.
+   */
+  public writeConfig(filename: string, data: object): boolean {
     this.log.debug(`Writing config to ${filename}`);
     try {
       const jsonString = JSON.stringify(data, null, 2);
@@ -1428,132 +1227,17 @@ export class Zigbee2MQTT extends EventEmitter {
       return true;
     } catch (err) {
       this.log.error('writeConfig error', err);
-      return true;
+      return false;
     }
   }
 
+  /**
+   * Emit a payload event for a specific entity.
+   *
+   * @param {string} entity - The entity ID.
+   * @param {Payload} data - The payload data.
+   */
   public emitPayload(entity: string, data: Payload) {
     this.emit('MESSAGE-' + entity, data);
-  }
-
-  private printDevice(device: z2mDevice) {
-    this.log.debug(`Device - ${dn}${device.friendly_name}${rs}`);
-    this.log.debug(`IEEE Address: ${device.ieee_address}`);
-    this.log.debug(`Description: ${device.description}`);
-    this.log.debug(`Manufacturer: ${device.manufacturer}`);
-    this.log.debug(`Model ID: ${device.model_id}`);
-    this.log.debug(`Date Code: ${device.date_code}`);
-    this.log.debug(`Software Build ID: ${device.software_build_id}`);
-    this.log.debug(`Power Source: ${device.power_source}`);
-    this.log.debug(`Availability Enabled: ${device.isAvailabilityEnabled}`);
-    this.log.debug(`Online: ${device.isOnline}`);
-    this.log.debug(`Type: ${device.category}`);
-
-    const printFeatures = (features: z2mFeature[], featureType: string) => {
-      this.log.debug(`${featureType}:`);
-      features.forEach((feature) => {
-        this.log.debug(`  Name: ${zb}${feature.name}${rs}`);
-        this.log.debug(`  Description: ${feature.description}`);
-        this.log.debug(`  Property: ${zb}${feature.property}${rs}`);
-        this.log.debug(`  Type: ${feature.type}`);
-        this.log.debug(`  Access: ${feature.access}`);
-        if (feature.endpoint) {
-          this.log.debug(`  Endpoint: ${feature.endpoint}`);
-        }
-        if (feature.unit) {
-          this.log.debug(`  Unit: ${feature.unit}`);
-        }
-        if (feature.value_max) {
-          this.log.debug(`  Value Max: ${feature.value_max}`);
-        }
-        if (feature.value_min) {
-          this.log.debug(`  Value Min: ${feature.value_min}`);
-        }
-        if (feature.value_step) {
-          this.log.debug(`  Value Step: ${feature.value_step}`);
-        }
-        if (feature.value_on) {
-          this.log.debug(`  Value On: ${feature.value_on}`);
-        }
-        if (feature.value_off) {
-          this.log.debug(`  Value Off: ${feature.value_off}`);
-        }
-        if (feature.value_toggle) {
-          this.log.debug(`  Value Toggle: ${feature.value_toggle}`);
-        }
-        if (feature.values) {
-          this.log.debug(`  Values: ${feature.values.join(', ')}`);
-        }
-        if (feature.presets) {
-          this.log.debug(`  Presets: ${feature.presets.join(', ')}`);
-        }
-        this.log.debug('');
-      });
-    };
-
-    const printEndpoints = (endpoints: z2mEndpoints[]) => {
-      endpoints.forEach((endpoint) => {
-        this.log.debug(`--Endpoint ${endpoint.endpoint}`);
-        endpoint.bindings.forEach((binding) => {
-          this.log.debug(`----Bindings: ${binding.cluster}`, binding.target);
-        });
-        endpoint.clusters.input.forEach((input) => {
-          this.log.debug(`----Clusters input: ${input}`);
-        });
-        endpoint.clusters.output.forEach((output) => {
-          this.log.debug(`----Clusters output: ${output}`);
-        });
-        endpoint.configured_reportings.forEach((reporting) => {
-          this.log.debug(
-            `----Reportings: ${reporting.attribute} ${reporting.cluster} ${reporting.minimum_report_interval} ${reporting.maximum_report_interval}  ${reporting.reportable_change}`,
-          );
-        });
-        endpoint.scenes.forEach((scene) => {
-          this.log.debug(`----Scenes: ID ${scene.id} Name ${scene.name}`);
-        });
-        this.log.debug('');
-      });
-    };
-
-    printFeatures(device.exposes, 'Exposes');
-    printFeatures(device.options, 'Options');
-    printEndpoints(device.endpoints);
-
-    this.log.debug('');
-  }
-
-  private printDevices() {
-    this.z2mDevices.forEach((device) => {
-      this.printDevice(device);
-    });
-  }
-
-  private printGroup(group: z2mGroup) {
-    this.log.debug(`Group - ${dn}${group.friendly_name}${rs}`);
-    this.log.debug(`ID: ${group.id}`);
-    const printMembers = (members: Member[]) => {
-      this.log.debug('Members:');
-      members.forEach((member) => {
-        this.log.debug(`--Endpoint ${member.endpoint}`);
-        this.log.debug(`--IEEE Address ${member.ieee_address}`);
-      });
-    };
-    printMembers(group.members);
-    const printScenes = (scenes: Scene[]) => {
-      this.log.debug('Scenes:');
-      scenes.forEach((scene) => {
-        this.log.debug(`--ID ${scene.id}`);
-        this.log.debug(`--Name ${scene.name}`);
-      });
-    };
-    printScenes(group.scenes);
-    this.log.debug(`Availability Enabled: ${group.isAvailabilityEnabled}`);
-    this.log.debug(`Online: ${group.isOnline}`);
-  }
-
-  private printGroups() {
-    this.z2mGroups.forEach((group) => {
-      this.printGroup(group);
-    });
   }
 }
