@@ -540,8 +540,8 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command on called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : undefined);
-    this.cachePublish('on', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
+    this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.id : undefined);
+    this.cachePublish('on', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'ON' });
   }
 
   // prettier-ignore
@@ -552,7 +552,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command off called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('off', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
+    this.cachePublish('off', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
   }
 
   // prettier-ignore
@@ -560,10 +560,10 @@ export class ZigbeeEntity extends EventEmitter {
     this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
-      this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : undefined);
-      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'ON' });
+      this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.id : undefined);
+      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'ON' });
     } else {
-      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' });
+      this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
     }
   }
 
@@ -575,7 +575,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToLevel called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToLevel', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime);
+    this.cachePublish('moveToLevel', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: data.request.level }, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -588,14 +588,14 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
       data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level <= minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) => turn off the light`);
-      this.cachePublish('moveToLevelWithOnOff', { ['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: 'OFF' }, data.request.transitionTime);
+      this.cachePublish('moveToLevelWithOnOff', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' }, data.request.transitionTime);
     } else {
       if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
         data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level > minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) and light is off => turn on the light with attributes`);
-        this.cachePayload['state' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')] = 'ON';
-        this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '');
+        this.cachePayload['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')] = 'ON';
+        this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.id : '');
       }
-      this.cachePublish('moveToLevelWithOnOff', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.level }, data.request.transitionTime); // Override the stored one
+      this.cachePublish('moveToLevelWithOnOff', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: data.request.level }, data.request.transitionTime); // Override the stored one
     }
   }
 
@@ -609,10 +609,10 @@ export class ZigbeeEntity extends EventEmitter {
     this.log.debug(`Command moveToColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.colorTemperatureMireds} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (this.propertyMap.get('color_temp')) {
-      this.cachePublish('moveToColorTemperature', { ['color_temp' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: data.request.colorTemperatureMireds }, data.request.transitionTime);
+      this.cachePublish('moveToColorTemperature', { ['color_temp' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: data.request.colorTemperatureMireds }, data.request.transitionTime);
     } else {
       const rgb = kelvinToRGB(miredToKelvin(data.request.colorTemperatureMireds)); // Convert mireds to RGB
-      this.cachePublish('moveToColorTemperature', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { r: rgb.r, g: rgb.g, b: rgb.b } }, data.request.transitionTime);
+      this.cachePublish('moveToColorTemperature', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { r: rgb.r, g: rgb.g, b: rgb.b } }, data.request.transitionTime);
       this.log.debug(`Command moveToColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} but color_temp property is not available. Converting ${data.request.colorTemperatureMireds} to RGB ${debugStringify(rgb)}.`);
     }
   }
@@ -626,7 +626,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToColor called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: X: ${data.request.colorX} Y: ${data.request.colorY} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToColor', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { x: Math.round(data.request.colorX / 65536 * 10000) / 10000, y: Math.round(data.request.colorY / 65536 * 10000) / 10000 } }, data.request.transitionTime);
+    this.cachePublish('moveToColor', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { x: Math.round(data.request.colorX / 65536 * 10000) / 10000, y: Math.round(data.request.colorY / 65536 * 10000) / 10000 } }, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -638,7 +638,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
+    this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -650,7 +650,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
   // prettier-ignore
@@ -662,7 +662,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToHueAndSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} - ${data.request.saturation} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToHueAndSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.uniqueStorageKey : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    this.cachePublish('moveToHueAndSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
   protected addBridgedDeviceBasicInformation(): MatterbridgeEndpoint {
@@ -978,11 +978,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
     if (group.members.length === 0) {
       // Create a virtual device for the empty group to use in automations
       zigbeeGroup.log.debug(`Group: ${gn}${group.friendly_name}${rs}${db} is a ${CYAN}virtual${db} group`);
-      zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint(
-        [onOffSwitch, bridgedNode, powerSource],
-        { uniqueStorageKey: group.friendly_name },
-        zigbeeGroup.log.logLevel === LogLevel.DEBUG,
-      );
+      zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([onOffSwitch, bridgedNode, powerSource], { id: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
       isSwitch = true;
       zigbeeGroup.propertyMap.set('state', { name: 'state', type: 'switch', endpoint: '' });
     } else {
@@ -1064,11 +1060,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         zigbeeGroup.propertyMap.set('system_mode', { name: 'system_mode', type: 'climate', endpoint: '' });
       }
       if (!deviceType) return zigbeeGroup;
-      zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint(
-        [deviceType, bridgedNode, powerSource],
-        { uniqueStorageKey: group.friendly_name },
-        zigbeeGroup.log.logLevel === LogLevel.DEBUG,
-      );
+      zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([deviceType, bridgedNode, powerSource], { id: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
     }
 
     if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
@@ -1339,11 +1331,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       // zigbeeDevice.log.debug(`***Device ${zigbeeDevice.en}${device.friendly_name}${db} adds select device ${device.ieee_address} (${device.friendly_name})`);
       platform.setSelectDevice(device.ieee_address, device.friendly_name, 'wifi');
 
-      zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint(
-        [doorLockDevice, bridgedNode, powerSource],
-        { uniqueStorageKey: device.friendly_name },
-        zigbeeDevice.log.logLevel === LogLevel.DEBUG,
-      );
+      zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint([doorLockDevice, bridgedNode, powerSource], { id: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
       zigbeeDevice.addBridgedDeviceBasicInformation();
       zigbeeDevice.addPowerSource();
       zigbeeDevice.bridgedDevice.addRequiredClusterServers();
@@ -1553,7 +1541,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.log.info(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${nf} has actions mapped to these switches on sub endpoints:`);
         zigbeeDevice.log.info('   controller events      <=> zigbee2mqtt actions');
         if (!zigbeeDevice.bridgedDevice)
-          zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint([bridgedNode], { uniqueStorageKey: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
+          zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint([bridgedNode], { id: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
         zigbeeDevice.hasEndpoints = true;
         // Mapping actions
         const switchMap = ['Single Press', 'Double Press', 'Long Press  '];
@@ -1642,7 +1630,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Create the mutable device for the main endpoint
     zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint(
       [...(mainEndpoint.deviceTypes as AtLeastOne<DeviceTypeDefinition>), bridgedNode, powerSource],
-      { uniqueStorageKey: device.friendly_name },
+      { id: device.friendly_name },
       zigbeeDevice.log.logLevel === LogLevel.DEBUG,
     );
 
