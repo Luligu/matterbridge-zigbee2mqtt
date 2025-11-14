@@ -23,7 +23,7 @@
 
 import path from 'node:path';
 
-import { addVirtualDevice, MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
+import { MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
 import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf, LogLevel } from 'matterbridge/logger';
 import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
@@ -54,7 +54,7 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   outletList: string[];
   featureBlackList: string[];
   deviceFeatureBlackList: DeviceFeatureBlackList;
-  scenesType: string;
+  scenesType: 'light' | 'outlet' | 'switch' | 'mounted_switch';
   scenesPrefix: boolean;
   postfix: string;
 }
@@ -114,7 +114,11 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private z2mEntityPayload = new Map<string, Payload>();
   private availabilityTimer: NodeJS.Timeout | undefined;
 
-  constructor(matterbridge: PlatformMatterbridge, log: AnsiLogger, config: ZigbeePlatformConfig) {
+  constructor(
+    matterbridge: PlatformMatterbridge,
+    log: AnsiLogger,
+    override config: ZigbeePlatformConfig,
+  ) {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
@@ -654,19 +658,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   public _registerVirtualDevice(name: string, callback: () => Promise<void>) {
-    let aggregator;
-    if (this.matterbridge.bridgeMode === 'bridge') {
-      aggregator = this.matterbridge.aggregatorNode;
-    } else if (this.matterbridge.bridgeMode === 'childbridge') {
-      aggregator = this.matterbridge.plugins.get(this.name)?.aggregatorNode;
-    }
-    if (aggregator) {
-      if (aggregator.parts.has(name.replaceAll(' ', '') + ':' + this.config.scenesType)) {
-        this.log.warn(`Scene name ${name} already registered. Please use a different name. Changed to ${name + ' ' + this.namePostfix}`);
-        name = name + ' ' + this.namePostfix++;
-      }
-      addVirtualDevice(aggregator, name.slice(0, 32), this.config.scenesType as 'light' | 'outlet' | 'switch' | 'mounted_switch', callback);
-    }
+    this.registerVirtualDevice(name, this.config.scenesType, callback);
   }
 
   private async unregisterZigbeeEntity(friendly_name: string) {

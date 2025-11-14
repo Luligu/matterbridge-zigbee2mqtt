@@ -8,6 +8,19 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## [3.0.1] - 2025-11-14
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Bumped package to automator v.2.0.12.
+- [package]: Updated to the current Matterbridge signatures.
+- [jest]: Updated jestHelpers to v.1.0.12.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [3.0.0] - 2025-11-08
 
 ### Added

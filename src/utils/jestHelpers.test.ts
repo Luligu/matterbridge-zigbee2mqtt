@@ -1,7 +1,8 @@
+import { version } from 'node:os';
+
 import { jest } from '@jest/globals';
 import { Matterbridge, MatterbridgeEndpoint, onOffOutlet } from 'matterbridge';
-import { Endpoint, Environment, MdnsService, ServerNode } from 'matterbridge/matter';
-import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
+import { Endpoint, ServerNode } from 'matterbridge/matter';
 
 import {
   addDevice,
@@ -16,6 +17,7 @@ import {
   createTestEnvironment,
   deleteDevice,
   destroyMatterbridgeEnvironment,
+  environment,
   flushAsync,
   loggerLogSpy,
   matterbridge,
@@ -93,7 +95,7 @@ describe('Matterbridge instance', () => {
   });
 
   test('should start a Matterbridge instance', async () => {
-    await startMatterbridgeEnvironment();
+    await startMatterbridgeEnvironment(6000);
     expect(server).toBeDefined();
     expect(server).toBeInstanceOf(ServerNode);
     expect(aggregator).toBeDefined();
@@ -102,7 +104,7 @@ describe('Matterbridge instance', () => {
   });
 
   test('should add a Matterbridge platform', async () => {
-    const platform = {} as any;
+    const platform = { type: 'Any', version: '1.0.0' } as any;
     addMatterbridgePlatform(platform, 'JestHelpersPlatform');
     expect(platform.name).toBe('JestHelpersPlatform');
   });
@@ -122,9 +124,6 @@ describe('Matterbridge instance', () => {
 });
 
 describe('Matter.js instance', () => {
-  let environment: Environment;
-  let server: ServerNode<ServerNode.RootEndpoint>;
-  let aggregator: Endpoint<AggregatorEndpoint>;
   let device: MatterbridgeEndpoint;
 
   beforeAll(async () => {});
@@ -153,12 +152,12 @@ describe('Matter.js instance', () => {
   });
 
   test('should create a matter.js environment', async () => {
-    environment = createTestEnvironment('JestHelpers');
+    createTestEnvironment('JestHelpers');
     expect(environment).toBeDefined();
   });
 
   test('should start a matter.js server node', async () => {
-    [server, aggregator] = await startServerNode('JestHelpers', 6000);
+    await startServerNode('JestHelpers', 6000);
     expect(server).toBeDefined();
     expect(aggregator).toBeDefined();
   });

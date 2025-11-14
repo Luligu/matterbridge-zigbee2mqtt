@@ -3,7 +3,7 @@
  * @file src/helpers.test.ts
  * @author Luca Liguori
  * @created 2025-09-03
- * @version 1.0.11
+ * @version 1.0.12
  * @license Apache-2.0
  *
  * Copyright 2025, 2026, 2027 Luca Liguori.
@@ -48,19 +48,28 @@ import {
   Lifecycle,
 } from 'matterbridge/matter';
 import { RootEndpoint, AggregatorEndpoint } from 'matterbridge/matter/endpoints';
-import { AnsiLogger, LogLevel } from 'matterbridge/logger';
+import { AnsiLogger, LogLevel, TimestampFormat } from 'matterbridge/logger';
 import { MATTER_STORAGE_NAME, Matterbridge, MatterbridgePlatform } from 'matterbridge';
 
 export let loggerLogSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.log>;
+export let loggerDebugSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.debug>;
+export let loggerInfoSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.info>;
+export let loggerNoticeSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.notice>;
+export let loggerWarnSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.warn>;
+export let loggerErrorSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.error>;
+export let loggerFatalSpy: jest.SpiedFunction<typeof AnsiLogger.prototype.fatal>;
+
 export let consoleLogSpy: jest.SpiedFunction<typeof console.log>;
 export let consoleDebugSpy: jest.SpiedFunction<typeof console.log>;
 export let consoleInfoSpy: jest.SpiedFunction<typeof console.log>;
 export let consoleWarnSpy: jest.SpiedFunction<typeof console.log>;
 export let consoleErrorSpy: jest.SpiedFunction<typeof console.log>;
 
-export const addBridgedEndpointSpy = jest.spyOn(Matterbridge.prototype, 'addBridgedEndpoint');
-export const removeBridgedEndpointSpy = jest.spyOn(Matterbridge.prototype, 'removeBridgedEndpoint');
-export const removeAllBridgedEndpointsSpy = jest.spyOn(Matterbridge.prototype, 'removeAllBridgedEndpoints');
+export const addBridgedEndpointSpy = jest.spyOn(Matterbridge.prototype, 'addBridgedEndpoint') as jest.SpiedFunction<typeof Matterbridge.prototype.addBridgedEndpoint>;
+export const removeBridgedEndpointSpy = jest.spyOn(Matterbridge.prototype, 'removeBridgedEndpoint') as jest.SpiedFunction<typeof Matterbridge.prototype.removeBridgedEndpoint>;
+export const removeAllBridgedEndpointsSpy = jest.spyOn(Matterbridge.prototype, 'removeAllBridgedEndpoints') as jest.SpiedFunction<
+  typeof Matterbridge.prototype.removeAllBridgedEndpoints
+>;
 
 export let matterbridge: Matterbridge;
 export let environment: Environment;
@@ -93,6 +102,12 @@ export function setupTest(name: string, debug: boolean = false): void {
   // Cleanup any existing home directory
   rmSync(path.join('jest', name), { recursive: true, force: true });
 
+  loggerDebugSpy = jest.spyOn(AnsiLogger.prototype, 'debug');
+  loggerInfoSpy = jest.spyOn(AnsiLogger.prototype, 'info');
+  loggerNoticeSpy = jest.spyOn(AnsiLogger.prototype, 'notice');
+  loggerWarnSpy = jest.spyOn(AnsiLogger.prototype, 'warn');
+  loggerErrorSpy = jest.spyOn(AnsiLogger.prototype, 'error');
+  loggerFatalSpy = jest.spyOn(AnsiLogger.prototype, 'fatal');
   if (debug) {
     loggerLogSpy = jest.spyOn(AnsiLogger.prototype, 'log');
     consoleLogSpy = jest.spyOn(console, 'log');
@@ -176,7 +191,7 @@ export async function createMatterbridgeEnvironment(name: string): Promise<Matte
   matterbridge.matterbridgePluginDirectory = path.join('jest', name, 'Matterbridge');
   matterbridge.matterbridgeCertDirectory = path.join('jest', name, '.mattercert');
   matterbridge.log.logLevel = LogLevel.DEBUG;
-  log = matterbridge.log;
+  log = new AnsiLogger({ logName: 'Plugin platform', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
 
   // Setup matter environment
   // @ts-expect-error - access to private member for testing
@@ -257,20 +272,37 @@ export async function startMatterbridgeEnvironment(port: number = 5540): Promise
  * Add a matterbridge platform for testing.
  *
  * @param {MatterbridgePlatform} platform The platform to add.
- * @param {string} name The platform name.
+ * @param {string} [name] Optional name of the platform. Optionally used for logging.
  *
  * @example
  * ```typescript
+ * platform = new Platform(matterbridge, log, config);
  * // Add the platform to the Matterbridge environment
- * addMatterbridgePlatform(platform, 'matterbridge-test');
+ * addMatterbridgePlatform(platform);
  * ```
  */
-export function addMatterbridgePlatform(platform: MatterbridgePlatform, name: string): void {
+export function addMatterbridgePlatform(platform: MatterbridgePlatform, name?: string): void {
+  if (name) platform.config.name = name;
   expect(platform).toBeDefined();
+  expect(platform.config.name).toBeDefined();
+  expect(platform.config.type).toBeDefined();
+  expect(platform.type).toBeDefined();
+  expect(platform.config.version).toBeDefined();
+  expect(platform.version).toBeDefined();
+  expect(platform.config.debug).toBeDefined();
+  expect(platform.config.unregisterOnShutdown).toBeDefined();
 
   // @ts-expect-error accessing private member for testing
-  matterbridge.plugins._plugins.set(name, {});
-  platform['name'] = name;
+  matterbridge.plugins._plugins.set(platform.config.name, {
+    name: platform.config.name,
+    path: './',
+    type: platform.type,
+    version: platform.version,
+    description: 'Plugin ' + platform.config.name,
+    author: 'Unknown',
+    enabled: true,
+  });
+  platform['name'] = platform.config.name;
 }
 
 /**
@@ -318,7 +350,8 @@ export async function stopMatterbridgeEnvironment(): Promise<void> {
 /**
  * Destroy the matterbridge environment
  *
- * @param {number} timeout The timeout for the destroy operation (default 250ms).
+ * @param {number} cleanupPause The timeout for the destroy operation (default 250ms).
+ * @param {number} destroyPause The pause duration after cleanup before destroying the instance (default 250ms).
  *
  * @example
  * ```typescript
@@ -327,12 +360,46 @@ export async function stopMatterbridgeEnvironment(): Promise<void> {
  * await destroyMatterbridgeEnvironment();
  * ```
  */
-export async function destroyMatterbridgeEnvironment(timeout: number = 250): Promise<void> {
-  // @ts-expect-error - accessing private member for testing
-  await matterbridge.cleanup('destroying instance...', false, timeout);
-  await environment.get(MdnsService)[Symbol.asyncDispose]();
+export async function destroyMatterbridgeEnvironment(cleanupPause: number = 10, destroyPause: number = 250): Promise<void> {
+  // Destroy a matterbridge instance
+  await destroyInstance(matterbridge, cleanupPause, destroyPause);
+
+  // Close the mDNS service
+  await closeMdnsInstance(matterbridge);
+
+  // Reset the singleton instance
   // @ts-expect-error - accessing private member for testing
   Matterbridge.instance = undefined;
+}
+
+/**
+ * Destroy a matterbridge instance
+ *
+ * @param {Matterbridge} matterbridge The matterbridge instance to destroy.
+ * @param {number} cleanupPause The pause duration to wait for the cleanup to complete in milliseconds (default 10ms).
+ * @param {number} destroyPause The pause duration to wait after cleanup before destroying the instance in milliseconds (default 250ms).
+ */
+export async function destroyInstance(matterbridge: Matterbridge, cleanupPause: number = 10, destroyPause: number = 250): Promise<void> {
+  // Cleanup the Matterbridge instance
+  // @ts-expect-error - accessing private member for testing
+  await matterbridge.cleanup('destroying instance...', false, cleanupPause);
+
+  // Pause before destroying the instance
+  if (destroyPause > 0) await flushAsync(undefined, undefined, destroyPause);
+}
+
+/**
+ * Close the mDNS instance in the matterbridge environment.
+ *
+ * @param {Matterbridge} matterbridge The matterbridge instance.
+ * @returns {Promise<void>} A promise that resolves when the mDNS instance is closed.
+ */
+export async function closeMdnsInstance(matterbridge: Matterbridge): Promise<void> {
+  // @ts-expect-error - accessing private member for testing
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mdns = matterbridge.environment.get(MdnsService) as any;
+  if (mdns && mdns[Symbol.asyncDispose] && typeof mdns[Symbol.asyncDispose] === 'function') await mdns[Symbol.asyncDispose]();
+  if (mdns && mdns.close && typeof mdns.close === 'function') await mdns.close();
 }
 
 /**
