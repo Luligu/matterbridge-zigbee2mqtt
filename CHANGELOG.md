@@ -8,6 +8,18 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
+## [3.0.2] - 2025-11-27
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Requires Matterbridge v.3.4.0.
+- [package]: Updated to the Matterbridge Jest module.
+
+<a href="https://www.buymeacoffee.com/luligugithub">
+  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
+</a>
+
 ## [3.0.1] - 2025-11-14
 
 ### Changed
