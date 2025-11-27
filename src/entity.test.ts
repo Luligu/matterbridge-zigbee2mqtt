@@ -12,16 +12,15 @@ import { jest } from '@jest/globals';
 import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
 import { ColorControl, LevelControl, PowerSource } from 'matterbridge/matter/clusters';
-import { getMacAddress, wait } from 'matterbridge/utils';
-import { Logger, LogLevel as MatterLogLevel } from 'matterbridge/matter';
+import { getMacAddress } from 'matterbridge/utils';
 import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
+import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, server, aggregator, setDebug, setupTest, startServerNode, stopServerNode } from 'matterbridge/jestutils';
 
 import { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Payload } from './payloadTypes.js';
-import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, server, aggregator, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -53,7 +52,7 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 });
 
 // Setup the test environment
-setupTest(NAME, false);
+await setupTest(NAME, false);
 
 // Setup the matter and test environment
 createTestEnvironment(NAME);
@@ -117,11 +116,11 @@ describe('TestEntity', () => {
 
   beforeAll(() => {});
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clears the call history before each test
     jest.clearAllMocks();
     // Reset debug state
-    setDebug(false);
+    await setDebug(false);
   });
 
   afterEach(async () => {

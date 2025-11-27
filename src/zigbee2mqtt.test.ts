@@ -10,8 +10,8 @@ import fs from 'node:fs';
 import { describe, expect, jest, test } from '@jest/globals';
 import { wait } from 'matterbridge/utils';
 import { LogLevel } from 'node-ansi-logger';
+import { setupTest } from 'matterbridge/jestutils';
 
-import { setupTest } from './utils/jestHelpers.js';
 import type { Zigbee2MQTT as Zigbee2MQTTType } from './zigbee2mqtt.js';
 
 // Create a client mock
@@ -36,7 +36,7 @@ jest.unstable_mockModule('mqtt', () => ({
 const { Zigbee2MQTT } = await import('./zigbee2mqtt.js');
 
 // Setup the test environment
-setupTest(NAME, false);
+await setupTest(NAME, false);
 
 describe('TestZigbee2MQTT', () => {
   let z2m: Zigbee2MQTTType;
