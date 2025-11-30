@@ -180,10 +180,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.mqttUsername,
       this.mqttPassword,
       this.mqttProtocol,
-      this.config.ca as string | undefined,
-      this.config.rejectUnauthorized as boolean | undefined,
-      this.config.cert as string | undefined,
-      this.config.key as string | undefined,
+      this.config.ca,
+      this.config.rejectUnauthorized,
+      this.config.cert,
+      this.config.key,
       config.debug,
     );
     this.z2m.setLogDebug(config.debug);
@@ -542,8 +542,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
     this.log.info(`Configuring zigbee2mqtt platform logger level to ${CYAN}${logLevel}${nf}`);
     this.log.logLevel = logLevel;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.z2m.setLogLevel(logLevel as any); // Cast to any to avoid type error, as the local Logger can have a different version than matterbridge Logger
+    this.z2m.setLogLevel(logLevel);
     for (const bridgedDevice of this.bridgedDevices) {
       bridgedDevice.log.logLevel = logLevel;
     }

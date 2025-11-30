@@ -8,11 +8,12 @@ If you like this project and find it useful, please consider giving it a star on
   <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
 </a>
 
-## [3.0.2] - 2025-11-27
+## [3.0.2] - 2025-11-30
 
 ### Changed
 
 - [package]: Updated dependencies.
+- [package]: Updated to the current Matterbridge signatures.
 - [package]: Requires Matterbridge v.3.4.0.
 - [package]: Updated to the Matterbridge Jest module.
 
