@@ -270,6 +270,14 @@ describe('TestPlatform', () => {
 
   it('should initialize platform with config name', () => {
     platform = new ZigbeePlatform(mockMatterbridge, log, mockConfig);
+    expect(platform).toBeDefined();
+    // @ts-expect-error - setMatterNode is intentionally private
+    platform.setMatterNode?.(
+      mockMatterbridge.addBridgedEndpoint,
+      mockMatterbridge.removeBridgedEndpoint,
+      mockMatterbridge.removeAllBridgedEndpoints,
+      mockMatterbridge.addVirtualEndpoint,
+    );
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Initializing platform:/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Loaded zigbee2mqtt parameters/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Connecting to MQTT broker/));
