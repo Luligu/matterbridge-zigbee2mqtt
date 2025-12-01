@@ -3,7 +3,7 @@
  * @file module.ts
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 3.0.0
+ * @version 3.0.2
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -654,10 +654,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.error(`Error registering group ${gn}${group.friendly_name}${er} ID: ${group.id}: ${error}`);
     }
     return matterGroup;
-  }
-
-  public _registerVirtualDevice(name: string, callback: () => Promise<void>) {
-    this.registerVirtualDevice(name, this.config.scenesType, callback);
   }
 
   private async unregisterZigbeeEntity(friendly_name: string) {

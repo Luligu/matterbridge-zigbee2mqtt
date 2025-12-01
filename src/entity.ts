@@ -3,7 +3,7 @@
  * @file entity.ts
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 3.3.0
+ * @version 3.3.1
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -1064,14 +1064,16 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
 
     if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
-      group.scenes.forEach((scene) => {
+      for (const scene of group.scenes) {
+        // group.scenes.forEach(async (scene) => {
         zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
         platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
-        platform._registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, async () => {
+        await platform.registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, platform.config.scenesType, async () => {
           zigbeeGroup.log.info(`Triggered scene "${scene.name}" id ${scene.id} from group ${group.friendly_name}`);
           zigbeeGroup.publishCommand('scene_recall', group.friendly_name, { scene_recall: scene.id });
         });
-      });
+        // });
+      }
     }
 
     zigbeeGroup.addBridgedDeviceBasicInformation();
@@ -1357,16 +1359,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[device.friendly_name]?.includes('scenes')) {
-      Object.entries(device.endpoints).forEach(([key, endpoint]) => {
-        Object.values(endpoint.scenes).forEach((scene) => {
+      for (const [key, endpoint] of Object.entries(device.endpoints)) {
+        for (const scene of Object.values(endpoint.scenes)) {
           zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
           platform.setSelectDeviceEntity(device.ieee_address, 'scenes', 'Scenes', 'component');
-          platform._registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, async () => {
+          await platform.registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, platform.config.scenesType, async () => {
             zigbeeDevice.log.info(`Triggered scene "${scene.name}" id ${scene.id} from device ${device.friendly_name}`);
             zigbeeDevice.publishCommand('scene_recall', device.friendly_name, { scene_recall: scene.id });
           });
-        });
-      });
+        }
+      }
     }
 
     // Get types and properties

@@ -10,23 +10,25 @@ import path from 'node:path';
 import { readFileSync } from 'node:fs';
 
 import { jest } from '@jest/globals';
-import {
-  bridgedNode,
-  colorTemperatureLight,
-  coverDevice,
-  dimmableLight,
-  doorLockDevice,
-  extendedColorLight,
-  Matterbridge,
-  MatterbridgeEndpoint,
-  onOffLight,
-  powerSource,
-  thermostatDevice,
-} from 'matterbridge';
-import { AnsiLogger, db, idn, ign, LogLevel, rs, TimestampFormat, or, hk, YELLOW } from 'matterbridge/logger';
+import { bridgedNode, colorTemperatureLight, coverDevice, dimmableLight, doorLockDevice, extendedColorLight, onOffLight, powerSource, thermostatDevice } from 'matterbridge';
+import { db, idn, ign, LogLevel, rs, or, hk, YELLOW } from 'matterbridge/logger';
 import { getMacAddress, wait } from 'matterbridge/utils';
 import { Thermostat } from 'matterbridge/matter/clusters';
-import { aggregator, createTestEnvironment, flushAsync, loggerLogSpy, server, setDebug, setupTest, startServerNode, stopServerNode } from 'matterbridge/jestutils';
+import {
+  addMatterbridgePlatform,
+  createMatterbridgeEnvironment,
+  createTestEnvironment,
+  destroyMatterbridgeEnvironment,
+  flushAsync,
+  log,
+  loggerLogSpy,
+  logKeepAlives,
+  matterbridge,
+  setDebug,
+  setupTest,
+  startMatterbridgeEnvironment,
+  stopMatterbridgeEnvironment,
+} from 'matterbridge/jestutils';
 
 import initializePlugin, { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
@@ -68,26 +70,6 @@ describe('TestPlatform', () => {
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
   const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 10 : 100;
 
-  const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
-  const mockMatterbridge = {
-    matterbridgeDirectory: path.join(HOMEDIR, '.matterbridge'),
-    matterbridgePluginDirectory: path.join(HOMEDIR, 'Matterbridge'),
-    matterbridgeCertDirectory: path.join(HOMEDIR, '.mattercert'),
-    systemInformation: {
-      ipv4Address: undefined,
-      ipv6Address: undefined,
-      osRelease: 'xx.xx.xx.xx.xx.xx',
-      nodeVersion: '22.1.10',
-    },
-    matterbridgeVersion: '3.4.0',
-    addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
-      await aggregator.add(device);
-    }),
-    removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {}),
-    removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
-    addVirtualEndpoint: jest.fn(async (pluginName: string, name: string, type: 'light' | 'outlet' | 'switch' | 'mounted_switch', callback: () => Promise<void>) => {}),
-  } as unknown as Matterbridge;
-
   const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
     type: 'DynamicPlatform',
@@ -115,18 +97,18 @@ describe('TestPlatform', () => {
     postfix: 'JEST',
     debug: true,
     unregisterOnShutdown: false,
-
-    // Old properties to delete
-    postfixHostname: true,
-    deviceScenes: true,
-    groupScenes: true,
   };
 
-  beforeAll(() => {});
+  beforeAll(async () => {
+    // Create Matterbridge environment
+    await createMatterbridgeEnvironment(NAME);
+    await startMatterbridgeEnvironment(MATTER_PORT);
+  });
 
   beforeEach(async () => {
     // Clears the call history before each test
     jest.clearAllMocks();
+
     // Reset debug state
     await setDebug(false);
   });
@@ -135,28 +117,28 @@ describe('TestPlatform', () => {
     // await flushAsync();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
+    // Destroy Matterbridge environment
+    await stopMatterbridgeEnvironment();
+    await destroyMatterbridgeEnvironment();
+
     // Restore the original implementation of the AnsiLogger.log method
     jest.restoreAllMocks();
-  });
 
-  test('create and start the server node', async () => {
-    await startServerNode(NAME, MATTER_PORT);
-    expect(server).toBeDefined();
-    expect(aggregator).toBeDefined();
+    // logKeepAlives();
   });
 
   it('should return an instance of ZigbeePlatform', async () => {
-    const platform = initializePlugin(mockMatterbridge, log, mockConfig);
+    const platform = initializePlugin(matterbridge, log, mockConfig);
     expect(platform).toBeInstanceOf(ZigbeePlatform);
     await platform.onShutdown();
   });
 
   it('should not initialize platform with wrong version', () => {
-    const saveVersion = mockMatterbridge.matterbridgeVersion;
-    mockMatterbridge.matterbridgeVersion = '1.0.0';
-    expect(() => new ZigbeePlatform(mockMatterbridge, log, mockConfig)).toThrow();
-    mockMatterbridge.matterbridgeVersion = saveVersion;
+    const saveVersion = matterbridge.matterbridgeVersion;
+    matterbridge.matterbridgeVersion = '1.0.0';
+    expect(() => new ZigbeePlatform(matterbridge, log, mockConfig)).toThrow();
+    matterbridge.matterbridgeVersion = saveVersion;
   });
 
   it('should initialize platform with default values', async () => {
@@ -171,7 +153,7 @@ describe('TestPlatform', () => {
     config.groupScenes = undefined;
     config.scenesType = 'outlet';
     config.scenesPrefix = true;
-    const platform = new ZigbeePlatform(mockMatterbridge, log, config);
+    const platform = new ZigbeePlatform(matterbridge, log, config);
     expect(platform).toBeDefined();
 
     platform.z2m.emit('mqtt_connect');
@@ -269,15 +251,10 @@ describe('TestPlatform', () => {
   });
 
   it('should initialize platform with config name', () => {
-    platform = new ZigbeePlatform(mockMatterbridge, log, mockConfig);
+    platform = new ZigbeePlatform(matterbridge, log, mockConfig);
     expect(platform).toBeDefined();
-    // @ts-expect-error - setMatterNode is intentionally private
-    platform.setMatterNode?.(
-      mockMatterbridge.addBridgedEndpoint,
-      mockMatterbridge.removeBridgedEndpoint,
-      mockMatterbridge.removeAllBridgedEndpoints,
-      mockMatterbridge.addVirtualEndpoint,
-    );
+    // Add the platform to the Matterbridge environment
+    addMatterbridgePlatform(platform);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Initializing platform:/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Loaded zigbee2mqtt parameters/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Connecting to MQTT broker/));
@@ -422,7 +399,7 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-onoffswitch:50${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}false${db} to ${YELLOW}true${db}`),
+      expect.stringContaining(`${db}Update endpoint ${or}MA-onoffswitch:52${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}false${db} to ${YELLOW}true${db}`),
     );
     // await wait(200);
   });
@@ -441,7 +418,6 @@ describe('TestPlatform', () => {
       const payloadJson: Record<string, boolean | number | string | undefined | null | object> = JSON.parse(entry.payload);
       const entity = platform.zigbeeEntities.find((entity) => entity.entityName === entry.entity);
       expect(entity).toBeDefined();
-      if (!entity) console.warn('entry', entry.entity, entry.service, entry.payload);
       if (!entity) return;
       expect(entity.entityName).toBeDefined();
       expect(entity.entityName.length).toBeGreaterThan(0);
@@ -463,7 +439,7 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
+      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
     );
 
     jest.clearAllMocks();
@@ -480,25 +456,25 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
+        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:56${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
       ),
     );
     // setDebug(false);
@@ -776,11 +752,5 @@ describe('TestPlatform', () => {
   it('should call onShutdown with reason', async () => {
     await platform.onShutdown('Jest Test');
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Shutdown zigbee2mqtt dynamic platform/));
-    await flushAsync();
-  });
-
-  test('close the server node', async () => {
-    expect(server).toBeDefined();
-    await stopServerNode(server);
   });
 });

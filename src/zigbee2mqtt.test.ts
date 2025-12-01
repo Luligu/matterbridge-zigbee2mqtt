@@ -162,30 +162,30 @@ describe('TestZigbee2MQTT', () => {
     await wait(150);
   });
 
-  test('device message emits MESSAGE-<friendly_name> and availability ONLINE/OFFLINE', async () => {
-    const msgSpy = jest.fn();
-    const onSpy = jest.fn();
-    const offSpy = jest.fn();
-    z2m.on('MESSAGE-Lamp1', msgSpy);
-    z2m.on('ONLINE-Lamp1', onSpy);
-    z2m.on('OFFLINE-Lamp1', offSpy);
+  test('device message emits mqtt MESSAGE-<friendly_name> and availability ONLINE-<friendly_name> OFFLINE-<friendly_name>', async () => {
+    const messageSpy = jest.fn();
+    const onlineSpy = jest.fn();
+    const offlineSpy = jest.fn();
+    z2m.on('MESSAGE-Lamp1', messageSpy);
+    z2m.on('ONLINE-Lamp1', onlineSpy);
+    z2m.on('OFFLINE-Lamp1', offlineSpy);
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Lamp1', Buffer.from(JSON.stringify({ state: 'ON' })));
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Lamp1/availability', Buffer.from('online'));
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Lamp1/availability', Buffer.from('offline'));
-    expect(msgSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
-    expect(onSpy).toHaveBeenCalled();
-    expect(offSpy).toHaveBeenCalled();
+    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
+    expect(onlineSpy).toHaveBeenCalled();
+    expect(offlineSpy).toHaveBeenCalled();
   });
 
-  test('group message emits MESSAGE-<friendly_name>', async () => {
-    const grpMsgSpy = jest.fn();
-    z2m.on('MESSAGE-Group1', grpMsgSpy);
+  test('group message emits mqtt MESSAGE-<friendly_name>', async () => {
+    const grpMessageSpy = jest.fn();
+    z2m.on('MESSAGE-Group1', grpMessageSpy);
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Group1', Buffer.from(JSON.stringify({ state: 'ON' })));
-    expect(grpMsgSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
+    expect(grpMessageSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
   });
 
   test('bridge responses emit expected events', async () => {
