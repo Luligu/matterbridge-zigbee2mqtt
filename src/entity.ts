@@ -316,10 +316,12 @@ export class ZigbeeEntity extends EventEmitter {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
         }
         if (key === 'moving' && this.isDevice) {
+          /*
           const reversed = this.isCoverReversed();
           if (reversed && (value === 'UP' || value === 'DOWN')) {
             value = reversed ? (value === 'UP' ? 'DOWN' : 'UP') : value;
           }
+          */
           if (value === 'UP') {
             const status = WindowCovering.MovementStatus.Opening;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });

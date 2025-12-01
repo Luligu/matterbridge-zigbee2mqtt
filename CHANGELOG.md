@@ -24,6 +24,10 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Updated to the Matterbridge Jest module.
 - [tvoc]: Removed voc_index from the converter. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/129)
 
+### Fixed
+
+- [cover]: Fixed wrong update with motor reversed.
+
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [3.0.1] - 2025-11-14
