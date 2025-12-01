@@ -13,7 +13,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [scenes]: Added await for creation.
 - [mqtt]: Added config for a fixed clientId. If not provided, a random clientId will be generated. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/138)
 - [mqtt]: Added Unix socket: use unix://<SOCKET_PATH> for Unix socket (e.g. unix:///var/run/mqtt.sock). (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/133)
-- [zigbee2mqtt]: Added frontend package detection. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/136)
+- [zigbee2mqtt]: Added frontend package detection. With the new windfront, link or bookmarks to the specific device page are not possible. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/136)
 
 ### Changed
 
