@@ -22,6 +22,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Updated to the current Matterbridge signatures.
 - [package]: Requires Matterbridge v.3.4.0.
 - [package]: Updated to the Matterbridge Jest module.
+- [tvoc]: Removed voc_index from the converter. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/129)
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
