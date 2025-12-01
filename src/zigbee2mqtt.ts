@@ -176,6 +176,17 @@ export class Zigbee2MQTT extends EventEmitter {
       if (key) {
         this.log.warn('You are using mqtt:// protocol, but you provided a key. It will be ignored.');
       }
+    } else if (mqttHost.startsWith('unix://')) {
+      this.log.debug('Using unix:// protocol for MQTT connection over Unix socket');
+      if (ca) {
+        this.log.warn('You are using unix:// protocol, but you provided a CA certificate. It will be ignored.');
+      }
+      if (cert) {
+        this.log.warn('You are using unix:// protocol, but you provided a certificate. It will be ignored.');
+      }
+      if (key) {
+        this.log.warn('You are using unix:// protocol, but you provided a key. It will be ignored.');
+      }
     } else {
       this.log.warn('You are using an unsupported MQTT protocol. Please use mqtt:// or mqtts://.');
     }
@@ -250,7 +261,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @returns {string} The MQTT connection URL.
    */
   private getUrl(): string {
-    return this.mqttHost + ':' + this.mqttPort.toString();
+    return this.mqttHost.startsWith('unix://') ? this.mqttHost : this.mqttHost + ':' + this.mqttPort.toString();
   }
 
   /**
