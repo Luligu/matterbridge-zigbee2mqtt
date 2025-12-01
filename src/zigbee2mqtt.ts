@@ -91,6 +91,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {string} mqttTopic - The base MQTT topic to subscribe to (e.g., 'zigbee2mqtt').
    * @param {string} [mqttUsername] - Optional username for MQTT authentication.
    * @param {string} [mqttPassword] - Optional password for MQTT authentication.
+   * @param {string} [mqttClientId] - Optional client identifier for MQTT connection. If not set, a random client id will be generated.
    * @param {5 | 4 | 3} [protocolVersion] - MQTT protocol version (5, 4, or 3). Default is 5.
    * @param {string} [ca] - Path to a CA certificate file for verifying the MQTT broker when using 'mqtts://'. Required for secure connections.
    * @param {boolean} [rejectUnauthorized] - If true, only accept server certificates signed by a trusted CA. Set to false to allow self-signed/untrusted certs (not recommended).
@@ -111,6 +112,7 @@ export class Zigbee2MQTT extends EventEmitter {
     mqttTopic: string,
     mqttUsername?: string,
     mqttPassword?: string,
+    mqttClientId?: string,
     protocolVersion: 5 | 4 | 3 = 5,
     ca?: string,
     rejectUnauthorized?: boolean,
@@ -130,6 +132,7 @@ export class Zigbee2MQTT extends EventEmitter {
 
     this.options.username = mqttUsername !== undefined && mqttUsername !== '' ? mqttUsername : undefined;
     this.options.password = mqttPassword !== undefined && mqttPassword !== '' ? mqttPassword : undefined;
+    if (mqttClientId) this.options.clientId = mqttClientId;
     this.options.protocolVersion = protocolVersion;
 
     // Setup TLS authentication if needed:

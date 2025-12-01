@@ -40,6 +40,10 @@
       "type": "string",
       "ui:widget": "password"
     },
+    "clientId": {
+      "description": "MQTT clientId identifier. If not set, a random clientId will be generated.",
+      "type": "string"
+    },
     "ca": {
       "description": "Absolute path to the SSL/TLS CA certificate used to sign both the server and client certificates (PEM format). Required for secure connections (i.e. mqtts://) with self-signed certificates.",
       "type": "string"

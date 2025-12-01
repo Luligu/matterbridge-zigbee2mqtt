@@ -79,6 +79,7 @@ describe('TestPlatform', () => {
     protocolVersion: 5,
     username: '',
     password: '',
+    clientId: '',
     ca: '',
     rejectUnauthorized: true,
     cert: '',

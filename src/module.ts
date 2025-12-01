@@ -41,6 +41,7 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   protocolVersion: number;
   username: string;
   password: string;
+  clientId: string;
   ca: string;
   rejectUnauthorized: boolean;
   cert: string;
@@ -79,7 +80,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
-  private namePostfix = 1;
   private connectTimeout = 30000; // 30 seconds
   private availabilityTimeout = 10000; // 10 seconds
 
@@ -92,7 +92,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private mqttTopic = 'zigbee2mqtt';
   private mqttUsername: string | undefined = undefined;
   private mqttPassword: string | undefined = undefined;
-  private mqttProtocol: 4 | 5 | 3 = 5;
   public lightList: string[] = [];
   public outletList: string[] = [];
   public switchList: string[] = [];
@@ -140,11 +139,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.topic) this.mqttTopic = config.topic;
     if (config.username) this.mqttUsername = config.username;
     if (config.password) this.mqttPassword = config.password;
-    if (config.protocolVersion && typeof config.protocolVersion === 'number' && config.protocolVersion >= 3 && config.protocolVersion <= 5) {
-      this.mqttProtocol = config.protocolVersion as 4 | 5 | 3;
-    } else {
-      this.mqttProtocol = 5; // Default to MQTT v5
-    }
+    if (!isValidNumber(config.protocolVersion, 3, 5)) config.protocolVersion = 5;
     if (config.switchList) this.switchList = config.switchList;
     if (config.lightList) this.lightList = config.lightList;
     if (config.outletList) this.outletList = config.outletList;
@@ -158,7 +153,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
     config.port = this.mqttPort;
-    config.protocolVersion = this.mqttProtocol;
     config.topic = this.mqttTopic;
     config.username = this.mqttUsername ?? '';
     config.password = this.mqttPassword ?? '';
@@ -179,7 +173,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.mqttTopic,
       this.mqttUsername,
       this.mqttPassword,
-      this.mqttProtocol,
+      this.config.clientId,
+      this.config.protocolVersion as 3 | 4 | 5 | undefined,
       this.config.ca,
       this.config.rejectUnauthorized,
       this.config.cert,

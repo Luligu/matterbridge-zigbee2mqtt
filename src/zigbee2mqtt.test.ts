@@ -42,12 +42,14 @@ describe('TestZigbee2MQTT', () => {
   let z2m: Zigbee2MQTTType;
 
   test('Zigbee2MQTT Initialization', async () => {
-    z2m = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', 'user', 'password', 5, undefined, true, undefined, undefined, true);
+    z2m = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', 'user', 'password', undefined, 5, undefined, true, undefined, undefined, true);
     expect(z2m).toBeInstanceOf(Zigbee2MQTT);
     expect(z2m.mqttHost).toBe('mqtt://localhost');
     expect(z2m.mqttPort).toBe(1883);
     expect(z2m.mqttUsername).toBe('user');
     expect(z2m.mqttPassword).toBe('password');
+    // @ts-expect-error accessing private member for testing purposes
+    expect(z2m.options.clientId).toMatch(/^matterbridge_[a-f0-9]{16}$/);
     // @ts-expect-error accessing private member for testing purposes
     expect(z2m.getUrl()).toBe('mqtt://localhost:1883');
   });
@@ -261,7 +263,7 @@ describe('TestZigbee2MQTT', () => {
 
   test('constructor warnings for mqtt:// with ca/cert/key and unsupported protocol', () => {
     // mqtt:// with ca/cert/key should log warnings (no FS access attempted)
-    const zWarn = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 5, 'ca.pem', undefined, 'cert.pem', 'key.pem');
+    const zWarn = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'ca.pem', undefined, 'cert.pem', 'key.pem');
     expect(zWarn).toBeInstanceOf(Zigbee2MQTT);
     // unsupported protocol branch
     const zUnsup = new Zigbee2MQTT('ws://host', 1883, 'zigbee2mqtt');
@@ -269,17 +271,19 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('constructor TLS and protocol options', () => {
-    const zTls = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, 5);
+    const zTls = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5);
     // @ts-expect-error private access for test
     expect(zTls.options.protocol).toBe('mqtts');
     // @ts-expect-error private access for test
     expect(zTls.options.rejectUnauthorized).toBe(true);
 
-    const zPlain = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 4);
+    const zPlain = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 'myId', 4);
     // @ts-expect-error private access for test
     expect(zPlain.options.protocol).toBe('mqtt');
     // @ts-expect-error private access for test
     expect(zPlain.options.protocolVersion).toBe(4);
+    // @ts-expect-error private access for test
+    expect(zPlain.options.clientId).toBe('myId');
   });
 
   test('bridge extensions and request topics are handled', async () => {
@@ -378,7 +382,7 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('networkmap writeFile error path when data path is a file', async () => {
-    const z2mWF = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', undefined, undefined, 5, undefined, undefined, undefined, undefined, true);
+    const z2mWF = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', undefined, undefined, undefined, 5, undefined, undefined, undefined, undefined, true);
     // reuse an existing file path as the dataPath to force ENOENT on writing nested file
     const filePath = path.join(HOMEDIR, 'roundtrip.json');
     // @ts-expect-error test access to private
@@ -601,7 +605,7 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('TLS with missing CA/cert/key paths triggers error handling', () => {
-    const zTlsErr = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, 5, 'notafile', true, 'notcert', 'notkey');
+    const zTlsErr = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'notafile', true, 'notcert', 'notkey');
     expect(zTlsErr).toBeInstanceOf(Zigbee2MQTT);
     // @ts-expect-error private access for test
     expect(zTlsErr.options.protocol).toBe('mqtts');

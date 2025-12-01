@@ -11,6 +11,7 @@ If you like this project and find it useful, please consider giving it a star on
 ### Added
 
 - [scenes]: Added await for creation.
+- [mqtt]: Added config for a fixed clientId. If not provided, a random clientId will be generated. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/138)
 
 ### Changed
 
