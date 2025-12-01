@@ -245,7 +245,8 @@ describe('TestPlatform', () => {
     await platform.onShutdown();
     expect((platform as any).mqttHost).toBe('mqtt://localhost');
     expect((platform as any).mqttPort).toBe(-1883);
-    expect((platform as any).mqttProtocol).toBe(5);
+    expect(platform.config.protocolVersion).toBe(5);
+    expect(platform.config.clientId).toBe('');
     expect((platform as any).mqttTopic).toBe('zigbee2mqtt');
     expect((platform as any).mqttUsername).toBe('user');
     expect((platform as any).mqttPassword).toBe('password');
