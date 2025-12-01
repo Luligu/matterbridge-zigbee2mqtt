@@ -128,6 +128,7 @@ interface ConfigSettings {
     url?: string;
     ssl_cert?: string;
     ssl_key?: string;
+    package?: 'zigbee2mqtt-windfront' | 'zigbee2mqtt-frontend';
   };
   devices?: Record<string, DeviceOptions>;
   groups?: Record<string, GroupOptions>;

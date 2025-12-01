@@ -239,6 +239,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (this.z2mBridgeInfo.config.advanced.legacy_api === true) this.log.info(`zigbee2MQTT advanced.legacy_api is ${this.z2mBridgeInfo.config.advanced.legacy_api}`);
       if (this.z2mBridgeInfo.config.advanced.legacy_availability_payload === true)
         this.log.info(`zigbee2MQTT advanced.legacy_availability_payload is ${this.z2mBridgeInfo.config.advanced.legacy_availability_payload}`);
+      if (this.z2mBridgeInfo.config.frontend?.package) this.log.info(`zigbee2MQTT frontend.package is ${this.z2mBridgeInfo.config.frontend?.package}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
@@ -618,7 +619,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterDevice = await ZigbeeDevice.create(this, device);
       if (matterDevice.bridgedDevice) {
-        matterDevice.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/device/${device.ieee_address}/info`;
+        matterDevice.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/device/${this.z2mBridgeInfo?.config.frontend?.package === 'zigbee2mqtt-frontend' ? '' : '0/'}${device.ieee_address}/info`;
         await this.registerDevice(matterDevice.bridgedDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
         this.zigbeeEntities.push(matterDevice);
@@ -640,7 +641,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterGroup = await ZigbeeGroup.create(this, group);
       if (matterGroup.bridgedDevice) {
-        matterGroup.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/group/${group.id}`;
+        matterGroup.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/group/${this.z2mBridgeInfo?.config.frontend?.package === 'zigbee2mqtt-frontend' ? '' : '0/'}${group.id}`;
         await this.registerDevice(matterGroup.bridgedDevice);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
         this.zigbeeEntities.push(matterGroup);

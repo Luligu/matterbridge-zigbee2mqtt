@@ -215,7 +215,8 @@
     "external_converters": [],
     "frontend": {
       "base_url": "/",
-      "port": 8080
+      "port": 8080,
+      "package": "zigbee2mqtt-frontend"
     },
     "groups": {
       "1": {
