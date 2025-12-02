@@ -26,7 +26,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Fixed
 
-- [cover]: Fixed wrong update with motor reversed.
+- [cover]: Fixed wrong update with motor reversed. Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false). Use invert_cover configuration on zigbee2mqtt if your cover has inverted position.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

@@ -312,12 +312,13 @@ export class ZigbeeEntity extends EventEmitter {
         }
 
         // WindowCovering
-        // Zigbee2MQTT cover: 0 = open, 100 = closed
-        // Matter WindowCovering: 0 = open 10000 = closed
+        // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
+        // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
         }
         if (key === 'moving' && this.isDevice) {
+          // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           /*
           const reversed = this.isCoverReversed();
           if (reversed && (value === 'UP' || value === 'DOWN')) {
@@ -1861,26 +1862,23 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(WindowCoveringCluster.id)) {
-      // Zigbee2MQTT cover: 0 = open, 100 = closed
-      // Matter WindowCovering: 0 = open 10000 = closed
+      // WindowCovering
+      // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
+      // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
 
       zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', async () => {
-        const reversed = zigbeeDevice.isCoverReversed();
-        if (reversed) zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} has reversed motor direction. Commands will be reversed.`);
         zigbeeDevice.log.debug(`Command upOrOpen called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', reversed ? 10000 : 0, zigbeeDevice.log);
-        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(reversed ? 10000 : 0);
-        zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: reversed ? 'CLOSE' : 'OPEN' });
+          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 0, zigbeeDevice.log);
+        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(0);
+        zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: 'OPEN' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', async () => {
-        const reversed = zigbeeDevice.isCoverReversed();
-        if (reversed) zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} has reversed motor direction. Commands will be reversed.`);
         zigbeeDevice.log.debug(`Command downOrClose called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', reversed ? 0 : 10000, zigbeeDevice.log);
-        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(reversed ? 0 : 10000);
-        zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: reversed ? 'OPEN' : 'CLOSE' });
+          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 10000, zigbeeDevice.log);
+        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(10000);
+        zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: 'CLOSE' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', async () => {
         zigbeeDevice.log.debug(`Command stopMotion called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
@@ -1888,16 +1886,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue } }) => {
-        const reversed = zigbeeDevice.isCoverReversed();
-        if (reversed) zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} has reversed motor direction. Commands will be reversed.`);
-        if (reversed) liftPercent100thsValue = 10000 - liftPercent100thsValue; // Reverse the percentage if the motor direction is reversed
         zigbeeDevice.log.debug(
           `Command goToLiftPercentage called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request liftPercent100thsValue: ${liftPercent100thsValue}`,
         );
         if (zigbeeDevice.propertyMap.has('position'))
           await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', liftPercent100thsValue, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(liftPercent100thsValue);
-        zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: liftPercent100thsValue / 100 });
+        zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: (10000 - liftPercent100thsValue) / 100 });
       });
     }
 
