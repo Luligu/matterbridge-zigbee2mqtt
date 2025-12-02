@@ -12,16 +12,34 @@ import { jest } from '@jest/globals';
 import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
 import { ColorControl, LevelControl, PowerSource } from 'matterbridge/matter/clusters';
-import { getMacAddress, wait } from 'matterbridge/utils';
-import { Logger, LogLevel as MatterLogLevel } from 'matterbridge/matter';
+import { getMacAddress } from 'matterbridge/utils';
 import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
+import {
+  addDevice,
+  createTestEnvironment,
+  flushAsync,
+  loggerLogSpy,
+  server,
+  aggregator,
+  setDebug,
+  setupTest,
+  startServerNode,
+  stopServerNode,
+  startMatterbridgeEnvironment,
+  createMatterbridgeEnvironment,
+  destroyMatterbridgeEnvironment,
+  stopMatterbridgeEnvironment,
+  logKeepAlives,
+  matterbridge,
+  log,
+  addMatterbridgePlatform,
+} from 'matterbridge/jestutils';
 
 import { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { Payload } from './payloadTypes.js';
-import { addDevice, createTestEnvironment, flushAsync, loggerLogSpy, server, aggregator, setDebug, setupTest, startServerNode, stopServerNode } from './utils/jestHelpers.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {
@@ -53,7 +71,7 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 });
 
 // Setup the test environment
-setupTest(NAME, false);
+await setupTest(NAME, false);
 
 // Setup the matter and test environment
 createTestEnvironment(NAME);
@@ -66,25 +84,6 @@ describe('TestEntity', () => {
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 100;
   const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 50 : 50;
 
-  const log = new AnsiLogger({ logName: 'ZigbeeTest', logTimestampFormat: TimestampFormat.TIME_MILLIS, logLevel: LogLevel.DEBUG });
-  const mockMatterbridge = {
-    matterbridgeDirectory: path.join(HOMEDIR, '.matterbridge'),
-    matterbridgePluginDirectory: path.join(HOMEDIR, 'Matterbridge'),
-    matterbridgeCertDirectory: path.join(HOMEDIR, '.mattercert'),
-    systemInformation: {
-      ipv4Address: undefined,
-      ipv6Address: undefined,
-      osRelease: 'xx.xx.xx.xx.xx.xx',
-      nodeVersion: '22.1.10',
-    },
-    matterbridgeVersion: '3.3.0',
-    addBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {
-      await aggregator.add(device);
-    }),
-    removeBridgedEndpoint: jest.fn(async (pluginName: string, device: MatterbridgeEndpoint) => {}),
-    removeAllBridgedEndpoints: jest.fn(async (pluginName: string) => {}),
-  } as unknown as Matterbridge;
-
   const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
     type: 'DynamicPlatform',
@@ -94,6 +93,7 @@ describe('TestEntity', () => {
     protocolVersion: 5,
     username: '',
     password: '',
+    clientId: '',
     ca: '',
     rejectUnauthorized: true,
     cert: '',
@@ -114,32 +114,40 @@ describe('TestEntity', () => {
     unregisterOnShutdown: false,
   };
 
-  beforeAll(() => {});
+  beforeAll(async () => {
+    // Create Matterbridge environment
+    await createMatterbridgeEnvironment(NAME);
+    await startMatterbridgeEnvironment(MATTER_PORT);
+  });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clears the call history before each test
     jest.clearAllMocks();
+
     // Reset debug state
-    setDebug(false);
+    await setDebug(false);
   });
 
   afterEach(async () => {
     // await flushAsync();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
+    // Destroy Matterbridge environment
+    await stopMatterbridgeEnvironment();
+    await destroyMatterbridgeEnvironment();
+
     // Restore the original implementation of the AnsiLogger.log method
     jest.restoreAllMocks();
-  });
 
-  test('create and start the server node', async () => {
-    await startServerNode(NAME, MATTER_PORT);
-    expect(server).toBeDefined();
-    expect(aggregator).toBeDefined();
+    // logKeepAlives();
   });
 
   test('create the ZigbeePlatform', async () => {
-    platform = new ZigbeePlatform(mockMatterbridge, log, mockConfig);
+    platform = new ZigbeePlatform(matterbridge, log, mockConfig);
+    expect(platform).toBeDefined();
+    // Add the platform to the Matterbridge environment
+    addMatterbridgePlatform(platform);
     expect(z2mStartSpy).toHaveBeenCalled();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Initializing platform:/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Loaded zigbee2mqtt parameters/));
@@ -1125,11 +1133,6 @@ describe('TestEntity', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
     entity.destroy();
-  });
-
-  test('close the server node', async () => {
-    expect(server).toBeDefined();
-    await stopServerNode(server);
   });
 });
 

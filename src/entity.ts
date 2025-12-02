@@ -3,7 +3,7 @@
  * @file entity.ts
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 3.3.0
+ * @version 3.3.1
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -22,6 +22,8 @@
  */
 
 import EventEmitter from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   DeviceTypeDefinition,
@@ -310,16 +312,19 @@ export class ZigbeeEntity extends EventEmitter {
         }
 
         // WindowCovering
-        // Zigbee2MQTT cover: 0 = open, 100 = closed
-        // Matter WindowCovering: 0 = open 10000 = closed
+        // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
+        // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
           this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
         }
         if (key === 'moving' && this.isDevice) {
+          // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
+          /*
           const reversed = this.isCoverReversed();
           if (reversed && (value === 'UP' || value === 'DOWN')) {
             value = reversed ? (value === 'UP' ? 'DOWN' : 'UP') : value;
           }
+          */
           if (value === 'UP') {
             const status = WindowCovering.MovementStatus.Opening;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
@@ -532,8 +537,19 @@ export class ZigbeeEntity extends EventEmitter {
     );
   }
 
+  private saveCommands(command: string, data: CommandHandlerData) {
+    if (this.log.logLevel === LogLevel.DEBUG) {
+      const filePath = path.join(this.platform.matterbridge.matterbridgePluginDirectory, this.platform.name, 'matter-commands.txt');
+      fs.appendFileSync(
+        filePath,
+        `${new Date().toLocaleString()} - ` + data.endpoint.deviceName + ' ' + command + ' ' + JSON.stringify(data.request).replaceAll('\\"', '"') + '\n',
+      );
+    }
+  }
+
   // prettier-ignore
   protected async onCommandHandler(data: CommandHandlerData) {
+    this.saveCommands('on', data);
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === true) {
       this.log.debug(`Command on ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already ON`);
       return;
@@ -546,6 +562,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async offCommandHandler(data: CommandHandlerData) {
+    this.saveCommands('off', data);
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
       this.log.debug(`Command off ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already OFF`);
       return;
@@ -557,6 +574,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async toggleCommandHandler(data: CommandHandlerData) {
+    this.saveCommands('toggle', data);
     this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
@@ -569,6 +587,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToLevelCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToLevel', data);
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') === data.request.level) {
       this.log.debug(`Command moveToLevel ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or level unchanged`);
       return;
@@ -580,6 +599,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToLevelWithOnOffCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToLevelWithOnOff', data);
     this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (data.request['level'] <= (data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel') ?? 1)) {
@@ -601,6 +621,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToColorTemperatureCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToColorTemperature', data);
     delete this.cachePayload['color'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (this.propertyMap.get('color_temp') && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds)) {
       this.log.debug(`*Command moveToColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or colorTemperatureMireds unchanged`);
@@ -619,6 +640,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToColorCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToColor', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentX') === data.request.colorX && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentY') === data.request.colorY)) {
       this.log.debug(`Command moveToColor ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or color unchanged`);
@@ -631,6 +653,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToHueCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToHue', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue)) {
       this.log.debug(`Command moveToHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue unchanged`);
@@ -643,6 +666,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToSaturation', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
       this.log.debug(`Command moveToSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or saturation unchanged`);
@@ -655,6 +679,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToHueAndSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToHueAndSaturation', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
       this.log.debug(`Command moveToHueAndSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue/saturation unchanged`);
@@ -1064,14 +1089,16 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
 
     if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
-      group.scenes.forEach((scene) => {
+      for (const scene of group.scenes) {
+        // group.scenes.forEach(async (scene) => {
         zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
         platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
-        platform._registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, async () => {
+        await platform.registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, platform.config.scenesType, async () => {
           zigbeeGroup.log.info(`Triggered scene "${scene.name}" id ${scene.id} from group ${group.friendly_name}`);
           zigbeeGroup.publishCommand('scene_recall', group.friendly_name, { scene_recall: scene.id });
         });
-      });
+        // });
+      }
     }
 
     zigbeeGroup.addBridgedDeviceBasicInformation();
@@ -1264,7 +1291,6 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'pressure', property: 'pressure', deviceType: pressureSensor, cluster: PressureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return value } },
   { type: '', name: 'air_quality', property: 'air_quality', deviceType: airQualitySensor, cluster: AirQuality.Cluster.id, attribute: 'airQuality', valueLookup: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] },
   { type: '', name: 'voc', property: 'voc', deviceType: airQualitySensor, cluster: TotalVolatileOrganicCompoundsConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.min(65535, value) } },
-  { type: '', name: 'voc_index', property: 'voc_index', deviceType: airQualitySensor, cluster: TotalVolatileOrganicCompoundsConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.min(65535, value) } },
   { type: '', name: 'co', property: 'co', deviceType: airQualitySensor, cluster: CarbonMonoxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
   { type: '', name: 'co2', property: 'co2', deviceType: airQualitySensor, cluster: CarbonDioxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
   { type: '', name: 'formaldehyd', property: 'formaldehyd', deviceType: airQualitySensor, cluster: FormaldehydeConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
@@ -1357,16 +1383,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[device.friendly_name]?.includes('scenes')) {
-      Object.entries(device.endpoints).forEach(([key, endpoint]) => {
-        Object.values(endpoint.scenes).forEach((scene) => {
+      for (const [key, endpoint] of Object.entries(device.endpoints)) {
+        for (const scene of Object.values(endpoint.scenes)) {
           zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
           platform.setSelectDeviceEntity(device.ieee_address, 'scenes', 'Scenes', 'component');
-          platform._registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, async () => {
+          await platform.registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, platform.config.scenesType, async () => {
             zigbeeDevice.log.info(`Triggered scene "${scene.name}" id ${scene.id} from device ${device.friendly_name}`);
             zigbeeDevice.publishCommand('scene_recall', device.friendly_name, { scene_recall: scene.id });
           });
-        });
-      });
+        }
+      }
     }
 
     // Get types and properties
@@ -1836,26 +1862,23 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(WindowCoveringCluster.id)) {
-      // Zigbee2MQTT cover: 0 = open, 100 = closed
-      // Matter WindowCovering: 0 = open 10000 = closed
+      // WindowCovering
+      // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
+      // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
 
       zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', async () => {
-        const reversed = zigbeeDevice.isCoverReversed();
-        if (reversed) zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} has reversed motor direction. Commands will be reversed.`);
         zigbeeDevice.log.debug(`Command upOrOpen called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', reversed ? 10000 : 0, zigbeeDevice.log);
-        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(reversed ? 10000 : 0);
-        zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: reversed ? 'CLOSE' : 'OPEN' });
+          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 0, zigbeeDevice.log);
+        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(0);
+        zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: 'OPEN' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', async () => {
-        const reversed = zigbeeDevice.isCoverReversed();
-        if (reversed) zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} has reversed motor direction. Commands will be reversed.`);
         zigbeeDevice.log.debug(`Command downOrClose called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', reversed ? 0 : 10000, zigbeeDevice.log);
-        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(reversed ? 0 : 10000);
-        zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: reversed ? 'OPEN' : 'CLOSE' });
+          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 10000, zigbeeDevice.log);
+        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(10000);
+        zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: 'CLOSE' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', async () => {
         zigbeeDevice.log.debug(`Command stopMotion called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
@@ -1863,16 +1886,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue } }) => {
-        const reversed = zigbeeDevice.isCoverReversed();
-        if (reversed) zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} has reversed motor direction. Commands will be reversed.`);
-        if (reversed) liftPercent100thsValue = 10000 - liftPercent100thsValue; // Reverse the percentage if the motor direction is reversed
         zigbeeDevice.log.debug(
           `Command goToLiftPercentage called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request liftPercent100thsValue: ${liftPercent100thsValue}`,
         );
         if (zigbeeDevice.propertyMap.has('position'))
           await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', liftPercent100thsValue, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(liftPercent100thsValue);
-        zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: liftPercent100thsValue / 100 });
+        zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: (10000 - liftPercent100thsValue) / 100 });
       });
     }
 

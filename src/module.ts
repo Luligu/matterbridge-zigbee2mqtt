@@ -3,7 +3,7 @@
  * @file module.ts
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 3.0.0
+ * @version 3.0.2
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -41,6 +41,7 @@ export interface ZigbeePlatformConfig extends PlatformConfig {
   protocolVersion: number;
   username: string;
   password: string;
+  clientId: string;
   ca: string;
   rejectUnauthorized: boolean;
   cert: string;
@@ -79,7 +80,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
-  private namePostfix = 1;
   private connectTimeout = 30000; // 30 seconds
   private availabilityTimeout = 10000; // 10 seconds
 
@@ -92,7 +92,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private mqttTopic = 'zigbee2mqtt';
   private mqttUsername: string | undefined = undefined;
   private mqttPassword: string | undefined = undefined;
-  private mqttProtocol: 4 | 5 | 3 = 5;
   public lightList: string[] = [];
   public outletList: string[] = [];
   public switchList: string[] = [];
@@ -122,9 +121,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.3.0')) {
+    if (this.verifyMatterbridgeVersion === undefined || typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.4.0')) {
       throw new Error(
-        `This plugin requires Matterbridge version >= "3.3.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`,
+        `This plugin requires Matterbridge version >= "3.4.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend."`,
       );
     }
 
@@ -134,17 +133,14 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     if (config.host && typeof config.host === 'string') {
       this.mqttHost = config.host;
-      this.mqttHost = !this.mqttHost.startsWith('mqtt://') && !this.mqttHost.startsWith('mqtts://') ? 'mqtt://' + this.mqttHost : this.mqttHost;
+      this.mqttHost =
+        !this.mqttHost.startsWith('mqtt://') && !this.mqttHost.startsWith('mqtts://') && !this.mqttHost.startsWith('unix://') ? 'mqtt://' + this.mqttHost : this.mqttHost;
     }
     if (config.port) this.mqttPort = config.port;
     if (config.topic) this.mqttTopic = config.topic;
     if (config.username) this.mqttUsername = config.username;
     if (config.password) this.mqttPassword = config.password;
-    if (config.protocolVersion && typeof config.protocolVersion === 'number' && config.protocolVersion >= 3 && config.protocolVersion <= 5) {
-      this.mqttProtocol = config.protocolVersion as 4 | 5 | 3;
-    } else {
-      this.mqttProtocol = 5; // Default to MQTT v5
-    }
+    if (!isValidNumber(config.protocolVersion, 3, 5)) config.protocolVersion = 5;
     if (config.switchList) this.switchList = config.switchList;
     if (config.lightList) this.lightList = config.lightList;
     if (config.outletList) this.outletList = config.outletList;
@@ -158,7 +154,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
     config.port = this.mqttPort;
-    config.protocolVersion = this.mqttProtocol;
     config.topic = this.mqttTopic;
     config.username = this.mqttUsername ?? '';
     config.password = this.mqttPassword ?? '';
@@ -179,11 +174,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.mqttTopic,
       this.mqttUsername,
       this.mqttPassword,
-      this.mqttProtocol,
-      this.config.ca as string | undefined,
-      this.config.rejectUnauthorized as boolean | undefined,
-      this.config.cert as string | undefined,
-      this.config.key as string | undefined,
+      this.config.clientId,
+      this.config.protocolVersion as 3 | 4 | 5 | undefined,
+      this.config.ca,
+      this.config.rejectUnauthorized,
+      this.config.cert,
+      this.config.key,
       config.debug,
     );
     this.z2m.setLogDebug(config.debug);
@@ -243,6 +239,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (this.z2mBridgeInfo.config.advanced.legacy_api === true) this.log.info(`zigbee2MQTT advanced.legacy_api is ${this.z2mBridgeInfo.config.advanced.legacy_api}`);
       if (this.z2mBridgeInfo.config.advanced.legacy_availability_payload === true)
         this.log.info(`zigbee2MQTT advanced.legacy_availability_payload is ${this.z2mBridgeInfo.config.advanced.legacy_availability_payload}`);
+      if (this.z2mBridgeInfo.config.frontend?.package) this.log.info(`zigbee2MQTT frontend.package is ${this.z2mBridgeInfo.config.frontend?.package}`);
     });
 
     this.z2m.on('bridge-devices', async (devices: BridgeDevice[]) => {
@@ -542,8 +539,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
     this.log.info(`Configuring zigbee2mqtt platform logger level to ${CYAN}${logLevel}${nf}`);
     this.log.logLevel = logLevel;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.z2m.setLogLevel(logLevel as any); // Cast to any to avoid type error, as the local Logger can have a different version than matterbridge Logger
+    this.z2m.setLogLevel(logLevel);
     for (const bridgedDevice of this.bridgedDevices) {
       bridgedDevice.log.logLevel = logLevel;
     }
@@ -623,7 +619,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterDevice = await ZigbeeDevice.create(this, device);
       if (matterDevice.bridgedDevice) {
-        matterDevice.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/device/${device.ieee_address}/info`;
+        matterDevice.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/device/${this.z2mBridgeInfo?.config.frontend?.package === 'zigbee2mqtt-frontend' ? '' : '0/'}${device.ieee_address}/info`;
         await this.registerDevice(matterDevice.bridgedDevice);
         this.bridgedDevices.push(matterDevice.bridgedDevice);
         this.zigbeeEntities.push(matterDevice);
@@ -645,7 +641,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     try {
       matterGroup = await ZigbeeGroup.create(this, group);
       if (matterGroup.bridgedDevice) {
-        matterGroup.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/group/${group.id}`;
+        matterGroup.bridgedDevice.configUrl = `${this.config.zigbeeFrontend}/#/group/${this.z2mBridgeInfo?.config.frontend?.package === 'zigbee2mqtt-frontend' ? '' : '0/'}${group.id}`;
         await this.registerDevice(matterGroup.bridgedDevice);
         this.bridgedDevices.push(matterGroup.bridgedDevice);
         this.zigbeeEntities.push(matterGroup);
@@ -655,10 +651,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.log.error(`Error registering group ${gn}${group.friendly_name}${er} ID: ${group.id}: ${error}`);
     }
     return matterGroup;
-  }
-
-  public _registerVirtualDevice(name: string, callback: () => Promise<void>) {
-    this.registerVirtualDevice(name, this.config.scenesType, callback);
   }
 
   private async unregisterZigbeeEntity(friendly_name: string) {

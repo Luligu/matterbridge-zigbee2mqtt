@@ -4,9 +4,31 @@ All notable changes to this project will be documented in this file.
 
 If you like this project and find it useful, please consider giving it a star on GitHub at https://github.com/Luligu/matterbridge-zigbee2mqtt and sponsoring it.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="120">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
+
+## [3.0.2] - 2025-12-01
+
+### Added
+
+- [scenes]: Added await for creation.
+- [mqtt]: Added config for a fixed clientId. If not provided, a random clientId will be generated. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/138)
+- [mqtt]: Added Unix socket support on Linux: use unix://<SOCKET_PATH> for Unix socket (e.g. unix:///var/run/mqtt.sock). (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/133)
+- [zigbee2mqtt]: Added frontend package detection. With the new windfront, link or bookmarks to the specific device page are not possible. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/136)
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Bumped package to automator v.2.1.0.
+- [package]: Updated to the current Matterbridge signatures.
+- [package]: Requires Matterbridge v.3.4.0.
+- [package]: Updated to the Matterbridge Jest module.
+- [tvoc]: Removed voc_index from the converter. (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/129)
+
+### Fixed
+
+- [cover]: Fixed wrong update with motor reversed. Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false). Use invert_cover configuration on zigbee2mqtt if your cover has inverted position.
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [3.0.1] - 2025-11-14
 
@@ -17,9 +39,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Updated to the current Matterbridge signatures.
 - [jest]: Updated jestHelpers to v.1.0.12.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [3.0.0] - 2025-11-08
 
@@ -50,9 +70,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [platform]: Fixed specific zbminir2 device case for all devices. Thanks subst4nc3 (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/126).
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.8.1] - 2025-10-02
 
@@ -73,9 +91,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [platform]: Fixed command handlers execution when the controllers send scenes.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.8.0] - 2025-09-14
 
@@ -107,9 +123,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [workflows]: Ignore any .md anywhere.
 - [workflows]: Improved speed on Node CI.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.7.0] - 2025-07-14
 
@@ -134,9 +148,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [CodeQL]: Added CodeQL badge in the readme.
 - [Codecov]: Added Codecov badge in the readme.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.6.0] - 2025-06-07
 
@@ -155,9 +167,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [subscribe]: Removed async from handlers.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.5.0] - 2025-05-26
 
@@ -188,9 +198,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [issue104]: Solved wrong mode AUTO in system_mode for HEAT only devices.
 - [issue107]: Solved motor_direction reversed.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.7] - 2025-03-19
 
@@ -206,9 +214,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [config]: Added parameter postfix (3 characters max) to be consistent with the other plugins. This parameter works with the Devices panel in the home page.
 - [config]: The old postfixHostname will be removed in the next release. If you were using postfixHostname, please change it with postfix, the controllers will likely remove and recreate all the devices so make a backup of configurations (i.e. room assignements) and automations on the controller!
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.6] - 2025-02-20
 
@@ -221,9 +227,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [schema]: Fix wrong default in schema (thanks https://github.com/robvanoostenrijk).
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.5] - 2025-02-05
 
@@ -239,9 +243,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [thermostat]: Fix thermostat bug (thanks https://github.com/robvanoostenrijk).
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.4] - 2025-02-02
 
@@ -251,9 +253,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [package]: Updated package.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.3] - 2025-01-20
 
@@ -262,9 +262,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [plugin]: Requires Matterbridge 1.7.3.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.2] - 2025-01-11
 
@@ -272,9 +270,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [endpoint]: Fixed blacklist of child endpoints.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.1] - 2025-01-11
 
@@ -288,9 +284,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [plugin]: Requires Matterbridge 1.7.2.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.4.0] - 2025-01-08
 
@@ -304,9 +298,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [plugin]: Requires Matterbridge 1.7.1.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.3.2] - 2024-12-24
 
@@ -317,9 +309,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [plugin]: Use platform white and black list.
 - [platform]: Use platform endpoint number check.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.3.1] - 2024-12-12
 
@@ -335,9 +325,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 ### Fixed
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.3.0] - 2024-12-04
 
@@ -355,9 +343,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 ### Fixed
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.2.2] - 2024-11-26
 
@@ -381,9 +367,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [thermostat]: Fixed the case when instead of current_heating_setpoint the property is occupied_heating_setpoint.
 - [thermostat]: Fixed the case when instead of current_cooling_setpoint the property is occupied_cooling_setpoint.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.2.1] - 2024-10-11
 
@@ -393,9 +377,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [entity]: Fixed energy kWh.
 - [entity]: Fixed log.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.2.0] - 2024-10-10
 
@@ -410,9 +392,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [entity]: Code optimization.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.19] - 2024-10-01
 
@@ -421,9 +401,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [package]: Upgrade to new workflows.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.17] - 2024-09-21
 
@@ -439,9 +417,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [plugin]: Added configuration of ColorControl cluster features (HS, XY, CT).
 - [plugin]: Removed the superset device types.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.16] - 2024-09-04
 
@@ -450,9 +426,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [package]: Final update to matter.js 0.10.0.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.15] - 2024-09-03
 
@@ -461,9 +435,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [package]: Updated Thermostat cluster to matter.js 0.10.0.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.14] - 2024-08-29
 
@@ -476,9 +448,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [package]: Updated dependencies.
 - [package]: Updated imports.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.13] - 2024-08-22
 
@@ -490,9 +460,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [package]: Fixed MQTT protocol.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.12] - 2024-08-21
 
@@ -502,9 +470,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [schema]: Changed descriptions in schema for easier setup.
 - [package]: Updated dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.11] - 2024-08-20
 
@@ -517,9 +483,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [package]: Fixed dependencies.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.10] - 2024-08-09
 
@@ -532,9 +496,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [z2m]: Fixed issue: 'Only supported EndpointInterface implementation is Endpoint'.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.9] - 2024-07-28
 
@@ -544,9 +506,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [logger]: Update node-ansi-logger to 2.0.6.
 - [storage]: Update node-persist-manager to 1.0.8.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.8] - 2024-07-23
 
@@ -554,9 +514,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [z2m]: Updated matterbridge imports.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.7] - 2024-07-11
 
@@ -564,9 +522,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [z2m]: Fixed trigger when the endpoint is undefined.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.6] - 2024-07-10
 
@@ -579,9 +535,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [z2m]: Fixed the detection of color_temp only lights.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.5] - 2024-07-01
 
@@ -593,9 +547,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [zigbee]: Fixed WindowCovering.targetPositionLiftPercent100ths update (Thanks Nitay Ben-Zvi).
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.4] - 2024-06-30
 
@@ -604,9 +556,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [dependencies]: Update dependencies.
 - [dependencies]: Update eslint to 9.6.0.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.3] - 2024-06-23
 
@@ -623,9 +573,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [bridge/info]: Fixed the issue when advanced.output is set 'attribute_and_json'. (Thanks copystring).
 - [bridge/info]: Fixed the issue when include_device_information is set to true. (Thanks copystring).
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.2] - 2024-06-21
 
@@ -634,9 +582,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [dependencies]: Update dependencies.
 - [start]: Refactor start sequence.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.1] - 2024-06-20
 
@@ -645,9 +591,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [dependencies]: Update dependencies (mqtt to 5.7.2).
 - [schema]: Added info log when the plugin starts to register devices and groups. Added empty bridge/config and bridge/definitions handlers.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.1.0] - 2024-06-19
 
@@ -668,9 +612,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [LevelControl]: Fixed the commandHandler for LevelControl in child endpoint (Thanks jpadie).
 - [availability]: Fixed the issue that caused the availability event sent before the start to be ignored.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.0.17] - 2024-06-16
 
@@ -682,9 +624,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [dependencies]: Update dependencies
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.0.16] - 2024-06-06
 
@@ -693,9 +633,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [dependencies]: Update dependencies
 - [matterbridge]: Added bridgeOnline to the start checks.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.0.15] - 2024-06-01
 
@@ -704,9 +642,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [dependencies]: Update dependencies
 - [matterbridge]: Adapted the code to the new start mode of Matterbridge.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.0.14] - 2024-05-09
 
@@ -714,9 +650,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [mqtt]: Added Keekalive to MQTT.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.0.13] - 2024-05-02
 
@@ -728,9 +662,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 
 - [payload]: Fixed the case when z2m sends empty action in the payload.
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.0.12] - 2024-04-30
 
@@ -739,9 +671,7 @@ The package [zigbee2mqtt-automations](https://github.com/Luligu/zigbee2mqtt-auto
 - [action]: Added support for devices with more then 3 events/actions. All SwitchCluster actions are mapped in groups of 3 on sub endpoints. The mapping schema is shown in log.
 - [mqtt]: Added handles for group_add, group_remove, group_rename, group_add_member and group_remove_member
 
-<a href="https://www.buymeacoffee.com/luligugithub">
-  <img src="bmc-button.svg" alt="Buy me a coffee" width="80">
-</a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [2.0.11] - 2024-04-26
 

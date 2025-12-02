@@ -10,8 +10,8 @@ import fs from 'node:fs';
 import { describe, expect, jest, test } from '@jest/globals';
 import { wait } from 'matterbridge/utils';
 import { LogLevel } from 'node-ansi-logger';
+import { setupTest } from 'matterbridge/jestutils';
 
-import { setupTest } from './utils/jestHelpers.js';
 import type { Zigbee2MQTT as Zigbee2MQTTType } from './zigbee2mqtt.js';
 
 // Create a client mock
@@ -36,18 +36,20 @@ jest.unstable_mockModule('mqtt', () => ({
 const { Zigbee2MQTT } = await import('./zigbee2mqtt.js');
 
 // Setup the test environment
-setupTest(NAME, false);
+await setupTest(NAME, false);
 
 describe('TestZigbee2MQTT', () => {
   let z2m: Zigbee2MQTTType;
 
   test('Zigbee2MQTT Initialization', async () => {
-    z2m = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', 'user', 'password', 5, undefined, true, undefined, undefined, true);
+    z2m = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', 'user', 'password', undefined, 5, undefined, true, undefined, undefined, true);
     expect(z2m).toBeInstanceOf(Zigbee2MQTT);
     expect(z2m.mqttHost).toBe('mqtt://localhost');
     expect(z2m.mqttPort).toBe(1883);
     expect(z2m.mqttUsername).toBe('user');
     expect(z2m.mqttPassword).toBe('password');
+    // @ts-expect-error accessing private member for testing purposes
+    expect(z2m.options.clientId).toMatch(/^matterbridge_[a-f0-9]{16}$/);
     // @ts-expect-error accessing private member for testing purposes
     expect(z2m.getUrl()).toBe('mqtt://localhost:1883');
   });
@@ -162,30 +164,30 @@ describe('TestZigbee2MQTT', () => {
     await wait(150);
   });
 
-  test('device message emits MESSAGE-<friendly_name> and availability ONLINE/OFFLINE', async () => {
-    const msgSpy = jest.fn();
-    const onSpy = jest.fn();
-    const offSpy = jest.fn();
-    z2m.on('MESSAGE-Lamp1', msgSpy);
-    z2m.on('ONLINE-Lamp1', onSpy);
-    z2m.on('OFFLINE-Lamp1', offSpy);
+  test('device message emits mqtt MESSAGE-<friendly_name> and availability ONLINE-<friendly_name> OFFLINE-<friendly_name>', async () => {
+    const messageSpy = jest.fn();
+    const onlineSpy = jest.fn();
+    const offlineSpy = jest.fn();
+    z2m.on('MESSAGE-Lamp1', messageSpy);
+    z2m.on('ONLINE-Lamp1', onlineSpy);
+    z2m.on('OFFLINE-Lamp1', offlineSpy);
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Lamp1', Buffer.from(JSON.stringify({ state: 'ON' })));
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Lamp1/availability', Buffer.from('online'));
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Lamp1/availability', Buffer.from('offline'));
-    expect(msgSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
-    expect(onSpy).toHaveBeenCalled();
-    expect(offSpy).toHaveBeenCalled();
+    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
+    expect(onlineSpy).toHaveBeenCalled();
+    expect(offlineSpy).toHaveBeenCalled();
   });
 
-  test('group message emits MESSAGE-<friendly_name>', async () => {
-    const grpMsgSpy = jest.fn();
-    z2m.on('MESSAGE-Group1', grpMsgSpy);
+  test('group message emits mqtt MESSAGE-<friendly_name>', async () => {
+    const grpMessageSpy = jest.fn();
+    z2m.on('MESSAGE-Group1', grpMessageSpy);
     // @ts-expect-error private method access for test
     z2m.messageHandler('zigbee2mqtt/Group1', Buffer.from(JSON.stringify({ state: 'ON' })));
-    expect(grpMsgSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
+    expect(grpMessageSpy).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
   });
 
   test('bridge responses emit expected events', async () => {
@@ -261,7 +263,7 @@ describe('TestZigbee2MQTT', () => {
 
   test('constructor warnings for mqtt:// with ca/cert/key and unsupported protocol', () => {
     // mqtt:// with ca/cert/key should log warnings (no FS access attempted)
-    const zWarn = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 5, 'ca.pem', undefined, 'cert.pem', 'key.pem');
+    const zWarn = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'ca.pem', undefined, 'cert.pem', 'key.pem');
     expect(zWarn).toBeInstanceOf(Zigbee2MQTT);
     // unsupported protocol branch
     const zUnsup = new Zigbee2MQTT('ws://host', 1883, 'zigbee2mqtt');
@@ -269,17 +271,19 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('constructor TLS and protocol options', () => {
-    const zTls = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, 5);
+    const zTls = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5);
     // @ts-expect-error private access for test
     expect(zTls.options.protocol).toBe('mqtts');
     // @ts-expect-error private access for test
     expect(zTls.options.rejectUnauthorized).toBe(true);
 
-    const zPlain = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 4);
+    const zPlain = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 'myId', 4);
     // @ts-expect-error private access for test
     expect(zPlain.options.protocol).toBe('mqtt');
     // @ts-expect-error private access for test
     expect(zPlain.options.protocolVersion).toBe(4);
+    // @ts-expect-error private access for test
+    expect(zPlain.options.clientId).toBe('myId');
   });
 
   test('bridge extensions and request topics are handled', async () => {
@@ -378,7 +382,7 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('networkmap writeFile error path when data path is a file', async () => {
-    const z2mWF = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', undefined, undefined, 5, undefined, undefined, undefined, undefined, true);
+    const z2mWF = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt', undefined, undefined, undefined, 5, undefined, undefined, undefined, undefined, true);
     // reuse an existing file path as the dataPath to force ENOENT on writing nested file
     const filePath = path.join(HOMEDIR, 'roundtrip.json');
     // @ts-expect-error test access to private
@@ -601,7 +605,7 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('TLS with missing CA/cert/key paths triggers error handling', () => {
-    const zTlsErr = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, 5, 'notafile', true, 'notcert', 'notkey');
+    const zTlsErr = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'notafile', true, 'notcert', 'notkey');
     expect(zTlsErr).toBeInstanceOf(Zigbee2MQTT);
     // @ts-expect-error private access for test
     expect(zTlsErr.options.protocol).toBe('mqtts');

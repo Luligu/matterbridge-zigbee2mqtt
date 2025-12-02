@@ -162,6 +162,7 @@ These are the default vules:
   "topic": "zigbee2mqtt",
   "username": "",
   "password": "",
+  "clientId": "",
   "ca": "",
   "cert": "",
   "key": "",
