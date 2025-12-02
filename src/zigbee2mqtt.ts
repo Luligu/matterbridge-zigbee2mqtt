@@ -253,6 +253,12 @@ export class Zigbee2MQTT extends EventEmitter {
     } catch (error) {
       this.log.debug(`Error deleting bridge-publish-payloads.txt: ${error}`);
     }
+    try {
+      const filePath = path.join(this.mqttDataPath, 'matter-commands.txt');
+      fs.unlinkSync(filePath);
+    } catch (error) {
+      this.log.debug(`Error deleting matter-commands.txt: ${error}`);
+    }
   }
 
   /**

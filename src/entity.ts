@@ -22,6 +22,8 @@
  */
 
 import EventEmitter from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   DeviceTypeDefinition,
@@ -534,8 +536,19 @@ export class ZigbeeEntity extends EventEmitter {
     );
   }
 
+  private saveCommands(command: string, data: CommandHandlerData) {
+    if (this.log.logLevel === LogLevel.DEBUG) {
+      const filePath = path.join(this.platform.matterbridge.matterbridgePluginDirectory, this.platform.name, 'matter-commands.txt');
+      fs.appendFileSync(
+        filePath,
+        `${new Date().toLocaleString()} - ` + data.endpoint.deviceName + ' ' + command + ' ' + JSON.stringify(data.request).replaceAll('\\"', '"') + '\n',
+      );
+    }
+  }
+
   // prettier-ignore
   protected async onCommandHandler(data: CommandHandlerData) {
+    this.saveCommands('on', data);
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === true) {
       this.log.debug(`Command on ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already ON`);
       return;
@@ -548,6 +561,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async offCommandHandler(data: CommandHandlerData) {
+    this.saveCommands('off', data);
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
       this.log.debug(`Command off ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already OFF`);
       return;
@@ -559,6 +573,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async toggleCommandHandler(data: CommandHandlerData) {
+    this.saveCommands('toggle', data);
     this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
@@ -571,6 +586,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToLevelCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToLevel', data);
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') === data.request.level) {
       this.log.debug(`Command moveToLevel ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or level unchanged`);
       return;
@@ -582,6 +598,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToLevelWithOnOffCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToLevelWithOnOff', data);
     this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     if (data.request['level'] <= (data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel') ?? 1)) {
@@ -603,6 +620,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToColorTemperatureCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToColorTemperature', data);
     delete this.cachePayload['color'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (this.propertyMap.get('color_temp') && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds)) {
       this.log.debug(`*Command moveToColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or colorTemperatureMireds unchanged`);
@@ -621,6 +639,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToColorCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToColor', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentX') === data.request.colorX && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentY') === data.request.colorY)) {
       this.log.debug(`Command moveToColor ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or color unchanged`);
@@ -633,6 +652,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToHueCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToHue', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue)) {
       this.log.debug(`Command moveToHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue unchanged`);
@@ -645,6 +665,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToSaturation', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
       this.log.debug(`Command moveToSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or saturation unchanged`);
@@ -657,6 +678,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // prettier-ignore
   protected async moveToHueAndSaturationCommandHandler(data: CommandHandlerData): Promise<void> {
+    this.saveCommands('moveToHueAndSaturation', data);
     delete this.cachePayload['color_temp'];
     if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
       this.log.debug(`Command moveToHueAndSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue/saturation unchanged`);
