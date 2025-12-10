@@ -6,6 +6,14 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
+## [3.0.3] - 2025-12-12
+
+### Changed
+
+- [package]: Updated dependencies.
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
 ## [3.0.2] - 2025-12-01
 
 ### Added

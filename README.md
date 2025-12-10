@@ -304,16 +304,4 @@ If one of your devices is not supported out of the box, open an issue and we wil
 
 For general controller issues check the Matterbridge Known issues section
 
-[See the known issues here](https://github.com/Luligu/matterbridge?tab=readme-ov-file#known-issues)
-
-## Apple Home
-
-## Home Assistant
-
-## Google Home
-
-## Alexa
-
-In the plugin config add each switch device to the lightList or outletList. Matterbridge uses a switch device type without client cluster that Alexa doesn't recognize.
-
-## SmartThings
+[See the known issues here](https://github.com/Luligu/matterbridge?tab=readme-ov-file#known-general-issues)
