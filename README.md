@@ -328,21 +328,22 @@ Restart mosquitto.
 sudo systemctl restart mosquitto
 ```
 
-### Configure docker to use Unix socket anonymous volume
+### Configure docker to use Unix socket
+
+Create the directory on the host
+
+```bash
+mkdir -p "$HOME/mosquitto/run"
+sudo chown 1883:1883 "$HOME/mosquitto/run"
+sudo chmod 770 "$HOME/mosquitto/run"
+```
 
 Add the unix socket volume for each service using it (i.e. mosquitto, zigbee2mqtt and matterbridge).
 
 ```
-   volumes:
-      # Share the same run directory (anonymous volume)
-      - /var/run/mosquitto
+  volumes:
+    - "${HOME}/mosquitto/run:/var/run/mosquitto"
 ```
-
-Docker does NOT bind the host directory /var/run/mosquitto.
-
-That internal volume lives inside Docker’s own storage, not on your host filesystem.
-
-Because of this, there is no need to create /var/run/mosquitto on the host.
 
 # Known issues
 
