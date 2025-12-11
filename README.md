@@ -31,33 +31,17 @@ If you like this project and find it useful, please consider giving it a star on
 
 Matterbridge enables non-Matter devices (Zigbee devices) to integrate with the Matter communication protocol. Bridges allow platforms that use other protocol standards to interoperate with the Matter ecosystem by integrating a Matter server into, or between, existing smart gateways, controllers, and hubs. Many commercial smart gateways provide a built-in Matter bridge that translates Matter to Zigbee or other protocols, making it possible for other ecosystems to communicate with them.
 
-The Matterbridge zigbee2mqtt plugin acts as a Matter Bridge, exposing all Zigbee devices and groups from [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) as Matter devices to third-party Matter controllers like Apple Home, Google Home, Amazon Alexa, and SmartThings, all while remaining local on the user's network. This allows fast, secure, and cloud-free control of Zigbee2MQTT-connected Zigbee devices from all major voice assistants as well as other third-party Matter clients.
+The Matterbridge zigbee2mqtt plugin acts as a Matter Bridge, exposing all Zigbee devices, groups and scenes from [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) as Matter devices to third-party Matter controllers like Apple Home, Google Home, Amazon Alexa, and SmartThings, all while remaining local on the user's network. This allows fast, secure, and cloud-free control of Zigbee2MQTT-connected Zigbee devices from all major voice assistants as well as other third-party Matter clients.
 
 ## Prerequisites
 
 ### Matterbridge
 
-Follow these steps to install or update Matterbridge if it is not already installed and up to date:
-
-on Windows:
-
-```
-npm install -g matterbridge --omit=dev
-```
-
-on Linux and macOS (you need the necessary permissions):
-
-```
-sudo npm install -g matterbridge --omit=dev
-```
-
-See the complete guidelines on [Matterbridge](https://github.com/Luligu/matterbridge/blob/main/README.md) for more information.
+See the guidelines on [Matterbridge](https://matterbridge.io/README.html) for more information.
 
 ### Zigbee2mqtt
 
-A fully working installation of zigbee2MQTT is required.
-
-See the guidelines on [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt/blob/master/README.md) for more information.
+See the guidelines on [zigbee2mqtt](https://www.zigbee2mqtt.io/) for more information.
 
 ## How to install the plugin
 
@@ -297,6 +281,68 @@ If one of your devices is not supported out of the box, open an issue and we wil
 ```
 
 ![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/screenshot/Smart%20button.png)
+
+## Unix socket (Linux only)
+
+### Create the directory for the socket
+
+```bash
+# Create the directory for the Unix socket if it doesn't exist
+sudo mkdir -p /var/run/mosquitto
+
+# Make sure the mosquitto user can access the socket
+sudo chown mosquitto:mosquitto /var/run/mosquitto
+
+# Allow group users (e.g. matterbridge) to access the socket
+sudo chmod 750 /var/run/mosquitto
+
+# Optional: Add your user to the mosquitto group to access the socket without sudo
+# sudo usermod -aG mosquitto $USER
+
+# If matterbridge runs like user matterbridge, add the matterbridge user to the mosquitto group to access the socket without sudo
+# sudo usermod -aG mosquitto matterbridge
+```
+
+Log out and back in after running usermod -aG for the group changes to take effect.
+
+```bash
+# Check the appropriate permissions for the directory
+sudo -u mosquitto ls -ld /var/run/mosquitto
+sudo -u mosquitto ls -l /var/run/mosquitto/mqtt.sock
+```
+
+### Configure mosquitto to use Unix socket
+
+Add this to your mosquitto.conf
+
+```
+# Unix socket listener
+listener 0 /var/run/mosquitto/mqtt.sock
+protocol mqtt
+allow_anonymous false
+```
+
+Restart mosquitto.
+
+```bash
+sudo systemctl restart mosquitto
+```
+
+### Configure docker to use Unix socket
+
+Add the unix socket volume for each service using it (i.e. mosquitto, zigbee2mqtt and matterbridge).
+
+```
+   volumes:
+      # Share the same run directory (anonymous volume)
+      - /var/run/mosquitto
+```
+
+Docker does NOT bind the host directory /var/run/mosquitto.
+
+That internal volume lives inside Docker’s own storage, not on your host filesystem.
+
+Because of this, there is no need to create /var/run/mosquitto on the host.
 
 # Known issues
 
