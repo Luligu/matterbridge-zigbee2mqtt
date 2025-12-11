@@ -17,6 +17,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [package]: Updated dependencies.
 - [mqtt]: Clarified in the schema that the mqtt port is not used with Unix socket.
+- [mqtt]: Use mqtt+unix:///path for Unix socket.
 - [mqtt]: Removed options.protocol.
 
 ### Fixed

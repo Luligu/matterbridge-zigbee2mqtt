@@ -50,7 +50,6 @@ describe('TestZigbee2MQTT', () => {
     expect(z2m.mqttPassword).toBe('password');
     // @ts-expect-error accessing private member for testing purposes
     expect(z2m.options.clientId).toMatch(/^matterbridge_[a-f0-9]{16}$/);
-    // @ts-expect-error accessing private member for testing purposes
     expect(z2m.getUrl()).toBe('mqtt://localhost:1883');
   });
 

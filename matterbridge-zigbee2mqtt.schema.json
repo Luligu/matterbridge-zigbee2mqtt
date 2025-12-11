@@ -17,7 +17,7 @@
       "ui:widget": "hidden"
     },
     "host": {
-      "description": "MQTT server host (IP address or hostname with mqtt:// or mqtts:// prefix) or unix://<SOCKET_PATH> for Unix socket on Linux (e.g. unix:///var/run/mosquitto/mqtt.sock). For secure connections, use the mqtts:// prefix and ensure your certificates are configured. If you use a hostname, make sure that the hostname is resolvable by the system running matterbridge.",
+      "description": "MQTT server host (IP address or hostname with mqtt:// or mqtts:// prefix) or mqtt+unix://<SOCKET_PATH> for Unix socket on Linux (e.g. mqtt+unix:///var/run/mosquitto/mqtt.sock). For secure connections, use the mqtts:// prefix and ensure your certificates are configured. If you use a hostname, make sure that the hostname is resolvable by the system running matterbridge.",
       "type": "string",
       "default": "mqtt://localhost"
     },
