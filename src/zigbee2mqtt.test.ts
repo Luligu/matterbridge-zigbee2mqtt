@@ -78,7 +78,6 @@ describe('TestZigbee2MQTT', () => {
       reconnectPeriod: 5000,
       keepalive: 60,
       connectTimeout: 60000,
-      protocol: 'mqtt',
       protocolVersion: 5,
     });
     expect(mockClient.on).toHaveBeenCalledTimes(10);
@@ -278,8 +277,6 @@ describe('TestZigbee2MQTT', () => {
     expect(zTls.options.rejectUnauthorized).toBe(true);
 
     const zPlain = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 'myId', 4);
-    // @ts-expect-error private access for test
-    expect(zPlain.options.protocol).toBe('mqtt');
     // @ts-expect-error private access for test
     expect(zPlain.options.protocolVersion).toBe(4);
     // @ts-expect-error private access for test

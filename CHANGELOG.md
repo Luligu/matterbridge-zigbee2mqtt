@@ -17,10 +17,11 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [package]: Updated dependencies.
 - [mqtt]: Clarified in the schema that the mqtt port is not used with Unix socket.
+- [mqtt]: Removed options.protocol.
 
 ### Fixed
 
-- [mqtt]: Fixed wrong log with Unix socket.
+- [mqtt]: Fixed wrong log messages with Unix socket.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

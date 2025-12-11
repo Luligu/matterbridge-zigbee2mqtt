@@ -74,7 +74,6 @@ export class Zigbee2MQTT extends EventEmitter {
   private options: IClientOptions = {
     clientId: 'matterbridge_' + crypto.randomBytes(8).toString('hex'),
     keepalive: 60,
-    protocol: 'mqtt',
     protocolVersion: 5,
     reconnectPeriod: 5000,
     connectTimeout: 60 * 1000,
@@ -86,7 +85,7 @@ export class Zigbee2MQTT extends EventEmitter {
   /**
    * Creates a new Zigbee2MQTT instance.
    *
-   * @param {string} mqttHost - The MQTT broker URL (e.g., 'mqtt://localhost' or 'mqtts://host'). Use 'mqtts://' for secure (TLS) connections.
+   * @param {string} mqttHost - The MQTT broker URL (e.g., 'mqtt://localhost' or 'mqtts://host' or 'mqtt+unix:///path'). Use 'mqtts://' for secure (TLS) connections.
    * @param {number} mqttPort - The MQTT broker port (default: 1883 for MQTT, 8883 for MQTT over TLS).
    * @param {string} mqttTopic - The base MQTT topic to subscribe to (e.g., 'zigbee2mqtt').
    * @param {string} [mqttUsername] - Optional username for MQTT authentication.
@@ -176,19 +175,19 @@ export class Zigbee2MQTT extends EventEmitter {
       if (key) {
         this.log.warn('You are using mqtt:// protocol, but you provided a key. It will be ignored.');
       }
-    } else if (mqttHost.startsWith('unix://')) {
-      this.log.debug('Using unix:// protocol for MQTT connection over Unix socket');
+    } else if (mqttHost.startsWith('mqtt+unix://')) {
+      this.log.debug('Using mqtt+unix:// protocol for MQTT connection over Unix socket');
       if (ca) {
-        this.log.warn('You are using unix:// protocol, but you provided a CA certificate. It will be ignored.');
+        this.log.warn('You are using mqtt+unix:// protocol, but you provided a CA certificate. It will be ignored.');
       }
       if (cert) {
-        this.log.warn('You are using unix:// protocol, but you provided a certificate. It will be ignored.');
+        this.log.warn('You are using mqtt+unix:// protocol, but you provided a certificate. It will be ignored.');
       }
       if (key) {
-        this.log.warn('You are using unix:// protocol, but you provided a key. It will be ignored.');
+        this.log.warn('You are using mqtt+unix:// protocol, but you provided a key. It will be ignored.');
       }
     } else {
-      this.log.warn('You are using an unsupported MQTT protocol. Please use mqtt:// or mqtts://.');
+      this.log.warn('You are using an unsupported MQTT protocol. Please use mqtt:// or mqtts:// or mqtt+unix://.');
     }
 
     this.z2mIsAvailabilityEnabled = false;
@@ -267,7 +266,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @returns {string} The MQTT connection URL.
    */
   public getUrl(): string {
-    return this.mqttHost.startsWith('unix://') ? this.mqttHost : this.mqttHost + ':' + this.mqttPort.toString();
+    return this.mqttHost.includes('unix://') ? this.mqttHost : this.mqttHost + ':' + this.mqttPort.toString();
   }
 
   /**
