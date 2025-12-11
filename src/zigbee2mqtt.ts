@@ -266,7 +266,7 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @returns {string} The MQTT connection URL.
    */
-  private getUrl(): string {
+  public getUrl(): string {
     return this.mqttHost.startsWith('unix://') ? this.mqttHost : this.mqttHost + ':' + this.mqttPort.toString();
   }
 
