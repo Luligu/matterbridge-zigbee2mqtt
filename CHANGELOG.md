@@ -8,9 +8,19 @@ If you like this project and find it useful, please consider giving it a star on
 
 ## [3.0.3] - 2025-12-12
 
+### Added
+
+- [unixsocket]: Added a guide to setup Unix socket on the host.
+- [unixsocket]: Added a guide to setup Unix socket with docker.
+
 ### Changed
 
 - [package]: Updated dependencies.
+- [unixsocket]: Clarified in the schema that the mqtt port is not used with Unix socket.
+
+### Fixed
+
+- [unixsocket]: Fixed wrong log with Unix socket.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
