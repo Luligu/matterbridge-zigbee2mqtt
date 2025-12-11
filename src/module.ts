@@ -131,10 +131,17 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.shouldStart = false;
     this.shouldConfigure = false;
 
+    // Default values and validation
     if (config.host && typeof config.host === 'string') {
       this.mqttHost = config.host;
       this.mqttHost =
-        !this.mqttHost.startsWith('mqtt://') && !this.mqttHost.startsWith('mqtts://') && !this.mqttHost.startsWith('mqtt+unix://') ? 'mqtt://' + this.mqttHost : this.mqttHost;
+        !this.mqttHost.startsWith('mqtt://') &&
+        !this.mqttHost.startsWith('mqtts://') &&
+        !this.mqttHost.startsWith('ws://') &&
+        !this.mqttHost.startsWith('wss://') &&
+        !this.mqttHost.startsWith('mqtt+unix://')
+          ? 'mqtt://' + this.mqttHost
+          : this.mqttHost;
     }
     if (config.port) this.mqttPort = config.port;
     if (config.topic) this.mqttTopic = config.topic;

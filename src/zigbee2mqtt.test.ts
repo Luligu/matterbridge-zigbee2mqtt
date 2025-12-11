@@ -271,7 +271,7 @@ describe('TestZigbee2MQTT', () => {
   test('constructor TLS and protocol options', () => {
     const zTls = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5);
     // @ts-expect-error private access for test
-    expect(zTls.options.protocol).toBe('mqtts');
+    expect(zTls.options.protocol).toBe(undefined);
     // @ts-expect-error private access for test
     expect(zTls.options.rejectUnauthorized).toBe(true);
 
@@ -604,6 +604,6 @@ describe('TestZigbee2MQTT', () => {
     const zTlsErr = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'notafile', true, 'notcert', 'notkey');
     expect(zTlsErr).toBeInstanceOf(Zigbee2MQTT);
     // @ts-expect-error private access for test
-    expect(zTlsErr.options.protocol).toBe('mqtts');
+    expect(zTlsErr.options.protocol).toBe(undefined);
   });
 });

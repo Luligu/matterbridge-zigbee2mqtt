@@ -12,17 +12,19 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [mqtt]: Added a guide to setup Unix socket on the host.
 - [mqtt]: Added a guide to setup Unix socket with docker.
+- [mqtt]: Added support for web socket connection: use ws://mqtthost.
+- [mqtt]: Added support for secure web socket connection: use wss://mqtthost.
 
 ### Changed
 
 - [package]: Updated dependencies.
 - [mqtt]: Clarified in the schema that the mqtt port is not used with Unix socket.
 - [mqtt]: Use mqtt+unix:///path for Unix socket.
-- [mqtt]: Removed options.protocol.
+- [mqtt]: Removed options.protocol. Thanks Rob van Oostenrijk (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/133).
 
 ### Fixed
 
-- [mqtt]: Fixed wrong log messages with Unix socket.
+- [mqtt]: Fixed wrong log messages with Unix socket. Thanks Rob van Oostenrijk (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/133).
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

@@ -21,6 +21,8 @@ No hub or dedicated hardware needed.
 
 No cloud: all is local and fast.
 
+The connection to the MQTT broker is possible with **mqtt** (tcp), **mqtts** (tls), **mqtt+unix** (Unix socket), **ws** (web socket) and **wss** (secure web socket). Self signed certificates and mutual tls are supported too.
+
 Interested in super fast and autonomous **[automations for zigbee2mqtt](https://github.com/Luligu/zigbee2mqtt-automations)**? Try this: https://github.com/Luligu/zigbee2mqtt-automations.
 
 If you like this project and find it useful, please consider giving it a star on [GitHub](https://github.com/Luligu/matterbridge-zigbee2mqtt) and sponsoring it.
@@ -75,19 +77,7 @@ matterbridge
 
 ## If you want to contribute to the plugin
 
-On windows:
-
-```
-cd $HOME\Matterbridge
-git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
-cd matterbridge-zigbee2mqtt
-npm ci
-npm run dev:link
-npm run build
-matterbridge -add .
-```
-
-On linux and macOS:
+Clone the plugin
 
 ```
 cd ~/Matterbridge
@@ -284,6 +274,8 @@ If one of your devices is not supported out of the box, open an issue and we wil
 
 ## Unix socket (Linux only)
 
+**Note**: Unix domain sockets (mqtt+unix://) are always local and do not support TLS. Security is enforced through filesystem permissions on the socket file.
+
 ### Create the directory for the Unix socket on the host
 
 ```bash
@@ -296,11 +288,11 @@ sudo chown mosquitto:mosquitto /var/run/mosquitto
 # Allow group users (e.g. matterbridge) to access the socket
 sudo chmod 750 /var/run/mosquitto
 
-# Optional: Add your user to the mosquitto group to access the socket without sudo
-# sudo usermod -aG mosquitto $USER
+# Add your user to the mosquitto group to access the socket without sudo
+sudo usermod -aG mosquitto $USER
 
 # If matterbridge runs like user matterbridge, add the matterbridge user to the mosquitto group to access the socket without sudo
-# sudo usermod -aG mosquitto matterbridge
+sudo usermod -aG mosquitto matterbridge
 ```
 
 Log out and back in after running usermod -aG for the group changes to take effect.
