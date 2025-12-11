@@ -284,7 +284,7 @@ If one of your devices is not supported out of the box, open an issue and we wil
 
 ## Unix socket (Linux only)
 
-### Create the directory for the socket
+### Create the directory for the Unix socket on the host
 
 ```bash
 # Create the directory for the Unix socket if it doesn't exist
@@ -311,7 +311,7 @@ sudo -u mosquitto ls -ld /var/run/mosquitto
 sudo -u mosquitto ls -l /var/run/mosquitto/mqtt.sock
 ```
 
-### Configure mosquitto to use Unix socket
+### Configure mosquitto to use Unix socket on the host
 
 Add this to your mosquitto.conf
 
@@ -328,7 +328,7 @@ Restart mosquitto.
 sudo systemctl restart mosquitto
 ```
 
-### Configure docker to use Unix socket
+### Configure docker to use Unix socket anonymous volume
 
 Add the unix socket volume for each service using it (i.e. mosquitto, zigbee2mqtt and matterbridge).
 
