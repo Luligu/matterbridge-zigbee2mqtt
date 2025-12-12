@@ -50,7 +50,6 @@ describe('TestZigbee2MQTT', () => {
     expect(z2m.mqttPassword).toBe('password');
     // @ts-expect-error accessing private member for testing purposes
     expect(z2m.options.clientId).toMatch(/^matterbridge_[a-f0-9]{16}$/);
-    // @ts-expect-error accessing private member for testing purposes
     expect(z2m.getUrl()).toBe('mqtt://localhost:1883');
   });
 
@@ -78,7 +77,6 @@ describe('TestZigbee2MQTT', () => {
       reconnectPeriod: 5000,
       keepalive: 60,
       connectTimeout: 60000,
-      protocol: 'mqtt',
       protocolVersion: 5,
     });
     expect(mockClient.on).toHaveBeenCalledTimes(10);
@@ -273,13 +271,11 @@ describe('TestZigbee2MQTT', () => {
   test('constructor TLS and protocol options', () => {
     const zTls = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5);
     // @ts-expect-error private access for test
-    expect(zTls.options.protocol).toBe('mqtts');
+    expect(zTls.options.protocol).toBe(undefined);
     // @ts-expect-error private access for test
     expect(zTls.options.rejectUnauthorized).toBe(true);
 
     const zPlain = new Zigbee2MQTT('mqtt://host', 1883, 'zigbee2mqtt', undefined, undefined, 'myId', 4);
-    // @ts-expect-error private access for test
-    expect(zPlain.options.protocol).toBe('mqtt');
     // @ts-expect-error private access for test
     expect(zPlain.options.protocolVersion).toBe(4);
     // @ts-expect-error private access for test
@@ -608,6 +604,6 @@ describe('TestZigbee2MQTT', () => {
     const zTlsErr = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'notafile', true, 'notcert', 'notkey');
     expect(zTlsErr).toBeInstanceOf(Zigbee2MQTT);
     // @ts-expect-error private access for test
-    expect(zTlsErr.options.protocol).toBe('mqtts');
+    expect(zTlsErr.options.protocol).toBe(undefined);
   });
 });

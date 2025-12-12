@@ -80,7 +80,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
-  private connectTimeout = 30000; // 30 seconds
+  private connectTimeout = 90000; // 90 seconds
   private availabilityTimeout = 10000; // 10 seconds
 
   // debug
@@ -131,10 +131,17 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.shouldStart = false;
     this.shouldConfigure = false;
 
+    // Default values and validation
     if (config.host && typeof config.host === 'string') {
       this.mqttHost = config.host;
       this.mqttHost =
-        !this.mqttHost.startsWith('mqtt://') && !this.mqttHost.startsWith('mqtts://') && !this.mqttHost.startsWith('unix://') ? 'mqtt://' + this.mqttHost : this.mqttHost;
+        !this.mqttHost.startsWith('mqtt://') &&
+        !this.mqttHost.startsWith('mqtts://') &&
+        !this.mqttHost.startsWith('ws://') &&
+        !this.mqttHost.startsWith('wss://') &&
+        !this.mqttHost.startsWith('mqtt+unix://')
+          ? 'mqtt://' + this.mqttHost
+          : this.mqttHost;
     }
     if (config.port) this.mqttPort = config.port;
     if (config.topic) this.mqttTopic = config.topic;
@@ -186,31 +193,31 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
     if (isValidString(this.mqttHost) && isValidNumber(this.mqttPort, 1, 65535)) {
-      this.log.info(`Connecting to MQTT broker: ${this.mqttHost + ':' + this.mqttPort.toString()}`);
+      this.log.info(`Connecting to MQTT broker: ${this.z2m.getUrl()}`);
       this.z2m.start();
     } else {
       this.log.error(`Invalid MQTT broker host: ${this.mqttHost} or port: ${this.mqttPort}`);
     }
 
     this.z2m.on('mqtt_connect', () => {
-      this.log.info(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} connected`);
+      this.log.info(`MQTT broker at ${this.z2m.getUrl()} connected`);
       this.z2m.subscribe(this.z2m.mqttTopic + '/#');
     });
 
     this.z2m.on('mqtt_subscribed', () => {
-      this.log.info(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} subscribed to: ${this.z2m.mqttTopic + '/#'}`);
+      this.log.info(`MQTT broker at ${this.z2m.getUrl()} subscribed to: ${this.z2m.mqttTopic + '/#'}`);
     });
 
     this.z2m.on('close', () => {
-      this.log.warn(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} closed the connection`);
+      this.log.warn(`MQTT broker at ${this.z2m.getUrl()} closed the connection`);
     });
 
     this.z2m.on('end', () => {
-      this.log.warn(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} ended the connection`);
+      this.log.warn(`MQTT broker at ${this.z2m.getUrl()} ended the connection`);
     });
 
     this.z2m.on('mqtt_error', (error) => {
-      this.log.error(`MQTT broker at ${this.z2m.mqttHost}:${this.z2m.mqttPort} error:`, error);
+      this.log.error(`MQTT broker at ${this.z2m.getUrl()} error:`, error);
     });
 
     this.z2m.on('online', () => {

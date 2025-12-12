@@ -74,7 +74,6 @@ export class Zigbee2MQTT extends EventEmitter {
   private options: IClientOptions = {
     clientId: 'matterbridge_' + crypto.randomBytes(8).toString('hex'),
     keepalive: 60,
-    protocol: 'mqtt',
     protocolVersion: 5,
     reconnectPeriod: 5000,
     connectTimeout: 60 * 1000,
@@ -86,7 +85,7 @@ export class Zigbee2MQTT extends EventEmitter {
   /**
    * Creates a new Zigbee2MQTT instance.
    *
-   * @param {string} mqttHost - The MQTT broker URL (e.g., 'mqtt://localhost' or 'mqtts://host'). Use 'mqtts://' for secure (TLS) connections.
+   * @param {string} mqttHost - The MQTT broker URL (e.g., 'mqtt://localhost' or 'mqtts://host' or 'mqtt+unix:///path'). Use 'mqtts://' for secure (TLS) connections.
    * @param {number} mqttPort - The MQTT broker port (default: 1883 for MQTT, 8883 for MQTT over TLS).
    * @param {string} mqttTopic - The base MQTT topic to subscribe to (e.g., 'zigbee2mqtt').
    * @param {string} [mqttUsername] - Optional username for MQTT authentication.
@@ -136,7 +135,7 @@ export class Zigbee2MQTT extends EventEmitter {
     this.options.protocolVersion = protocolVersion;
 
     // Setup TLS authentication if needed:
-    if (mqttHost.startsWith('mqtts://')) {
+    if (mqttHost.startsWith('mqtts://') || mqttHost.startsWith('wss://')) {
       this.log.debug('Using mqtts:// protocol for secure MQTT connection');
       if (!ca) {
         this.log.info('When using mqtts:// protocol, you must provide the ca certificate for SSL/TLS connections with self-signed certificates.');
@@ -144,28 +143,31 @@ export class Zigbee2MQTT extends EventEmitter {
         try {
           fs.accessSync(ca, fs.constants.R_OK);
           this.options.ca = fs.readFileSync(ca);
+          this.log.info(`Successfully read the CA certificate from ${ca}`);
         } catch (error) {
           this.log.error(`Error reading the CA certificate from ${ca}:`, error);
         }
       }
       this.options.rejectUnauthorized = rejectUnauthorized !== undefined ? rejectUnauthorized : true; // Default to true for security
-      this.options.protocol = 'mqtts';
+      this.log.info(`TLS rejectUnauthorized is set to ${this.options.rejectUnauthorized}`);
       // If cert and key are provided, use them for client authentication with SSL/TLS. Mandatory for mqtts:// connections when require_certificate true
       if (cert && key) {
         try {
           fs.accessSync(cert, fs.constants.R_OK);
           this.options.cert = fs.readFileSync(cert);
+          this.log.info(`Successfully read the client certificate from ${cert}`);
         } catch (error) {
           this.log.error(`Error reading the client certificate from ${cert}:`, error);
         }
         try {
           fs.accessSync(key, fs.constants.R_OK);
           this.options.key = fs.readFileSync(key);
+          this.log.info(`Successfully read the client key from ${key}`);
         } catch (error) {
           this.log.error(`Error reading the client key from ${key}:`, error);
         }
       }
-    } else if (mqttHost.startsWith('mqtt://')) {
+    } else if (mqttHost.startsWith('mqtt://') || mqttHost.startsWith('ws://')) {
       this.log.debug('Using mqtt:// protocol for non-secure MQTT connection');
       if (ca) {
         this.log.warn('You are using mqtt:// protocol, but you provided a CA certificate. It will be ignored.');
@@ -176,19 +178,19 @@ export class Zigbee2MQTT extends EventEmitter {
       if (key) {
         this.log.warn('You are using mqtt:// protocol, but you provided a key. It will be ignored.');
       }
-    } else if (mqttHost.startsWith('unix://')) {
-      this.log.debug('Using unix:// protocol for MQTT connection over Unix socket');
+    } else if (mqttHost.startsWith('mqtt+unix://')) {
+      this.log.debug('Using mqtt+unix:// protocol for MQTT connection over Unix socket');
       if (ca) {
-        this.log.warn('You are using unix:// protocol, but you provided a CA certificate. It will be ignored.');
+        this.log.warn('You are using mqtt+unix:// protocol, but you provided a CA certificate. It will be ignored.');
       }
       if (cert) {
-        this.log.warn('You are using unix:// protocol, but you provided a certificate. It will be ignored.');
+        this.log.warn('You are using mqtt+unix:// protocol, but you provided a certificate. It will be ignored.');
       }
       if (key) {
-        this.log.warn('You are using unix:// protocol, but you provided a key. It will be ignored.');
+        this.log.warn('You are using mqtt+unix:// protocol, but you provided a key. It will be ignored.');
       }
     } else {
-      this.log.warn('You are using an unsupported MQTT protocol. Please use mqtt:// or mqtts://.');
+      this.log.warn('You are using an unsupported MQTT protocol. Please use mqtt:// or mqtts:// or ws:// or wss:// or mqtt+unix://.');
     }
 
     this.z2mIsAvailabilityEnabled = false;
@@ -266,8 +268,8 @@ export class Zigbee2MQTT extends EventEmitter {
    *
    * @returns {string} The MQTT connection URL.
    */
-  private getUrl(): string {
-    return this.mqttHost.startsWith('unix://') ? this.mqttHost : this.mqttHost + ':' + this.mqttPort.toString();
+  public getUrl(): string {
+    return this.mqttHost.includes('unix://') ? this.mqttHost : this.mqttHost + ':' + this.mqttPort.toString();
   }
 
   /**
