@@ -125,6 +125,7 @@ export class ZigbeeEntity extends EventEmitter {
   public eidn = `${or}`;
   protected lastPayload: Payload = {};
   private lastSeen = 0;
+  public colorCapabilities = { hs: false, xy: false, ct: false };
   protected ignoreFeatures: string[] = [];
   protected transition = false;
   protected propertyMap = new Map<
@@ -373,16 +374,22 @@ export class ZigbeeEntity extends EventEmitter {
         // ColorControl currentX, currentY and colorMode
         // prettier-ignore
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
-          // not supported by Apple Home so we convert xy to hue and saturation
           const { x, y } = value as { x: number; y: number };
           if (isValidNumber(x, 0, 1) && isValidNumber(y, 0, 1)) {
-            const hsl = color.xyToHsl(x, y);
-            const rgb = color.xyColorToRgbColor(x, y);
-            this.log.debug(`ColorControl xyToHsl ${CYAN}${x}${db} ${CYAN}${y}${db} => h ${CYAN}${hsl.h}${db} s ${CYAN}${hsl.s}${db} l ${CYAN}${hsl.l}${db}`);
-            this.log.debug(`ColorControl xyToRgb ${CYAN}${x}${db} ${CYAN}${y}${db} => r ${CYAN}${rgb.r}${db} g ${CYAN}${rgb.g}${db} b ${CYAN}${rgb.b}${db}`);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round(hsl.h / 360 * 254));
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(hsl.s / 100 * 254));
+            if (this.colorCapabilities.xy) {
+              this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentXAndCurrentY);
+              this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentX', Math.round(x * 65535));
+              this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentY', Math.round(y * 65535));
+            } else if (this.colorCapabilities.hs) {
+              // not supported by Apple Home so we convert xy to hue and saturation
+              const hsl = color.xyToHsl(x, y);
+              const rgb = color.xyColorToRgbColor(x, y);
+              this.log.debug(`ColorControl xyToHsl ${CYAN}${x}${db} ${CYAN}${y}${db} => h ${CYAN}${hsl.h}${db} s ${CYAN}${hsl.s}${db} l ${CYAN}${hsl.l}${db}`);
+              this.log.debug(`ColorControl xyToRgb ${CYAN}${x}${db} ${CYAN}${y}${db} => r ${CYAN}${rgb.r}${db} g ${CYAN}${rgb.g}${db} b ${CYAN}${rgb.b}${db}`);
+              this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+              this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round(hsl.h / 360 * 254));
+              this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(hsl.s / 100 * 254));
+            }
           }
         }
       });
@@ -661,7 +668,16 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
+    if (this.colorCapabilities.hs) {
+      this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
+    } else if (this.colorCapabilities.xy) {
+      const hue = (data.request.hue / 254) * 360;
+      const saturation = (data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254) * 100;
+      const rgb = color.hslColorToRgbColor(hue, saturation, 50);
+      const xy = color.rgbColorToXYColor(rgb);
+      this.log.debug(`Converting HS to XY for ${this.entityName}: h=${hue}, s=${saturation} => r=${rgb.r}, g=${rgb.g}, b=${rgb.b} => x=${xy.x}, y=${xy.y}`);
+      this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { x: xy.x, y: xy.y } }, data.request.transitionTime);
+    }
   }
 
   // prettier-ignore
@@ -674,7 +690,16 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    if (this.colorCapabilities.hs) {
+      this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    } else if (this.colorCapabilities.xy) {
+      const hue = (data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254) * 360;
+      const saturation = (data.request.saturation / 254) * 100;
+      const rgb = color.hslColorToRgbColor(hue, saturation, 50);
+      const xy = color.rgbColorToXYColor(rgb);
+      this.log.debug(`Converting HS to XY for ${this.entityName}: h=${hue}, s=${saturation} => r=${rgb.r}, g=${rgb.g}, b=${rgb.b} => x=${xy.x}, y=${xy.y}`);
+      this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { x: xy.x, y: xy.y } }, data.request.transitionTime);
+    }
   }
 
   // prettier-ignore
@@ -687,7 +712,20 @@ export class ZigbeeEntity extends EventEmitter {
     }
     this.log.debug(`Command moveToHueAndSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} - ${data.request.saturation} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToHueAndSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    if (this.colorCapabilities.hs) {
+      this.cachePublish('moveToHueAndSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    } else if (this.colorCapabilities.xy) {
+      const hue = (data.request.hue / 254) * 360;
+      const saturation = (data.request.saturation / 254) * 100;
+      const rgb = color.hslColorToRgbColor(hue, saturation, 50);
+      const xy = color.rgbColorToXYColor(rgb);
+      this.log.debug(
+        `device ${this.entityName} only supports XY color mode - converting HS to XY: h=${hue}, s=${saturation} => x=${xy.x}, y=${xy.y}`,
+      );
+      this.cachePublish('moveToHueAndSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { x: xy.x, y: xy.y } }, data.request.transitionTime);
+    } else {
+      this.log.warn(`device ${this.entityName} does not support HS or XY color modes - cannot process moveToHueAndSaturation command`);
+    }
   }
 
   protected addBridgedDeviceBasicInformation(): MatterbridgeEndpoint {
@@ -1460,6 +1498,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
       value_maxs.push(option.value_max ?? NaN);
       values.push(option.values ? option.values.join('|') : '');
     });
+
+    if (names.includes('color_hs')) zigbeeDevice.colorCapabilities.hs = true;
+    if (names.includes('color_xy')) zigbeeDevice.colorCapabilities.xy = true;
+    if (names.includes('color_temp')) zigbeeDevice.colorCapabilities.ct = true;
+
     if (platform.switchList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'light' ? 'switch' : type;

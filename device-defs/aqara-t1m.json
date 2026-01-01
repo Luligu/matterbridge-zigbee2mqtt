@@ -1,0 +1,465 @@
+{
+  "description": "Ceiling light T1M",
+  "exposes": [
+    {
+      "endpoint": "white",
+      "features": [
+        {
+          "access": 7,
+          "description": "On/off state of this light",
+          "endpoint": "white",
+          "label": "State",
+          "name": "state",
+          "property": "state_white",
+          "type": "binary",
+          "value_off": "OFF",
+          "value_on": "ON",
+          "value_toggle": "TOGGLE"
+        },
+        {
+          "access": 7,
+          "description": "Brightness of this light",
+          "endpoint": "white",
+          "label": "Brightness",
+          "name": "brightness",
+          "property": "brightness_white",
+          "type": "numeric",
+          "value_max": 254,
+          "value_min": 0
+        },
+        {
+          "access": 7,
+          "description": "Color temperature of this light",
+          "endpoint": "white",
+          "label": "Color temp",
+          "name": "color_temp",
+          "presets": [
+            {
+              "description": "Coolest temperature supported",
+              "name": "coolest",
+              "value": 153
+            },
+            {
+              "description": "Cool temperature (250 mireds / 4000 Kelvin)",
+              "name": "cool",
+              "value": 250
+            },
+            {
+              "description": "Neutral temperature (370 mireds / 2700 Kelvin)",
+              "name": "neutral",
+              "value": 370
+            },
+            {
+              "description": "Warmest temperature supported",
+              "name": "warmest",
+              "value": 370
+            }
+          ],
+          "property": "color_temp_white",
+          "type": "numeric",
+          "unit": "mired",
+          "value_max": 370,
+          "value_min": 153
+        }
+      ],
+      "type": "light"
+    },
+    {
+      "access": 1,
+      "category": "diagnostic",
+      "description": "Number of power outages (since last pairing)",
+      "label": "Power outage count",
+      "name": "power_outage_count",
+      "property": "power_outage_count",
+      "type": "numeric"
+    },
+    {
+      "access": 1,
+      "category": "diagnostic",
+      "description": "Temperature of the device",
+      "label": "Device temperature",
+      "name": "device_temperature",
+      "property": "device_temperature",
+      "type": "numeric",
+      "unit": "°C"
+    },
+    {
+      "endpoint": "rgb",
+      "features": [
+        {
+          "access": 7,
+          "description": "On/off state of this light",
+          "endpoint": "rgb",
+          "label": "State",
+          "name": "state",
+          "property": "state_rgb",
+          "type": "binary",
+          "value_off": "OFF",
+          "value_on": "ON",
+          "value_toggle": "TOGGLE"
+        },
+        {
+          "access": 7,
+          "description": "Brightness of this light",
+          "endpoint": "rgb",
+          "label": "Brightness",
+          "name": "brightness",
+          "property": "brightness_rgb",
+          "type": "numeric",
+          "value_max": 254,
+          "value_min": 0
+        },
+        {
+          "access": 7,
+          "description": "Color temperature of this light",
+          "endpoint": "rgb",
+          "label": "Color temp",
+          "name": "color_temp",
+          "presets": [
+            {
+              "description": "Coolest temperature supported",
+              "name": "coolest",
+              "value": 153
+            },
+            {
+              "description": "Cool temperature (250 mireds / 4000 Kelvin)",
+              "name": "cool",
+              "value": 250
+            },
+            {
+              "description": "Neutral temperature (370 mireds / 2700 Kelvin)",
+              "name": "neutral",
+              "value": 370
+            },
+            {
+              "description": "Warmest temperature supported",
+              "name": "warmest",
+              "value": 370
+            }
+          ],
+          "property": "color_temp_rgb",
+          "type": "numeric",
+          "unit": "mired",
+          "value_max": 370,
+          "value_min": 153
+        },
+        {
+          "access": 7,
+          "description": "Color of this light in the CIE 1931 color space (x/y)",
+          "endpoint": "rgb",
+          "features": [
+            {
+              "access": 7,
+              "endpoint": "rgb",
+              "label": "X",
+              "name": "x",
+              "property": "x_rgb",
+              "type": "numeric"
+            },
+            {
+              "access": 7,
+              "endpoint": "rgb",
+              "label": "Y",
+              "name": "y",
+              "property": "y_rgb",
+              "type": "numeric"
+            }
+          ],
+          "label": "Color (X/Y)",
+          "name": "color_xy",
+          "property": "color_rgb",
+          "type": "composite"
+        }
+      ],
+      "type": "light"
+    },
+    {
+      "access": 7,
+      "category": "config",
+      "description": "Controls the behavior when the device is powered on after power loss",
+      "label": "Power on behavior",
+      "name": "power_on_behavior",
+      "property": "power_on_behavior",
+      "type": "enum",
+      "values": [
+        "on",
+        "previous",
+        "off"
+      ]
+    },
+    {
+      "access": 2,
+      "category": "config",
+      "description": "Initiate device identification",
+      "label": "Identify",
+      "name": "identify",
+      "property": "identify",
+      "type": "enum",
+      "values": [
+        "identify"
+      ]
+    },
+    {
+      "access": 7,
+      "category": "config",
+      "description": "Minimum allowed dimming value",
+      "label": "Dimming range minimum",
+      "name": "dimming_range_minimum",
+      "property": "dimming_range_minimum",
+      "type": "numeric",
+      "unit": "%",
+      "value_max": 99,
+      "value_min": 1,
+      "value_step": 1
+    },
+    {
+      "access": 7,
+      "category": "config",
+      "description": "Maximum allowed dimming value",
+      "label": "Dimming range maximum",
+      "name": "dimming_range_maximum",
+      "property": "dimming_range_maximum",
+      "type": "numeric",
+      "unit": "%",
+      "value_max": 100,
+      "value_min": 2,
+      "value_step": 1
+    },
+    {
+      "access": 7,
+      "category": "config",
+      "description": "Duration for light to gradually dim when turning off",
+      "label": "On off duration",
+      "name": "on_off_duration",
+      "property": "on_off_duration",
+      "type": "numeric",
+      "unit": "s",
+      "value_max": 10,
+      "value_min": 0,
+      "value_step": 0.5
+    },
+    {
+      "access": 7,
+      "category": "config",
+      "description": "Duration for light to gradually brighten when turning on",
+      "label": "Off on duration",
+      "name": "off_on_duration",
+      "property": "off_on_duration",
+      "type": "numeric",
+      "unit": "s",
+      "value_max": 10,
+      "value_min": 0,
+      "value_step": 0.5
+    },
+    {
+      "access": 2,
+      "category": "config",
+      "description": "RGB dynamic effect type",
+      "label": "Effect",
+      "name": "effect",
+      "property": "effect",
+      "type": "enum",
+      "values": [
+        "flow1",
+        "flow2",
+        "fading",
+        "hopping",
+        "breathing",
+        "rolling"
+      ]
+    },
+    {
+      "access": 7,
+      "description": "RGB dynamic effect speed (1-100%)",
+      "label": "Effect speed",
+      "name": "effect_speed",
+      "property": "effect_speed",
+      "type": "numeric",
+      "unit": "%",
+      "value_max": 100,
+      "value_min": 1,
+      "value_step": 1
+    },
+    {
+      "access": 2,
+      "category": "config",
+      "description": "Array of RGB color objects for dynamic effects (1-8 colors).",
+      "item_type": {
+        "access": 2,
+        "features": [
+          {
+            "access": 2,
+            "description": "Red (0-255)",
+            "label": "R",
+            "name": "r",
+            "property": "r",
+            "type": "numeric",
+            "value_max": 255,
+            "value_min": 0
+          },
+          {
+            "access": 2,
+            "description": "Green (0-255)",
+            "label": "G",
+            "name": "g",
+            "property": "g",
+            "type": "numeric",
+            "value_max": 255,
+            "value_min": 0
+          },
+          {
+            "access": 2,
+            "description": "Blue (0-255)",
+            "label": "B",
+            "name": "b",
+            "property": "b",
+            "type": "numeric",
+            "value_max": 255,
+            "value_min": 0
+          }
+        ],
+        "label": "Color",
+        "name": "color",
+        "type": "composite"
+      },
+      "label": "Effect colors",
+      "length_max": 8,
+      "length_min": 1,
+      "name": "effect_colors",
+      "property": "effect_colors",
+      "type": "list"
+    },
+    {
+      "access": 2,
+      "category": "config",
+      "description": "Set individual segment colors.",
+      "item_type": {
+        "access": 2,
+        "features": [
+          {
+            "access": 2,
+            "description": "Segment number",
+            "label": "Segment",
+            "name": "segment",
+            "property": "segment",
+            "type": "numeric"
+          },
+          {
+            "access": 2,
+            "description": "RGB color object",
+            "features": [
+              {
+                "access": 2,
+                "description": "Red (0-255)",
+                "label": "R",
+                "name": "r",
+                "property": "r",
+                "type": "numeric",
+                "value_max": 255,
+                "value_min": 0
+              },
+              {
+                "access": 2,
+                "description": "Green (0-255)",
+                "label": "G",
+                "name": "g",
+                "property": "g",
+                "type": "numeric",
+                "value_max": 255,
+                "value_min": 0
+              },
+              {
+                "access": 2,
+                "description": "Blue (0-255)",
+                "label": "B",
+                "name": "b",
+                "property": "b",
+                "type": "numeric",
+                "value_max": 255,
+                "value_min": 0
+              }
+            ],
+            "label": "Color",
+            "name": "color",
+            "property": "color",
+            "type": "composite"
+          }
+        ],
+        "label": "Segment color",
+        "name": "segment_color",
+        "type": "composite"
+      },
+      "label": "Segment colors",
+      "name": "segment_colors",
+      "property": "segment_colors",
+      "type": "list"
+    },
+    {
+      "access": 1,
+      "category": "diagnostic",
+      "description": "Link quality (signal strength)",
+      "label": "Linkquality",
+      "name": "linkquality",
+      "property": "linkquality",
+      "type": "numeric",
+      "unit": "lqi",
+      "value_max": 255,
+      "value_min": 0
+    }
+  ],
+  "model": "CL-L02D",
+  "options": [
+    {
+      "access": 2,
+      "description": "Calibrates the device_temperature value (absolute offset), takes into effect on next report of device.",
+      "label": "Device temperature calibration",
+      "name": "device_temperature_calibration",
+      "property": "device_temperature_calibration",
+      "type": "numeric",
+      "value_step": 0.1
+    },
+    {
+      "access": 2,
+      "description": "Controls the transition time (in seconds) of on/off, brightness, color temperature (if applicable) and color (if applicable) changes. Defaults to `0` (no transition).",
+      "label": "Transition",
+      "name": "transition",
+      "property": "transition",
+      "type": "numeric",
+      "value_min": 0,
+      "value_step": 0.1
+    },
+    {
+      "access": 2,
+      "description": "When enabled colors will be synced, e.g. if the light supports both color x/y and color temperature a conversion from color x/y to color temperature will be done when setting the x/y color (default true).",
+      "label": "Color sync",
+      "name": "color_sync",
+      "property": "color_sync",
+      "type": "binary",
+      "value_off": false,
+      "value_on": true
+    },
+    {
+      "access": 2,
+      "description": "Sets the duration of the identification procedure in seconds (i.e., how long the device would flash).The value ranges from 1 to 30 seconds (default: 3).",
+      "label": "Identify timeout",
+      "name": "identify_timeout",
+      "property": "identify_timeout",
+      "type": "numeric",
+      "value_max": 30,
+      "value_min": 1
+    },
+    {
+      "access": 2,
+      "description": "State actions will also be published as 'action' when true (default false).",
+      "label": "State action",
+      "name": "state_action",
+      "property": "state_action",
+      "type": "binary",
+      "value_off": false,
+      "value_on": true
+    }
+  ],
+  "source": "external",
+  "supports_ota": true,
+  "vendor": "Aqara"
+}
