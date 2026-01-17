@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "3.0.4-dev-20250117-1",
+  "version": "3.0.4",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
@@ -41,6 +41,15 @@
   "engines": {
     "node": ">=20.0.0 <21.0.0 || >=22.0.0 <23.0.0 || >=24.0.0 <25.0.0"
   },
+  "files": [
+    "bin",
+    "dist",
+    "screenshots",
+    "npm-shrinkwrap.json",
+    "CHANGELOG.md",
+    "*.config.json",
+    "*.schema.json"
+  ],
   "scripts": {
     "start": "matterbridge",
     "build": "tsc --project tsconfig.json",
@@ -78,9 +87,9 @@
     "automator": "node scripts/runAutomator.mjs --plugin",
     "runMeBeforePublish": "npm run build && npm run lint && npm run format && npm run test:coverage && npm run build",
     "prepublishOnly": "npm run cleanBuildProduction && npm pkg delete devDependencies scripts && npx shx rm -rf node_modules/* node_modules/.[!.]* node_modules/..?* package-lock.json npm-shrinkwrap.json && npm install --omit=dev && npm shrinkwrap --omit=dev",
-    "npmPack": "npx shx cp package.json package.json.backup && npm run prepublishOnly && npm pack && npx shx cp package.json.backup package.json && npx shx rm -f package.json.backup && npm run reset",
-    "npmPublishTagDev": "npx shx cp package.json package.json.backup && npm run prepublishOnly && npm publish --tag dev && npx shx cp package.json.backup package.json && npx shx rm -f package.json.backup && npm run reset",
-    "npmPublishTagEdge": "npx shx cp package.json package.json.backup && npm run prepublishOnly && npm publish --tag edge && npx shx cp package.json.backup package.json && npx shx rm -f package.json.backup && npm run reset",
+    "npmPack": "npx shx cp package.json package.json.backup && node scripts/version.mjs dev && npm run prepublishOnly && npm pack && npx shx cp package.json.backup package.json && npx shx rm -f package.json.backup && npm run reset",
+    "npmPublishTagDev": "npx shx cp package.json package.json.backup && node scripts/version.mjs dev && npm run prepublishOnly && npm publish --tag dev && npx shx cp package.json.backup package.json && npx shx rm -f package.json.backup && npm run reset",
+    "npmPublishTagEdge": "npx shx cp package.json package.json.backup && node scripts/version.mjs edge && npm run prepublishOnly && npm publish --tag edge && npx shx cp package.json.backup package.json && npx shx rm -f package.json.backup && npm run reset",
     "npmPublishTagLatest": "npx shx cp package.json package.json.backup && npm run prepublishOnly && npm publish --tag latest && npx shx cp package.json.backup package.json && npx shx rm -f package.json.backup && npm run reset",
     "install:dependencies": "npm install --save-exact node-ansi-logger node-persist-manager moment mqtt",
     "install:scripts": "npm install --save-dev --save-exact npm-check-updates shx cross-env",
@@ -96,14 +105,6 @@
     "matterbridge:disable": "matterbridge -disable .",
     "matterbridge:list": "matterbridge -list"
   },
-  "files": [
-    "bin",
-    "dist",
-    "npm-shrinkwrap.json",
-    "CHANGELOG.md",
-    "*.config.json",
-    "*.schema.json"
-  ],
   "dependencies": {
     "moment": "2.30.1",
     "mqtt": "5.14.1",

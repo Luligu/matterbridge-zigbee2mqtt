@@ -181,7 +181,7 @@ describe('TestEntity', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "onOff", "fixedLabel"]);
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "scenesManagement", "onOff", "fixedLabel"]);
     expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();
@@ -548,7 +548,7 @@ describe('TestEntity', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "onOff", "levelControl", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement"]);
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "scenesManagement", "onOff", "levelControl", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement"]);
     expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();
@@ -706,7 +706,7 @@ describe('TestEntity', () => {
     expect(device).toBeInstanceOf(MatterbridgeEndpoint);
     if (!device) throw new Error('MatterbridgeEndpoint is undefined');
     // prettier-ignore
-    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "colorControl","identify", "groups", "onOff", "levelControl"]);
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "colorControl", "identify", "groups", "scenesManagement", "onOff", "levelControl"]);
     expect(device.getChildEndpoints()).toHaveLength(0);
 
     jest.clearAllMocks();
