@@ -1,10 +1,10 @@
-# <img src="matterbridge.svg" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin
+# <img src="https://matterbridge.io/assets/matterbridge.svg" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin
 
 [![npm version](https://img.shields.io/npm/v/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
 [![npm downloads](https://img.shields.io/npm/dt/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
 [![Docker Version](https://img.shields.io/docker/v/luligu/matterbridge?label=docker%20version&sort=semver)](https://hub.docker.com/r/luligu/matterbridge)
 [![Docker Pulls](https://img.shields.io/docker/pulls/luligu/matterbridge.svg)](https://hub.docker.com/r/luligu/matterbridge)
-![Node.js CI](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/build-matterbridge-plugin.yml/badge.svg)
+![Node.js CI](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/build.yml/badge.svg)
 ![CodeQL](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/codeql.yml/badge.svg)
 [![codecov](https://codecov.io/gh/Luligu/matterbridge-zigbee2mqtt/branch/main/graph/badge.svg)](https://codecov.io/gh/Luligu/matterbridge-zigbee2mqtt)
 
@@ -27,7 +27,7 @@ Interested in super fast and autonomous **[automations for zigbee2mqtt](https://
 
 If you like this project and find it useful, please consider giving it a star on [GitHub](https://github.com/Luligu/matterbridge-zigbee2mqtt) and sponsoring it.
 
-<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
 ## Introduction
 
@@ -270,7 +270,7 @@ If one of your devices is not supported out of the box, open an issue and we wil
 [16:25:14.325] [Smart button] -- Button 3: Long Press   <=> off
 ```
 
-![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/screenshot/Smart%20button.png)
+![See the screenshot here](https://github.com/Luligu/matterbridge-zigbee2mqtt/blob/main/screenshots/Smart%20button.png)
 
 ## Unix socket (Linux only)
 
