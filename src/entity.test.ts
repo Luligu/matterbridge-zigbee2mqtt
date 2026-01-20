@@ -144,6 +144,7 @@ describe('TestEntity', () => {
   });
 
   test('create the ZigbeePlatform', async () => {
+    matterbridge.matterbridgeVersion = '3.5.0';
     platform = new ZigbeePlatform(matterbridge, log, mockConfig);
     expect(platform).toBeDefined();
     // Add the platform to the Matterbridge environment

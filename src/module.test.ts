@@ -130,6 +130,7 @@ describe('TestPlatform', () => {
   });
 
   it('should return an instance of ZigbeePlatform', async () => {
+    matterbridge.matterbridgeVersion = '3.5.0';
     const platform = initializePlugin(matterbridge, log, mockConfig);
     expect(platform).toBeInstanceOf(ZigbeePlatform);
     await platform.onShutdown();
