@@ -18,8 +18,9 @@ sudo rm -rf matterbridge/* matterbridge/.[!.]* matterbridge/..?*
 # Shallow clone for speed (history not needed inside dev container). Remove --depth if full history required.
 git clone --depth 1 --single-branch --no-tags -b dev https://github.com/Luligu/matterbridge.git matterbridge
 cd matterbridge
+SHA7=$(git rev-parse --short=7 HEAD) && BASE_VERSION=$(node -p "require('./package.json').version.split('-')[0]") && npm pkg set version="${BASE_VERSION}-git-${SHA7}"
 npm ci --no-fund --no-audit
 npm run build
 npm install . --global --no-fund --no-audit
-rm -rf .git .github .vscode docker systemd docs public screenshot
+rm -rf .cache .devcontainer .git .github .vscode docker docs reflector screenshots scripts systemd
 echo "Matterbridge has been installed from the dev branch."
