@@ -27,11 +27,14 @@ If you like this project and find it useful, please consider giving it a star on
 
 ## [3.0.5] - 2026-02-02
 
+### Added
+
+- [workflow]: Migrated to trusted publishing / OIDC.
+
 ### Changed
 
 - [package]: Updated dependencies.
 - [package]: Updated package to automator v. 3.0.4.
-- [workflow]: Migrate to trusted publishing / OIDC.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
