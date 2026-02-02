@@ -546,7 +546,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
     this.log.info(`Configuring zigbee2mqtt platform logger level to ${CYAN}${logLevel}${nf}`);
     this.log.logLevel = logLevel;
-    this.z2m.setLogLevel(logLevel);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.z2m.setLogLevel(logLevel as any); // We avoid the type issue here when node-ansi-logger is not updated yet
     for (const bridgedDevice of this.bridgedDevices) {
       bridgedDevice.log.logLevel = logLevel;
     }
