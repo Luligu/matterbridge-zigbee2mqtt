@@ -56,10 +56,10 @@ jobs:
         run: npm link --no-fund --no-audit
 
       - name: Install plugin dependencies
-        run: npm ci
+        run: npm ci --no-fund --no-audit
 
       - name: Link matterbridge in the project
-        run: npm link matterbridge
+        run: npm link matterbridge --no-fund --no-audit
 
       - name: Build the plugin
         run: npm run build
@@ -149,10 +149,10 @@ jobs:
         run: npm link --no-fund --no-audit
 
       - name: Install plugin dependencies
-        run: npm ci
+        run: npm ci --no-fund --no-audit
 
       - name: Link matterbridge in the plugin
-        run: npm link matterbridge
+        run: npm link matterbridge --no-fund --no-audit
 
       - name: Build the plugin
         run: npm run build
