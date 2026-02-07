@@ -26,6 +26,18 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
+## [3.0.6] - 2026-02-07
+
+### Changed
+
+- [package]: Updated dependencies.
+- [package]: Bumped package to automator v.3.0.6.
+- [package]: Bumped node-ansi-logger to v.3.2.0.
+- [vite]: Added cache under .cache/vite.
+- [workflow]: Migrated to trusted publishing / OIDC. Since you can authorize only one workflow with OIDC, publish.yml now does both the publishing with tag latest (on release) and with tag dev (on schedule or manual trigger).
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
 ## [3.0.5] - 2026-02-04
 
 ### Added
