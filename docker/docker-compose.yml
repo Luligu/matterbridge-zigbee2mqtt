@@ -1,0 +1,103 @@
+# Docker Compose configuration for Mosquitto MQTT broker, Zigbee2MQTT, and Matterbridge
+
+# Unix socket configuration for Mosquitto
+
+# Remove any existing socket and pid files to avoid permission issues when starting the container
+# sudo rm -f "${HOME}/mosquitto/run/mqtt.sock"
+# sudo rm -f "${HOME}/mosquitto/run/mosquitto.pid"
+
+# Ensure the necessary directories exist and have the correct permissions for the mosquitto user (UID 1883)
+# mkdir -p "${HOME}/mosquitto/"{config,data,log,certs,run}
+# sudo chown -R 1883:1883 "${HOME}/mosquitto"
+# sudo chmod -R u+rwX,go-rwx "${HOME}/mosquitto"
+# sudo chmod 700 "${HOME}/mosquitto/certs"
+# sudo chmod 644 "${HOME}/mosquitto/certs/ca.pem"
+# sudo chmod 600 "${HOME}/mosquitto/certs/key.pem"
+# sudo chmod 644 "${HOME}/mosquitto/certs/cert.pem"
+
+# Create the passwords file for mosquitto and set permissions
+# docker run --rm -it -v "${HOME}/mosquitto/data:/mosquitto/data" eclipse-mosquitto:latest mosquitto_passwd -c /mosquitto/data/passwords myuser
+# sudo chown 1883:1883 "${HOME}/mosquitto/data/passwords"
+# sudo chmod 600 "${HOME}/mosquitto/data/passwords"
+
+# Verify the directory structure and permissions
+# ls -ln "${HOME}/mosquitto"
+
+# Zigbee2MQTT configuration
+#
+# mqtt:
+#   server: mqtt://mosquitto:1883
+#   user: myuser
+#   password: yourpassword
+
+networks:
+  iot:
+    name: iot
+    driver: bridge
+
+services:
+
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    networks: [ iot ] # Use the iot network for Mosquitto. This allows other containers on the same network to connect to it using the container name "mosquitto".
+    ports:
+      # expose to host and lan clients
+      - "1883:1883" # MQTT
+      - "8883:8883" # MQTT over SSL
+      - "9001:9001" # MQTT over WebSockets
+      - "9443:9443" # MQTT over WebSockets with SSL
+    volumes:
+      - "${HOME}/mosquitto/config:/mosquitto/config"
+      - "${HOME}/mosquitto/data:/mosquitto/data"
+      - "${HOME}/mosquitto/log:/mosquitto/log"
+      - "${HOME}/mosquitto/certs:/mosquitto/certs"
+      - "${HOME}/mosquitto/run:/var/run/mosquitto" # Mount the run directory for the Unix socket
+    environment:
+      - TZ=Europe/Paris
+    user: 1883:1883
+
+  zigbee2mqtt:
+    container_name: zigbee2mqtt
+    image: koenkk/zigbee2mqtt:latest
+    restart: unless-stopped
+    networks: [ iot ] # Use the iot network for Zigbee2MQTT. This allows it to connect to Mosquitto using the container name "mosquitto".
+    ports:
+      # Frontend port
+      - 8080:8080
+    volumes:
+      - "${HOME}/zigbee2MQTT:/app/data" # Mount the Zigbee2MQTT data directory
+      - "${HOME}/mosquitto/certs:/mosquitto/certs" # Mount the Mosquitto certs directory to allow Zigbee2MQTT to connect securely to Mosquitto
+      - "${HOME}/mosquitto/run:/var/run/mosquitto" # Mount the run directory for the Unix socket
+      - /run/udev:/run/udev:ro
+    environment:
+      - TZ=Europe/Paris
+    devices:
+      # Make sure this matched your adapter location
+      - /dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0:/dev/ttyACM0
+    depends_on:
+      - mosquitto
+
+  matterbridge:
+    container_name: matterbridge
+    image: luligu/matterbridge:latest # Matterbridge image with the latest tag
+    restart: unless-stopped
+    network_mode: host # Ensures the Matter mdns works
+    volumes:
+      - "${HOME}/matterbridge/Matterbridge:/root/Matterbridge" # Mounts the Matterbridge plugin directory
+      - "${HOME}/matterbridge/.matterbridge:/root/.matterbridge" # Mounts the Matterbridge storage directory
+      - "${HOME}/matterbridge/.mattercert:/root/.mattercert" # Mounts the Matterbridge cert directory
+      - "${HOME}/mosquitto/certs:/mosquitto/certs" # Mount the Mosquitto certs directory to allow Matterbridge to connect securely to Mosquitto
+      - "${HOME}/mosquitto/run:/var/run/mosquitto" # Mount the run directory for the Unix socket
+    environment:
+      - TZ=Europe/Paris
+    healthcheck:
+      test: mb_health https://localhost:443/health
+      interval: 60s
+      retries: 5
+      start_period: 60s
+      timeout: 10s
+    depends_on:
+      - mosquitto
+    command: ["matterbridge", "--docker", "--ssl", "--frontend", "443"]

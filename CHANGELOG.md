@@ -28,6 +28,11 @@ If you like this project and find it useful, please consider giving it a star on
 
 ## [3.0.7] - 2026-02-18
 
+### Added
+
+- [docker]: Add an example of docker_compose.yml. You need to provide your own certificates.
+- [mosquitto]: Add an example of mosquitto configuration for ws:// wss:// mqtt:// mqtts:// mqtt+unix://. You need to provide your own certificates.
+
 ### Changed
 
 - [package]: Update dependencies.
