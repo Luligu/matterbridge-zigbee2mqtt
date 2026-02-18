@@ -9,7 +9,7 @@ const HOMEDIR = path.join('jest', NAME);
 import path from 'node:path';
 
 import { jest } from '@jest/globals';
-import { invokeBehaviorCommand, Matterbridge, MatterbridgeEndpoint } from 'matterbridge';
+import { invokeBehaviorCommand, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
 import { ColorControl, LevelControl, PowerSource } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
@@ -72,9 +72,6 @@ const z2mPublishSpy = jest.spyOn(Zigbee2MQTT.prototype, 'publish').mockImplement
 
 // Setup the test environment
 await setupTest(NAME, false);
-
-// Setup the matter and test environment
-createTestEnvironment(NAME);
 
 describe('TestEntity', () => {
   let platform: ZigbeePlatform;
@@ -236,7 +233,7 @@ describe('TestEntity', () => {
     );
 
     // Test updates from Z2M
-    let payload: Payload = {};
+    let payload: Payload;
 
     jest.clearAllMocks();
     payload = { state: 'OFF' };
@@ -341,7 +338,7 @@ describe('TestEntity', () => {
     );
 
     // Test updates from Z2M
-    let payload: Payload = {};
+    let payload: Payload;
 
     jest.clearAllMocks();
     payload = { state: 'OFF' };
@@ -501,7 +498,7 @@ describe('TestEntity', () => {
     );
 
     // Test updates from Z2M for ch1 ch2
-    let payload: Payload = {};
+    let payload: Payload;
 
     jest.clearAllMocks();
     payload = { state_l1: 'OFF', state_l2: 'OFF', energy: 123.4, voltage: 230, power: 0, current: 0 };
@@ -668,7 +665,7 @@ describe('TestEntity', () => {
     expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(100);
 
     // Test updates from Z2M
-    let payload: Payload = {};
+    let payload: Payload;
 
     jest.clearAllMocks();
     payload = { state: 'OFF' };
@@ -958,7 +955,7 @@ describe('TestEntity', () => {
     (entity as any).noUpdate = false;
 
     // Test updates from Z2M
-    let payload: Payload = {};
+    let payload: Payload;
 
     jest.clearAllMocks();
     payload = { state: 'OFF' };
@@ -1049,10 +1046,8 @@ describe('TestEntity', () => {
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
 
     // Test updates from Z2M
-    let payload: Payload = {};
-
     jest.clearAllMocks();
-    payload = { temperature: 22.5, humidity: 55.3, pressure: 1013.2, linkquality: 120, battery: 95, voltage: 2900 };
+    const payload: Payload = { temperature: 22.5, humidity: 55.3, pressure: 1013.2, linkquality: 120, battery: 95, voltage: 2900 };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
     await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(2250);
@@ -1104,10 +1099,8 @@ describe('TestEntity', () => {
     expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
 
     // Test updates from Z2M
-    let payload: Payload = {};
-
     jest.clearAllMocks();
-    payload = { illuminance: 539, occupancy: true, linkquality: 120, battery: 95, voltage: 2900 };
+    const payload: Payload = { illuminance: 539, occupancy: true, linkquality: 120, battery: 95, voltage: 2900 };
     platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
     await flushAsync(undefined, undefined, updateTimeout);
     expect(device.getAttribute('OccupancySensing', 'occupancy')).toEqual({ occupied: true });

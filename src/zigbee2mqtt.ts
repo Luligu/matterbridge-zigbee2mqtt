@@ -583,7 +583,7 @@ export class Zigbee2MQTT extends EventEmitter {
   private messageHandler(topic: string, payload: Buffer) {
     if (topic.startsWith(this.mqttTopic + '/bridge/state')) {
       const payloadString = payload.toString();
-      let data: Payload = {};
+      let data: Payload;
       if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
         data = this.tryJsonParse(payload.toString());
       } else {
@@ -753,7 +753,7 @@ export class Zigbee2MQTT extends EventEmitter {
       return;
     }
     const payloadString = payload.toString();
-    let data: Payload = {};
+    let data: Payload;
     if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
       data = this.tryJsonParse(payload.toString());
     } else {
@@ -784,7 +784,7 @@ export class Zigbee2MQTT extends EventEmitter {
       return;
     }
     const payloadString = payload.toString();
-    let data: Payload = {};
+    let data: Payload;
     if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
       data = this.tryJsonParse(payload.toString());
     } else {

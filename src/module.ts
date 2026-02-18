@@ -165,10 +165,15 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.username = this.mqttUsername ?? '';
     config.password = this.mqttPassword ?? '';
     config.postfix = this.postfix;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.postfixHostname !== undefined) delete config.postfixHostname;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.deviceScenes !== undefined) delete config.deviceScenes;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.groupScenes !== undefined) delete config.groupScenes;
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.scenesType === undefined) config.scenesType = 'outlet';
+    // istanbul ignore next cause is a precaution for old versions of the config, we can remove it in the future
     if (config.scenesPrefix === undefined) config.scenesPrefix = true;
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
@@ -528,7 +533,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     }, this.availabilityTimeout).unref();
 
-    /* istanbul ignore next if */
     /*
     if (this.config.injectPayloads && typeof this.config.injectPayloads === 'string') {
       this.injectTimer = setInterval(() => {
@@ -612,6 +616,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.log.debug(`Requesting update for ${group.friendly_name}`);
     const payload: Payload = {};
     payload['state'] = '';
+    // istanbul ignore else
     if (payload && Object.keys(payload).length > 0) {
       const topic = this.z2m.mqttTopic + '/' + group.friendly_name + '/get';
       await this.z2m.publish(topic, payloadStringify(payload), false);
