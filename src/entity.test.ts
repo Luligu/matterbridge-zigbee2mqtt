@@ -9,9 +9,9 @@ const HOMEDIR = path.join('jest', NAME);
 import path from 'node:path';
 
 import { jest } from '@jest/globals';
-import { invokeBehaviorCommand, MatterbridgeEndpoint, invokeSubscribeHandler } from 'matterbridge';
+import { invokeBehaviorCommand, MatterbridgeEndpoint, invokeSubscribeHandler, featuresFor } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
-import { ColorControl, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { ColorControl, DoorLock, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
 import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
 import {
@@ -1055,6 +1055,125 @@ describe('Test Entity', () => {
       await flushAsync(undefined, undefined, updateTimeout);
       expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+
+      entity.destroy();
+    });
+    test('create a lock device', async () => {
+      // await setDebug(true);
+      const z2mDevice = lock;
+      const friendlyName = z2mDevice.friendly_name;
+      expect(z2mDevice).toBeDefined();
+      if (!z2mDevice) throw new Error('Z2M Device not found');
+      const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      expect(entity).toBeDefined();
+      expect(entity.entityName).toBe(friendlyName);
+      const device = entity.bridgedDevice;
+      expect(device).toBeDefined();
+      expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      // prettier-ignore
+      expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "doorLock"]);
+      expect(device.getChildEndpoints()).toHaveLength(0);
+      expect(featuresFor(device, 'doorLock')).toEqual({});
+      // await setDebug(false);
+
+      jest.clearAllMocks();
+      expect(await addDevice(aggregator, device)).toBe(true);
+      expect(device.getAttribute('doorLock', 'lockState')).toBe(DoorLock.LockState.Locked);
+      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+      // Test commands from the controller
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'doorLock', 'lockDoor');
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Command lockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+        expect.anything(),
+      );
+      expect(publishCommandSpy).toHaveBeenCalledWith('lockDoor', friendlyName, { state: 'LOCK' });
+
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'doorLock', 'unlockDoor');
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Command unlockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+        expect.anything(),
+      );
+      expect(publishCommandSpy).toHaveBeenCalledWith('unlockDoor', friendlyName, { state: 'UNLOCK' });
+    });
+
+    test('create a thermostat device', async () => {
+      // await setDebug(true);
+      const z2mDevice = thermo;
+      const friendlyName = z2mDevice.friendly_name;
+      expect(z2mDevice).toBeDefined();
+      if (!z2mDevice) throw new Error('Z2M Device not found');
+      const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      expect(entity).toBeDefined();
+      expect(entity.entityName).toBe(friendlyName);
+      const device = entity.bridgedDevice;
+      expect(device).toBeDefined();
+      expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      // prettier-ignore
+      expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "thermostat", "identify"]);
+      expect(device.getChildEndpoints()).toHaveLength(0);
+      expect(featuresFor(device, 'Thermostat')).toEqual({
+        autoMode: true,
+        cooling: true,
+        heating: true,
+        localTemperatureNotExposed: false,
+        matterScheduleConfiguration: false,
+        occupancy: false,
+        presets: false,
+        scheduleConfiguration: false,
+        setback: false,
+      });
+      // await setDebug(false);
+
+      jest.clearAllMocks();
+      expect(await addDevice(aggregator, device)).toBe(true);
+      expect(device.getAttribute('Thermostat', 'systemMode')).toBe(Thermostat.SystemMode.Auto);
+      expect(device.getAttribute('Thermostat', 'occupiedCoolingSetpoint')).toBe(2500);
+      expect(device.getAttribute('Thermostat', 'occupiedHeatingSetpoint')).toBe(2100);
+      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+      // Test commands from the controller
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'Thermostat', 'setpointRaiseLower', { mode: Thermostat.SetpointRaiseLowerMode.Both, amount: 100 });
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerDebugSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`Command setpointRaiseLower called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+        expect.anything(),
+      );
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedHeatingSetpoint', friendlyName, { occupied_heating_setpoint: 31 });
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedCoolingSetpoint', friendlyName, { occupied_cooling_setpoint: 35 });
+
+      // Test writes from the controller
+      jest.clearAllMocks();
+      (entity as any).thermostatTimeoutTime = 1;
+      await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Off);
+      await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Cool);
+      await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Heat);
+      await device.setAttribute('Thermostat', 'occupiedCoolingSetpoint', 2200);
+      await device.setAttribute('Thermostat', 'occupiedHeatingSetpoint', 2200);
+      expect(publishCommandSpy).toHaveBeenCalledTimes(0);
+
+      // @ts-expect-error accessing private property for test
+      entity.thermostatTimeoutTime = 1;
+      await invokeSubscribeHandler(device, 'Thermostat', 'systemMode', Thermostat.SystemMode.Off, Thermostat.SystemMode.Heat);
+      await invokeSubscribeHandler(device, 'Thermostat', 'systemMode', Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool);
+      await invokeSubscribeHandler(device, 'Thermostat', 'systemMode', Thermostat.SystemMode.Cool, Thermostat.SystemMode.Off);
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2000, 2200);
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2000, 2200);
+      expect(publishCommandSpy).toHaveBeenCalledTimes(5);
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
 
       entity.destroy();
     });
@@ -3373,6 +3492,263 @@ const cover = {
   manufacturer: '_TZ3000_1dd0d5yi',
   model_id: 'TS130F',
   network_address: 63434,
+  power_source: 'Mains (single phase)',
+  supported: true,
+  type: 'Router',
+};
+
+const thermo = {
+  date_code: '',
+  definition: {
+    description: 'Smart heating thermostat',
+    exposes: [
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Link quality (signal strength)',
+        label: 'Linkquality',
+        name: 'linkquality',
+        property: 'linkquality',
+        type: 'numeric',
+        unit: 'lqi',
+        value_max: 255,
+        value_min: 0,
+      },
+      {
+        features: [
+          {
+            access: 3,
+            description: 'Enables/disables physical input on the device',
+            label: 'State',
+            name: 'state',
+            property: 'child_lock',
+            type: 'binary',
+            value_off: 'UNLOCK',
+            value_on: 'LOCK',
+          },
+        ],
+        label: 'Child lock',
+        type: 'lock',
+      },
+      {
+        access: 3,
+        description: 'The delta between local_temperature and current_heating_setpoint to trigger Heat',
+        label: 'Deadzone temperature',
+        name: 'deadzone_temperature',
+        property: 'deadzone_temperature',
+        type: 'numeric',
+        unit: '°C',
+        value_max: 5,
+        value_min: 0,
+        value_step: 1,
+      },
+      {
+        access: 3,
+        description:
+          'Maximum temperature limit. Cuts the thermostat out regardless of air temperature if the external floor sensor exceeds this temperature. Only used by the thermostat when in AL sensor mode.',
+        label: 'Max temperature limit',
+        name: 'max_temperature_limit',
+        property: 'max_temperature_limit',
+        type: 'numeric',
+        unit: '°C',
+        value_max: 45,
+        value_min: 0,
+      },
+      {
+        access: 3,
+        description: 'Minimum temperature limit for frost protection. Turns the thermostat on regardless of setpoint if the temperature drops below this.',
+        label: 'Min temperature limit',
+        name: 'min_temperature_limit',
+        property: 'min_temperature_limit',
+        type: 'numeric',
+        unit: '°C',
+        value_max: 5,
+        value_min: 1,
+      },
+      {
+        features: [
+          {
+            access: 3,
+            description: 'Temperature heating setpoint',
+            label: 'Current heating setpoint',
+            name: 'occupied_heating_setpoint',
+            property: 'occupied_heating_setpoint',
+            type: 'numeric',
+            unit: '°C',
+            value_max: 45,
+            value_min: 5,
+            value_step: 0.5,
+          },
+          {
+            access: 3,
+            description: 'Temperature cooling setpoint',
+            label: 'Current cooling setpoint',
+            name: 'occupied_cooling_setpoint',
+            property: 'occupied_cooling_setpoint',
+            type: 'numeric',
+            unit: '°C',
+            value_max: 45,
+            value_min: 5,
+            value_step: 0.5,
+          },
+          {
+            access: 1,
+            description: 'Current temperature measured on the device',
+            label: 'Local temperature',
+            name: 'local_temperature',
+            property: 'local_temperature',
+            type: 'numeric',
+            unit: '°C',
+          },
+          {
+            access: 3,
+            description: 'Offset to add/subtract to the local temperature',
+            label: 'Local temperature calibration',
+            name: 'local_temperature_calibration',
+            property: 'local_temperature_calibration',
+            type: 'numeric',
+            unit: '°C',
+            value_max: 30,
+            value_min: -30,
+            value_step: 0.1,
+          },
+          {
+            access: 3,
+            description: 'Mode of this device',
+            label: 'System mode',
+            name: 'system_mode',
+            property: 'system_mode',
+            type: 'enum',
+            values: ['off', 'auto', 'heat', 'cool'],
+          },
+          {
+            access: 1,
+            description: 'The current running state',
+            label: 'Running state',
+            name: 'running_state',
+            property: 'running_state',
+            type: 'enum',
+            values: ['idle', 'heat', 'cool'],
+          },
+        ],
+        type: 'climate',
+      },
+      {
+        access: 3,
+        category: 'config',
+        description: 'Select temperature sensor to use',
+        label: 'Sensor',
+        name: 'sensor',
+        property: 'sensor',
+        type: 'enum',
+        values: ['IN', 'AL', 'OU'],
+      },
+    ],
+    model: 'BHT-002/BHT-006',
+    options: [],
+    supports_ota: false,
+    vendor: 'Moes',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [],
+      clusters: {
+        input: ['genGroups', 'genScenes', 'manuSpecificTuya', 'genBasic'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+    '242': {
+      bindings: [],
+      clusters: {
+        input: [],
+        output: ['greenPower'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Moes thermo',
+  ieee_address: '0xa4c138f402dfba8a',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: '_TZE204_aoclfnxz',
+  model_id: 'TS0601',
+  network_address: 47713,
+  power_source: 'Mains (single phase)',
+  supported: true,
+  type: 'Router',
+};
+
+const lock = {
+  date_code: '',
+  definition: {
+    description: 'Smart lock',
+    exposes: [
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Link quality (signal strength)',
+        label: 'Linkquality',
+        name: 'linkquality',
+        property: 'linkquality',
+        type: 'numeric',
+        unit: 'lqi',
+        value_max: 255,
+        value_min: 0,
+      },
+      {
+        features: [
+          {
+            access: 3,
+            description: 'Enables/disables physical input on the device',
+            label: 'State',
+            name: 'state',
+            property: 'state',
+            type: 'binary',
+            value_off: 'UNLOCK',
+            value_on: 'LOCK',
+          },
+        ],
+        label: 'Lock state',
+        type: 'lock',
+      },
+    ],
+    model: 'LOCK-006',
+    options: [],
+    supports_ota: false,
+    vendor: 'Local',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [],
+      clusters: {
+        input: ['genGroups', 'genScenes', 'manuSpecificTuya', 'genBasic'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+    '242': {
+      bindings: [],
+      clusters: {
+        input: [],
+        output: ['greenPower'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Door lock',
+  ieee_address: '0xa4c138f402dfba1a',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: '_TZE204_xxxxxx',
+  model_id: 'TS0601',
+  network_address: 47711,
   power_source: 'Mains (single phase)',
   supported: true,
   type: 'Router',
