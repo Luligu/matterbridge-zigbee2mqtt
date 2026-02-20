@@ -64,7 +64,16 @@
         "ieee_address": "0xa4c138e0a08604f5"
       }
     ],
-    "scenes": []
+    "scenes": [
+      {
+        "id": 0,
+        "name": "Lights Off"
+      },
+      {
+        "id": 1,
+        "name": "Lights On"
+      }
+    ]
   },
   {
     "friendly_name": "Switches",
@@ -91,7 +100,16 @@
         "ieee_address": "0xcc86ecfffe4e9d25"
       }
     ],
-    "scenes": []
+    "scenes": [
+      {
+        "id": 0,
+        "name": "Switches Off"
+      },
+      {
+        "id": 1,
+        "name": "Switches On"
+      }
+    ]
   },
   {
     "friendly_name": "Covers",
@@ -102,7 +120,16 @@
         "ieee_address": "0x70ac08fffee6dd5e"
       }
     ],
-    "scenes": []
+    "scenes": [
+      {
+        "id": 0,
+        "name": "Covers Open"
+      },
+      {
+        "id": 1,
+        "name": "Covers Close"
+      }
+    ]
   },
   {
     "friendly_name": "Thermostats",
@@ -116,7 +143,7 @@
     "scenes": [
       {
         "id": 0,
-        "name": "Heat 37"
+        "name": "Thermostats Heat 37"
       }
     ]
   }

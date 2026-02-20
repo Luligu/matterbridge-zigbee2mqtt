@@ -34,6 +34,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [mosquitto]: Add an example of mosquitto configuration for ws:// wss:// mqtt:// mqtts:// mqtt+unix://. You need to provide your own certificates.
 - [transition]: Add transition to groups. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/147).
 - [transition]: Support decimal transition. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/150).
+- [test]: Improve test coverage.
 
 ### Changed
 

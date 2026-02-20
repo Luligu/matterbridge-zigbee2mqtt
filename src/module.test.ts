@@ -290,6 +290,11 @@ describe('TestPlatform', () => {
     expect(platform.z2mBridgeGroups.length).toBe(10);
   });
 
+  it('should have configured', async () => {
+    expect(platform).toBeDefined();
+    await platform.onConfigure();
+  });
+
   it('should update entity OFFLINE', async () => {
     for (const entity of platform.zigbeeEntities) {
       expect(entity).toBeDefined();
@@ -299,6 +304,7 @@ describe('TestPlatform', () => {
       await wait(50);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${entity.entityName}${rs}`);
     }
+    await flushAsync();
   }, 60000);
 
   it('should update entity ONLINE', async () => {
@@ -310,6 +316,7 @@ describe('TestPlatform', () => {
       await wait(50);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${entity.entityName}${rs}`);
     }
+    await flushAsync();
   }, 60000);
 
   it('should update with permit_join', async () => {
@@ -432,11 +439,10 @@ describe('TestPlatform', () => {
         platform.z2m.emit('MESSAGE-' + entity.entityName, payloadJson);
       }
     });
+    await flushAsync();
   }, 60000);
 
   it('should update /Lights/set', async () => {
-    // setDebug(true);
-
     const entity = 'Lights';
 
     jest.clearAllMocks();
@@ -446,7 +452,7 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`${db}MQTT message for device ${ign}${entity}${rs}${db} payload:`));
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
-      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
+      expect.stringContaining(`${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}OnOff${db}.${hk}onOff${db} from ${YELLOW}true${db} to ${YELLOW}false${db}`),
     );
 
     jest.clearAllMocks();
@@ -463,28 +469,27 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}LevelControl${db}.${hk}currentLevel${db}`, //  from ${YELLOW}1${db} to ${YELLOW}250${db}
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}colorMode${db} from ${YELLOW}2${db} to ${YELLOW}0${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}currentHue${db} from ${YELLOW}0${db} to ${YELLOW}248${db}`,
       ),
     );
     expect(loggerLogSpy).toHaveBeenCalledWith(
       LogLevel.INFO,
       expect.stringContaining(
-        `${db}Update endpoint ${or}MA-extendedcolorlight:58${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
+        `${db}Update endpoint ${or}MA-extendedcolorlight:60${db} attribute ${hk}ColorControl${db}.${hk}currentSaturation${db} from ${YELLOW}0${db} to ${YELLOW}254${db}`,
       ),
     );
-    // setDebug(false);
   });
 
   it('should add NewGroup', async () => {
