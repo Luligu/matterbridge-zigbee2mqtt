@@ -453,7 +453,8 @@ export class ZigbeeEntity extends EventEmitter {
     }
 
     if (payload) this.cachePayload = { ...this.cachePayload, ...payload };
-    if (this.transition && transitionTime && transitionTime / 10 >= 1) this.cachePayload['transition'] = Math.round(transitionTime / 10);
+    // zigbee2mqtt transition is in seconds (also 0.1) and Matter transition is in tenths of seconds, so we convert it to zigbee2mqtt transition and we only add it if the transition is enabled and the transition time is valid
+    if (this.transition && transitionTime && transitionTime / 10 >= 0) this.cachePayload['transition'] = transitionTime / 10;
     clearTimeout(this.cachePublishTimeout);
     this.cachePublishTimeout = setTimeout(() => {
       clearTimeout(this.cachePublishTimeout);
@@ -992,6 +993,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     let useState = false;
     let useBrightness = false;
+    let useTransition = false;
     let useColor = false;
     let useColorTemperature = false;
     let minColorTemperature = 140;
@@ -1043,6 +1045,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
             zigbeeGroup.log.debug(`- generic type ${CYAN}${expose.type}${db} expose name ${CYAN}${expose.name}${db} property ${CYAN}${expose.property}${db}`);
           }
         });
+        device.definition?.options.forEach((option) => {
+          useTransition = useTransition === true || option.name === 'transition' ? true : false;
+        });
       });
       zigbeeGroup.log.debug(
         `Group ${gn}${group.friendly_name}${rs}${db} switch: ${CYAN}${isSwitch}${db} light: ${CYAN}${isLight}${db} cover: ${CYAN}${isCover}${db} thermostat: ${CYAN}${isThermostat}${db}`,
@@ -1061,6 +1066,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
       if (useBrightness) {
         deviceType = dimmableLight;
         zigbeeGroup.propertyMap.set('brightness', { name: 'brightness', type: 'light', endpoint: '' });
+      }
+      if (useTransition) {
+        zigbeeGroup.transition = true;
       }
       if (useColorTemperature) {
         deviceType = colorTemperatureLight;
@@ -1127,13 +1135,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         zigbeeGroup.bridgedDevice.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
       }
-      for (const child of zigbeeGroup.bridgedDevice.getChildEndpoints()) {
-        if (child.hasClusterServer(OnOff.Cluster.id)) {
-          child.addCommandHandler('on', zigbeeGroup.onCommandHandler.bind(zigbeeGroup));
-          child.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
-          child.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
-        }
-      }
     }
     if (isLight) {
       if (useBrightness) {
@@ -1193,7 +1194,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
             zigbeeGroup.noUpdate = true;
             zigbeeGroup.thermostatTimeout = setTimeout(() => {
               zigbeeGroup.noUpdate = false;
-            }, zigbeeGroup.thermostatTimeoutTime);
+            }, zigbeeGroup.thermostatTimeoutTime).unref();
           }
         },
         zigbeeGroup.log,
@@ -1209,7 +1210,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
           zigbeeGroup.noUpdate = true;
           zigbeeGroup.thermostatTimeout = setTimeout(() => {
             zigbeeGroup.noUpdate = false;
-          }, zigbeeGroup.thermostatTimeoutTime);
+          }, zigbeeGroup.thermostatTimeoutTime).unref();
         },
         zigbeeGroup.log,
       );
@@ -1224,7 +1225,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
           zigbeeGroup.noUpdate = true;
           zigbeeGroup.thermostatTimeout = setTimeout(() => {
             zigbeeGroup.noUpdate = false;
-          }, zigbeeGroup.thermostatTimeoutTime);
+          }, zigbeeGroup.thermostatTimeoutTime).unref();
         },
         zigbeeGroup.log,
       );
@@ -1942,7 +1943,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, zigbeeDevice.thermostatTimeoutTime);
+            }, zigbeeDevice.thermostatTimeoutTime).unref();
           }
         },
         zigbeeDevice.log,
@@ -1960,7 +1961,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, zigbeeDevice.thermostatTimeoutTime);
+            }, zigbeeDevice.thermostatTimeoutTime).unref();
           },
           zigbeeDevice.log,
         );
@@ -1977,7 +1978,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
-            }, zigbeeDevice.thermostatTimeoutTime);
+            }, zigbeeDevice.thermostatTimeoutTime).unref();
           },
           zigbeeDevice.log,
         );

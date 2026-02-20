@@ -26,12 +26,14 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
-## [3.0.7] - 2026-02-18
+## [3.0.7] - 2026-02-20
 
 ### Added
 
 - [docker]: Add an example of docker_compose.yml. You need to provide your own certificates.
 - [mosquitto]: Add an example of mosquitto configuration for ws:// wss:// mqtt:// mqtts:// mqtt+unix://. You need to provide your own certificates.
+- [transition]: Add transition to groups. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/147).
+- [transition]: Support decimal transition. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/150).
 
 ### Changed
 

@@ -11,7 +11,7 @@ import path from 'node:path';
 import { jest } from '@jest/globals';
 import { invokeBehaviorCommand, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
-import { ColorControl, LevelControl, PowerSource } from 'matterbridge/matter/clusters';
+import { ColorControl, LevelControl, PowerSource, Thermostat } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
 import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
 import {
@@ -268,6 +268,281 @@ describe('TestEntity', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
 
     entity.destroy();
+  });
+
+  test('create a light group', async () => {
+    const friendlyName = 'Lights';
+    const z2mGroup = platform.z2mBridgeGroups?.find((group) => group.friendly_name === friendlyName);
+    expect(z2mGroup).toBeDefined();
+    if (!z2mGroup) throw new Error('Z2M Group not found');
+    const entity = await ZigbeeGroup.create(platform, z2mGroup);
+    expect(entity).toBeDefined();
+    expect(entity.entityName).toBe(friendlyName);
+    // @ts-expect-error accessing private property for test
+    expect(entity.transition).toBe(true);
+    const device = entity.bridgedDevice;
+    expect(device).toBeDefined();
+    expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+    if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+    // prettier-ignore
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "scenesManagement", "onOff", "levelControl", "colorControl", "fixedLabel"]);
+    expect(device.getChildEndpoints()).toHaveLength(0);
+
+    jest.clearAllMocks();
+    expect(await addDevice(aggregator, device)).toBe(true);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(254);
+    expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+    // Test commands from the controller
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'on');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 255, color: { h: 0, s: 0 } });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'off');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'OnOff', 'toggle');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 255, color: { h: 0, s: 0 } });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 128, transitionTime: 5, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command moveToLevel called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevel', friendlyName, { brightness: 128, transition: 0.5 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { brightness: 200, transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
+    );
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command moveToLevelWithOnOff called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('moveToLevelWithOnOff', friendlyName, { state: 'OFF', transition: 1 });
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
+    );
+
+    await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 100, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+
+    // Test updates from Z2M
+    let payload: Payload;
+
+    jest.clearAllMocks();
+    payload = { state: 'OFF' };
+    platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    payload = { state: 'ON' };
+    platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.INFO,
+      `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+    );
+
+    jest.clearAllMocks();
+    platform.z2m.emit(`OFFLINE-${z2mGroup.friendly_name}`);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+
+    jest.clearAllMocks();
+    platform.z2m.emit(`ONLINE-${z2mGroup.friendly_name}`);
+    await flushAsync(undefined, undefined, updateTimeout);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+
+    entity.destroy();
+  });
+
+  test('create a cover group', async () => {
+    const friendlyName = 'Covers';
+    const z2mGroup = platform.z2mBridgeGroups?.find((group) => group.friendly_name === friendlyName);
+    expect(z2mGroup).toBeDefined();
+    if (!z2mGroup) throw new Error('Z2M Group not found');
+    const entity = await ZigbeeGroup.create(platform, z2mGroup);
+    expect(entity).toBeDefined();
+    expect(entity.entityName).toBe(friendlyName);
+    const device = entity.bridgedDevice;
+    expect(device).toBeDefined();
+    expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+    if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+    // prettier-ignore
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "windowCovering", "fixedLabel"]);
+    expect(device.getChildEndpoints()).toHaveLength(0);
+
+    jest.clearAllMocks();
+    expect(await addDevice(aggregator, device)).toBe(true);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+    // Test commands from the controller
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'WindowCovering', 'upOrOpen');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command upOrOpen called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('upOrOpen', friendlyName, { state: 'OPEN' });
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'WindowCovering', 'downOrClose');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command downOrClose called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('downOrClose', friendlyName, { state: 'CLOSE' });
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'WindowCovering', 'stopMotion');
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command stopMotion called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+    expect(publishCommandSpy).toHaveBeenCalledWith('stopMotion', friendlyName, { state: 'STOP' });
+
+    jest.clearAllMocks();
+    await invokeBehaviorCommand(device, 'WindowCovering', 'goToLiftPercentage', { liftPercent100thsValue: 5000 });
+    await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+    expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+    clearTimeout((entity as any).noUpdateTimeout);
+    (entity as any).noUpdate = false;
+    expect(loggerLogSpy).toHaveBeenCalledWith(
+      LogLevel.DEBUG,
+      expect.stringContaining(`Command goToLiftPercentage called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`),
+    );
+    expect(publishCommandSpy).toHaveBeenCalledWith('goToLiftPercentage', friendlyName, { position: 50 });
+  });
+
+  test('create a thermostat group', async () => {
+    platform.postfix = '';
+    const friendlyName = 'Thermostats';
+    const z2mGroup = platform.z2mBridgeGroups?.find((group) => group.friendly_name === friendlyName);
+    expect(z2mGroup).toBeDefined();
+    if (!z2mGroup) throw new Error('Z2M Group not found');
+    const entity = await ZigbeeGroup.create(platform, z2mGroup);
+    expect(entity).toBeDefined();
+    expect(entity.entityName).toBe(friendlyName);
+    // expect(entity.platform.postfix).toBe('');
+    const device = entity.bridgedDevice;
+    expect(device).toBeDefined();
+    expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+    if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+    // prettier-ignore
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "thermostat", "fixedLabel"]);
+    expect(device.getChildEndpoints()).toHaveLength(0);
+
+    jest.clearAllMocks();
+    expect(await addDevice(aggregator, device)).toBe(true);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+    // Test writes from the controller
+    await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Off);
+    await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Cool);
+    await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Heat);
+
+    await device.setAttribute('Thermostat', 'occupiedHeatingSetpoint', 2200);
+    await device.setAttribute('Thermostat', 'occupiedCoolingSetpoint', 2200);
+  });
+
+  test('create an empty group', async () => {
+    const friendlyName = 'At home';
+    const z2mGroup = platform.z2mBridgeGroups?.find((group) => group.friendly_name === friendlyName);
+    expect(z2mGroup).toBeDefined();
+    if (!z2mGroup) throw new Error('Z2M Group not found');
+    const entity = await ZigbeeGroup.create(platform, z2mGroup);
+    expect(entity).toBeDefined();
+    expect(entity.entityName).toBe(friendlyName);
+    // expect(entity.platform.postfix).toBe('');
+    const device = entity.bridgedDevice;
+    expect(device).toBeDefined();
+    expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+    if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+    // prettier-ignore
+    expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "onOff", "fixedLabel"]);
+    expect(device.getChildEndpoints()).toHaveLength(0);
+
+    jest.clearAllMocks();
+    expect(await addDevice(aggregator, device)).toBe(true);
+    expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
   });
 
   test('create a switch device', async () => {
@@ -1127,6 +1402,11 @@ describe('TestEntity', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
     entity.destroy();
+  });
+
+  test('shutdown the platform', async () => {
+    expect(platform.onShutdown).toBeDefined();
+    await platform.onShutdown();
   });
 });
 
