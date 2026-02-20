@@ -36,24 +36,23 @@ networks:
     driver: bridge
 
 services:
-
   mosquitto:
     container_name: mosquitto
     image: eclipse-mosquitto:latest
     restart: unless-stopped
-    networks: [ iot ] # Use the iot network for Mosquitto. This allows other containers on the same network to connect to it using the container name "mosquitto".
+    networks: [iot] # Use the iot network for Mosquitto. This allows other containers on the same network to connect to it using the container name "mosquitto".
     ports:
       # expose to host and lan clients
-      - "1883:1883" # MQTT
-      - "8883:8883" # MQTT over SSL
-      - "9001:9001" # MQTT over WebSockets
-      - "9443:9443" # MQTT over WebSockets with SSL
+      - '1883:1883' # MQTT
+      - '8883:8883' # MQTT over SSL
+      - '9001:9001' # MQTT over WebSockets
+      - '9443:9443' # MQTT over WebSockets with SSL
     volumes:
-      - "${HOME}/mosquitto/config:/mosquitto/config"
-      - "${HOME}/mosquitto/data:/mosquitto/data"
-      - "${HOME}/mosquitto/log:/mosquitto/log"
-      - "${HOME}/mosquitto/certs:/mosquitto/certs"
-      - "${HOME}/mosquitto/run:/var/run/mosquitto" # Mount the run directory for the Unix socket
+      - '${HOME}/mosquitto/config:/mosquitto/config'
+      - '${HOME}/mosquitto/data:/mosquitto/data'
+      - '${HOME}/mosquitto/log:/mosquitto/log'
+      - '${HOME}/mosquitto/certs:/mosquitto/certs'
+      - '${HOME}/mosquitto/run:/var/run/mosquitto' # Mount the run directory for the Unix socket
     environment:
       - TZ=Europe/Paris
     user: 1883:1883
@@ -62,14 +61,14 @@ services:
     container_name: zigbee2mqtt
     image: koenkk/zigbee2mqtt:latest
     restart: unless-stopped
-    networks: [ iot ] # Use the iot network for Zigbee2MQTT. This allows it to connect to Mosquitto using the container name "mosquitto".
+    networks: [iot] # Use the iot network for Zigbee2MQTT. This allows it to connect to Mosquitto using the container name "mosquitto".
     ports:
       # Frontend port
       - 8080:8080
     volumes:
-      - "${HOME}/zigbee2MQTT:/app/data" # Mount the Zigbee2MQTT data directory
-      - "${HOME}/mosquitto/certs:/mosquitto/certs" # Mount the Mosquitto certs directory to allow Zigbee2MQTT to connect securely to Mosquitto
-      - "${HOME}/mosquitto/run:/var/run/mosquitto" # Mount the run directory for the Unix socket
+      - '${HOME}/zigbee2MQTT:/app/data' # Mount the Zigbee2MQTT data directory
+      - '${HOME}/mosquitto/certs:/mosquitto/certs' # Mount the Mosquitto certs directory to allow Zigbee2MQTT to connect securely to Mosquitto
+      - '${HOME}/mosquitto/run:/var/run/mosquitto' # Mount the run directory for the Unix socket
       - /run/udev:/run/udev:ro
     environment:
       - TZ=Europe/Paris
@@ -85,11 +84,11 @@ services:
     restart: unless-stopped
     network_mode: host # Ensures the Matter mdns works
     volumes:
-      - "${HOME}/matterbridge/Matterbridge:/root/Matterbridge" # Mounts the Matterbridge plugin directory
-      - "${HOME}/matterbridge/.matterbridge:/root/.matterbridge" # Mounts the Matterbridge storage directory
-      - "${HOME}/matterbridge/.mattercert:/root/.mattercert" # Mounts the Matterbridge cert directory
-      - "${HOME}/mosquitto/certs:/mosquitto/certs" # Mount the Mosquitto certs directory to allow Matterbridge to connect securely to Mosquitto
-      - "${HOME}/mosquitto/run:/var/run/mosquitto" # Mount the run directory for the Unix socket
+      - '${HOME}/matterbridge/Matterbridge:/root/Matterbridge' # Mounts the Matterbridge plugin directory
+      - '${HOME}/matterbridge/.matterbridge:/root/.matterbridge' # Mounts the Matterbridge storage directory
+      - '${HOME}/matterbridge/.mattercert:/root/.mattercert' # Mounts the Matterbridge cert directory
+      - '${HOME}/mosquitto/certs:/mosquitto/certs' # Mount the Mosquitto certs directory to allow Matterbridge to connect securely to Mosquitto
+      - '${HOME}/mosquitto/run:/var/run/mosquitto' # Mount the run directory for the Unix socket
     environment:
       - TZ=Europe/Paris
     healthcheck:
@@ -100,4 +99,4 @@ services:
       timeout: 10s
     depends_on:
       - mosquitto
-    command: ["matterbridge", "--docker", "--ssl", "--frontend", "443"]
+    command: ['matterbridge', '--docker', '--ssl', '--frontend', '443']
