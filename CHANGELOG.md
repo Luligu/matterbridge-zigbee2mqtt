@@ -42,7 +42,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Update dependencies.
 - [package]: Bump package to `automator` v.3.0.8.
 - [package]: Bump `node-persist-manager` to v.2.0.1.
-- [package]: Bump `eslint` to v.10.0.0.
+- [package]: Bump `eslint` to v.10.0.1.
 - [package]: Bump `typescript-eslint` to v.8.56.0.
 - [eslint]: Use minimatch in ignores.
 

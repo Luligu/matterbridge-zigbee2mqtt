@@ -438,16 +438,6 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   /**
-   * Checks if the cover is reversed based on the last payload received.
-   * It is not a standard feature, so we check for motor_direction or reverse_direction keys in the payload.
-   *
-   * @returns {boolean} - True if the cover is reversed, false otherwise.
-   */
-  isCoverReversed(): boolean {
-    return this.lastPayload.motor_direction === 'reversed' || this.lastPayload.reverse_direction === 'back' || this.lastPayload.reverse_direction === true;
-  }
-
-  /**
    * Publish the cached commands with a delay of 100ms to group multiple commands into one.
    * It optimizes the number of messages sent to the MQTT broker for huge scenes on the controller.
    *

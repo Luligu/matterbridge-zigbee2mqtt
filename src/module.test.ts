@@ -64,8 +64,8 @@ await setupTest(NAME, false);
 describe('TestPlatform', () => {
   let platform: ZigbeePlatform;
 
-  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1fx' ? 50 : 250;
-  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1fx' ? 50 : 250;
+  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
+  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
 
   const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',

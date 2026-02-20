@@ -10,26 +10,21 @@ import path from 'node:path';
 
 import { jest } from '@jest/globals';
 import { invokeBehaviorCommand, MatterbridgeEndpoint, invokeSubscribeHandler, featuresFor } from 'matterbridge';
-import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
+import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
 import { ColorControl, DoorLock, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
 import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
 import {
   addDevice,
-  createTestEnvironment,
   flushAsync,
   loggerLogSpy,
-  server,
   aggregator,
   setDebug,
   setupTest,
-  startServerNode,
-  stopServerNode,
   startMatterbridgeEnvironment,
   createMatterbridgeEnvironment,
   destroyMatterbridgeEnvironment,
   stopMatterbridgeEnvironment,
-  logKeepAlives,
   matterbridge,
   log,
   addMatterbridgePlatform,
