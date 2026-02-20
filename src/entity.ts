@@ -1189,9 +1189,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
       zigbeeGroup.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'systemMode',
-        (newValue: number, oldValue: number) => {
+        (newValue, oldValue, context) => {
           zigbeeGroup.bridgedDevice?.log.info(`Thermostat systemMode changed from ${oldValue} to ${newValue}`);
-          if (oldValue !== newValue) {
+          if (oldValue !== newValue && context.fabric !== undefined) {
             // Thermostat.SystemMode.Heat && newValue === Thermostat.SystemMode.Off
             zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat systemMode to ${newValue}`);
             if (newValue === Thermostat.SystemMode.Off) {
@@ -1212,30 +1212,34 @@ export class ZigbeeGroup extends ZigbeeEntity {
       zigbeeGroup.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'occupiedHeatingSetpoint',
-        (newValue: number, oldValue: number) => {
-          zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedHeatingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
-          zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedHeatingSetpoint to ${newValue / 100}`);
-          zigbeeGroup.publishCommand('CurrentHeatingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.publishCommand('OccupiedHeatingSetpoint', group.friendly_name, { occupied_heating_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.noUpdate = true;
-          zigbeeGroup.thermostatTimeout = setTimeout(() => {
-            zigbeeGroup.noUpdate = false;
-          }, zigbeeGroup.thermostatTimeoutTime).unref();
+        (newValue, oldValue, context) => {
+          if (oldValue !== newValue && context.fabric !== undefined) {
+            zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedHeatingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
+            zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedHeatingSetpoint to ${newValue / 100}`);
+            zigbeeGroup.publishCommand('CurrentHeatingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.publishCommand('OccupiedHeatingSetpoint', group.friendly_name, { occupied_heating_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.noUpdate = true;
+            zigbeeGroup.thermostatTimeout = setTimeout(() => {
+              zigbeeGroup.noUpdate = false;
+            }, zigbeeGroup.thermostatTimeoutTime).unref();
+          }
         },
         zigbeeGroup.log,
       );
       zigbeeGroup.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'occupiedCoolingSetpoint',
-        (newValue: number, oldValue: number) => {
-          zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedCoolingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
-          zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedCoolingSetpoint to ${newValue / 100}`);
-          zigbeeGroup.publishCommand('CurrentCoolingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.publishCommand('OccupiedCoolingSetpoint', group.friendly_name, { occupied_cooling_setpoint: Math.round(newValue / 100) });
-          zigbeeGroup.noUpdate = true;
-          zigbeeGroup.thermostatTimeout = setTimeout(() => {
-            zigbeeGroup.noUpdate = false;
-          }, zigbeeGroup.thermostatTimeoutTime).unref();
+        (newValue, oldValue, context) => {
+          if (oldValue !== newValue && context.fabric !== undefined) {
+            zigbeeGroup.bridgedDevice?.log.info(`Thermostat occupiedCoolingSetpoint changed from ${oldValue / 100} to ${newValue / 100}`);
+            zigbeeGroup.bridgedDevice?.log.info(`Setting thermostat occupiedCoolingSetpoint to ${newValue / 100}`);
+            zigbeeGroup.publishCommand('CurrentCoolingSetpoint', group.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.publishCommand('OccupiedCoolingSetpoint', group.friendly_name, { occupied_cooling_setpoint: Math.round(newValue / 100) });
+            zigbeeGroup.noUpdate = true;
+            zigbeeGroup.thermostatTimeout = setTimeout(() => {
+              zigbeeGroup.noUpdate = false;
+            }, zigbeeGroup.thermostatTimeoutTime).unref();
+          }
         },
         zigbeeGroup.log,
       );
@@ -1945,10 +1949,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.bridgedDevice.subscribeAttribute(
         ThermostatCluster.id,
         'systemMode',
-        (value) => {
-          if (isValidNumber(value, Thermostat.SystemMode.Off, Thermostat.SystemMode.FanOnly) && zigbeeDevice.thermostatSystemModeLookup[value] !== '') {
-            const system_mode = zigbeeDevice.thermostatSystemModeLookup[value];
-            zigbeeDevice.log.debug(`Subscribe systemMode called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with ${value} => ${system_mode}`);
+        (newValue, oldValue, context) => {
+          if (newValue === oldValue || context.fabric === undefined) return;
+          if (isValidNumber(newValue, Thermostat.SystemMode.Off, Thermostat.SystemMode.FanOnly) && zigbeeDevice.thermostatSystemModeLookup[newValue] !== '') {
+            const system_mode = zigbeeDevice.thermostatSystemModeLookup[newValue];
+            zigbeeDevice.log.debug(`Subscribe systemMode called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with ${newValue} => ${system_mode}`);
             zigbeeDevice.publishCommand('SystemMode', device.friendly_name, { system_mode });
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
@@ -1962,12 +1967,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.bridgedDevice.subscribeAttribute(
           ThermostatCluster.id,
           'occupiedHeatingSetpoint',
-          (value) => {
-            zigbeeDevice.log.debug(`Subscribe occupiedHeatingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
+          (newValue, oldValue, context) => {
+            if (newValue === oldValue || context.fabric === undefined) return;
+            zigbeeDevice.log.debug(`Subscribe occupiedHeatingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, newValue);
             if (zigbeeDevice.propertyMap.has('current_heating_setpoint'))
-              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_heating_setpoint'))
-              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { occupied_heating_setpoint: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedHeatingSetpoint', device.friendly_name, { occupied_heating_setpoint: Math.round(newValue / 100) });
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;
@@ -1979,12 +1985,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.bridgedDevice.subscribeAttribute(
           ThermostatCluster.id,
           'occupiedCoolingSetpoint',
-          (value) => {
-            zigbeeDevice.log.debug(`Subscribe occupiedCoolingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, value);
+          (newValue, oldValue, context) => {
+            if (newValue === oldValue || context.fabric === undefined) return;
+            zigbeeDevice.log.debug(`Subscribe occupiedCoolingSetpoint called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} with:`, newValue);
             if (zigbeeDevice.propertyMap.has('current_heating_setpoint'))
-              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { current_heating_setpoint: Math.round(newValue / 100) });
             else if (zigbeeDevice.propertyMap.has('occupied_cooling_setpoint'))
-              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: Math.round(value / 100) });
+              zigbeeDevice.publishCommand('OccupiedCoolingSetpoint', device.friendly_name, { occupied_cooling_setpoint: Math.round(newValue / 100) });
             zigbeeDevice.noUpdate = true;
             zigbeeDevice.thermostatTimeout = setTimeout(() => {
               zigbeeDevice.noUpdate = false;

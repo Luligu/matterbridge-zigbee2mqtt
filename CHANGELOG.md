@@ -35,7 +35,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [transition]: Add transition to groups. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/147).
 - [transition]: Support decimal transition. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/150).
 - [test]: Improve test coverage.
-- [tcover]: Add motor_state: 'opening', 'closing' and 'stopped'. Thanks Edgard Castro (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/148).
+- [cover]: Add motor_state: 'opening', 'closing' and 'stopped'. Thanks Edgard Castro (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/148).
 
 ### Changed
 
@@ -45,6 +45,10 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `eslint` to v.10.0.0.
 - [package]: Bump `typescript-eslint` to v.8.56.0.
 - [eslint]: Use minimatch in ignores.
+
+### Fixed
+
+- [thermostat]: Fix remote updates detection. Thanks Sppedtech (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/151).
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
