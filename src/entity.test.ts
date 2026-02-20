@@ -9,7 +9,7 @@ const HOMEDIR = path.join('jest', NAME);
 import path from 'node:path';
 
 import { jest } from '@jest/globals';
-import { invokeBehaviorCommand, MatterbridgeEndpoint } from 'matterbridge';
+import { invokeBehaviorCommand, MatterbridgeEndpoint, invokeSubscribeHandler } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
 import { ColorControl, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
@@ -564,13 +564,23 @@ describe('Test Entity', () => {
       expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
 
       // Test writes from the controller
+      jest.clearAllMocks();
       (entity as any).thermostatTimeoutTime = 1;
       await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Off);
       await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Cool);
       await device.setAttribute('Thermostat', 'systemMode', Thermostat.SystemMode.Heat);
-
       await device.setAttribute('Thermostat', 'occupiedHeatingSetpoint', 2200);
       await device.setAttribute('Thermostat', 'occupiedCoolingSetpoint', 2200);
+      expect(publishCommandSpy).toHaveBeenCalledTimes(0);
+
+      // @ts-expect-error accessing private property for test
+      entity.thermostatTimeoutTime = 1;
+      await invokeSubscribeHandler(device, 'Thermostat', 'systemMode', Thermostat.SystemMode.Off, Thermostat.SystemMode.Heat);
+      await invokeSubscribeHandler(device, 'Thermostat', 'systemMode', Thermostat.SystemMode.Heat, Thermostat.SystemMode.Cool);
+      await invokeSubscribeHandler(device, 'Thermostat', 'systemMode', Thermostat.SystemMode.Cool, Thermostat.SystemMode.Off);
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2000, 2200);
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2000, 2200);
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
 
       entity.destroy();
     });
