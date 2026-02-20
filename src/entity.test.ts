@@ -11,7 +11,7 @@ import path from 'node:path';
 import { jest } from '@jest/globals';
 import { invokeBehaviorCommand, MatterbridgeEndpoint } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, LogLevel, rs, TimestampFormat } from 'matterbridge/logger';
-import { ColorControl, LevelControl, PowerSource, Thermostat } from 'matterbridge/matter/clusters';
+import { ColorControl, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { getMacAddress } from 'matterbridge/utils';
 import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
 import {
@@ -720,20 +720,20 @@ describe('Test Entity', () => {
       if (!ch1 || !ch2) throw new Error('Child endpoints not found');
       // prettier-ignore
       for (const child of device.getChildEndpoints()) {
-      // expect(['l1', 'l2'].includes(child.id)).toBe(true);
-      if (child.id === 'l1') {
-        // eslint-disable-next-line jest/no-conditional-expect
-        expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "onOff"]);
+        // expect(['l1', 'l2'].includes(child.id)).toBe(true);
+        if (child.id === 'l1') {
+          // eslint-disable-next-line jest/no-conditional-expect
+          expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "onOff"]);
+        }
+        if (child.id === 'l2') {
+          // eslint-disable-next-line jest/no-conditional-expect
+          expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "onOff"]);
+        }
+        if (child.id !== 'l1' && child.id !== 'l2') {
+          // eslint-disable-next-line jest/no-conditional-expect
+          expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "switch"]);
+        }
       }
-      if (child.id === 'l2') {
-        // eslint-disable-next-line jest/no-conditional-expect
-        expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "onOff"]);
-      }
-      if (child.id !== 'l1' && child.id !== 'l2') {
-        // eslint-disable-next-line jest/no-conditional-expect
-        expect(child.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "identify", "switch"]);
-      }
-    }
       jest.clearAllMocks();
       expect(await addDevice(aggregator, device)).toBe(true);
       expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
@@ -852,6 +852,182 @@ describe('Test Entity', () => {
         LogLevel.INFO,
         `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
       );
+
+      entity.destroy();
+    });
+
+    test('create a cover device', async () => {
+      const friendlyName = 'Window shutter';
+      const z2mDevice = platform.z2mBridgeDevices?.find((device) => device.friendly_name === friendlyName);
+      expect(z2mDevice).toBeDefined();
+      if (!z2mDevice) throw new Error('Z2M Device not found');
+      const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+      expect(entity).toBeDefined();
+      expect(entity.entityName).toBe(friendlyName);
+      const device = entity.bridgedDevice;
+      expect(device).toBeDefined();
+      expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      // prettier-ignore
+      expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "windowCovering"]);
+      expect(device.getChildEndpoints()).toHaveLength(0);
+
+      jest.clearAllMocks();
+      expect(await addDevice(aggregator, device)).toBe(true);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+      // Test commands from the controller
+
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'upOrOpen');
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command upOrOpen called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('upOrOpen', friendlyName, { state: 'OPEN' });
+      await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 0);
+
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'downOrClose');
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.DEBUG,
+        expect.stringContaining(`Command downOrClose called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+      );
+      expect(publishCommandSpy).toHaveBeenCalledWith('downOrClose', friendlyName, { state: 'CLOSE' });
+      await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 10000);
+
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'goToLiftPercentage', { liftPercent100thsValue: 5000 });
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.DEBUG,
+        expect.stringContaining(`Command goToLiftPercentage called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+      );
+      expect(publishCommandSpy).toHaveBeenCalledWith('goToLiftPercentage', friendlyName, { position: 50 });
+      await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 5000);
+
+      jest.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'stopMotion');
+      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.DEBUG,
+        expect.stringContaining(`Command stopMotion called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+      );
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopMotion', friendlyName, { state: 'STOP' });
+
+      // Test updates from Z2M
+      let payload: Payload;
+
+      jest.clearAllMocks();
+      payload = { position: 0 };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.INFO,
+        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+      );
+
+      jest.clearAllMocks();
+      payload = { position: 100 };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.INFO,
+        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+      );
+
+      jest.clearAllMocks();
+      payload = { moving: 'UP' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Opening,
+        lift: WindowCovering.MovementStatus.Opening,
+        tilt: WindowCovering.MovementStatus.Opening,
+      });
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.INFO,
+        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+      );
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { motor_state: 'opening' });
+
+      jest.clearAllMocks();
+      payload = { moving: 'DOWN' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Closing,
+        lift: WindowCovering.MovementStatus.Closing,
+        tilt: WindowCovering.MovementStatus.Closing,
+      });
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.INFO,
+        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+      );
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { motor_state: 'closing' });
+
+      jest.clearAllMocks();
+      payload = { moving: 'STOP' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.INFO,
+        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+      );
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { motor_state: 'stopped' });
+
+      jest.clearAllMocks();
+      platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+
+      jest.clearAllMocks();
+      platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
       entity.destroy();
     });
@@ -1411,6 +1587,7 @@ describe('Test Entity', () => {
 
       entity.destroy();
     });
+
     test('create a motion, illuminance sensor device', async () => {
       const friendlyName = motionSensor.friendly_name;
       const z2mDevice = motionSensor;
@@ -3032,6 +3209,141 @@ const doubleDimmer = {
   manufacturer: '_TZE200_e3oitdyu',
   model_id: 'TS0601',
   network_address: 63077,
+  power_source: 'Mains (single phase)',
+  supported: true,
+  type: 'Router',
+};
+
+const cover = {
+  date_code: '',
+  definition: {
+    description: 'Zigbee + RF curtain switch module',
+    exposes: [
+      {
+        features: [
+          {
+            access: 3,
+            label: 'State',
+            name: 'state',
+            property: 'state',
+            type: 'enum',
+            values: ['OPEN', 'CLOSE', 'STOP'],
+          },
+          {
+            access: 7,
+            description: 'Position of this cover',
+            label: 'Position',
+            name: 'position',
+            property: 'position',
+            type: 'numeric',
+            unit: '%',
+            value_max: 100,
+            value_min: 0,
+          },
+        ],
+        type: 'cover',
+      },
+      {
+        access: 7,
+        label: 'Calibration time',
+        name: 'calibration_time',
+        property: 'calibration_time',
+        type: 'numeric',
+        value_max: 100,
+        value_min: 0,
+      },
+      {
+        access: 1,
+        label: 'Moving',
+        name: 'moving',
+        property: 'moving',
+        type: 'enum',
+        values: ['UP', 'STOP', 'DOWN'],
+      },
+      {
+        access: 7,
+        label: 'Motor reversal',
+        name: 'motor_reversal',
+        property: 'motor_reversal',
+        type: 'binary',
+        value_off: 'OFF',
+        value_on: 'ON',
+      },
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Link quality (signal strength)',
+        label: 'Linkquality',
+        name: 'linkquality',
+        property: 'linkquality',
+        type: 'numeric',
+        unit: 'lqi',
+        value_max: 255,
+        value_min: 0,
+      },
+    ],
+    model: 'MS-108ZR',
+    options: [
+      {
+        access: 2,
+        description: 'Inverts the cover position, false: open=100,close=0, true: open=0,close=100 (default false).',
+        label: 'Invert cover',
+        name: 'invert_cover',
+        property: 'invert_cover',
+        type: 'binary',
+        value_off: false,
+        value_on: true,
+      },
+      {
+        access: 2,
+        description: "Do not publish set cover target position as a normal 'position' value (default false).",
+        label: 'Cover position tilt disable report',
+        name: 'cover_position_tilt_disable_report',
+        property: 'cover_position_tilt_disable_report',
+        type: 'binary',
+        value_off: false,
+        value_on: true,
+      },
+    ],
+    supports_ota: true,
+    vendor: 'Moes',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [
+        {
+          cluster: 'closuresWindowCovering',
+          target: {
+            endpoint: 1,
+            ieee_address: '0x00124b0025e1f196',
+            type: 'endpoint',
+          },
+        },
+      ],
+      clusters: {
+        input: ['genBasic', 'genGroups', 'genScenes', 'closuresWindowCovering', 'genOnOff'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [
+        {
+          attribute: 'currentPositionLiftPercentage',
+          cluster: 'closuresWindowCovering',
+          maximum_report_interval: 3600,
+          minimum_report_interval: 60,
+          reportable_change: 0,
+        },
+      ],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Window shutter',
+  ieee_address: '0x70ac08fffee6dd5e',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: '_TZ3000_1dd0d5yi',
+  model_id: 'TS130F',
+  network_address: 63434,
   power_source: 'Mains (single phase)',
   supported: true,
   type: 'Router',

@@ -35,6 +35,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [transition]: Add transition to groups. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/147).
 - [transition]: Support decimal transition. Thanks Robin (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/150).
 - [test]: Improve test coverage.
+- [tcover]: Add motor_state: 'opening', 'closing' and 'stopped'. Thanks Edgard Castro (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/148).
 
 ### Changed
 

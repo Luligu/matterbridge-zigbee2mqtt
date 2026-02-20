@@ -319,12 +319,6 @@ export class ZigbeeEntity extends EventEmitter {
         }
         if (key === 'moving' && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
-          /*
-          const reversed = this.isCoverReversed();
-          if (reversed && (value === 'UP' || value === 'DOWN')) {
-            value = reversed ? (value === 'UP' ? 'DOWN' : 'UP') : value;
-          }
-          */
           if (value === 'UP') {
             const status = WindowCovering.MovementStatus.Opening;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
@@ -332,6 +326,22 @@ export class ZigbeeEntity extends EventEmitter {
             const status = WindowCovering.MovementStatus.Closing;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
           } else if (value === 'STOP') {
+            const status = WindowCovering.MovementStatus.Stopped;
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            const position = this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
+          }
+        }
+        if (key === 'motor_state' && this.isDevice) {
+          // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
+          if (value === 'opening') {
+            const status = WindowCovering.MovementStatus.Opening;
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+          } else if (value === 'closing') {
+            const status = WindowCovering.MovementStatus.Closing;
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+          } else if (value === 'stopped') {
             const status = WindowCovering.MovementStatus.Stopped;
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
             const position = this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
