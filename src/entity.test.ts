@@ -50,8 +50,10 @@ const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplement
 });
 
 // Spy on ZigbeePlatform
-const publishCommandSpy = jest.spyOn(ZigbeeEntity.prototype as any, 'publishCommand').mockImplementation(() => {
-  console.log(`Mocked ZigbeeEntity publish called`);
+// @ts-expect-error accessing private method for test
+const publishCommandSpy = jest.spyOn(ZigbeeEntity.prototype as any, 'publishCommand').mockImplementation((command: string, entityName: string, payload: Payload) => {
+  console.log(`Mocked ZigbeeEntity publish called: command: ${command}, entityName: ${entityName}, payload: ${debugStringify(payload)}`);
+  return Promise.resolve();
 });
 
 // Mock the Zigbee2MQTT methods
@@ -251,6 +253,9 @@ describe('Test Entity', () => {
 
       // Test updates from Z2M
       let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
 
       jest.clearAllMocks();
       payload = { state: 'OFF' };
@@ -430,6 +435,9 @@ describe('Test Entity', () => {
 
       // Test updates from Z2M
       let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
 
       jest.clearAllMocks();
       payload = { state: 'OFF' };
@@ -662,6 +670,9 @@ describe('Test Entity', () => {
 
       // Test updates from Z2M
       let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
 
       jest.clearAllMocks();
       payload = { state: 'OFF' };
@@ -822,6 +833,9 @@ describe('Test Entity', () => {
 
       // Test updates from Z2M for ch1 ch2
       let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
 
       jest.clearAllMocks();
       payload = { state_l1: 'OFF', state_l2: 'OFF', energy: 123.4, voltage: 230, power: 0, current: 0 };
@@ -949,6 +963,9 @@ describe('Test Entity', () => {
 
       // Test updates from Z2M
       let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
 
       jest.clearAllMocks();
       payload = { position: 0 };
@@ -1168,6 +1185,9 @@ describe('Test Entity', () => {
 
       // Test updates from Z2M
       let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
 
       jest.clearAllMocks();
       payload = { state: 'OFF' };
@@ -1461,12 +1481,11 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((115 / 254) * 255), color: { x: 25000 / 65535, y: 28000 / 65535 } });
 
-      // Clear the noUpdate flag to allow updates from Z2M
-      clearTimeout((entity as any).noUpdateTimeout);
-      (entity as any).noUpdate = false;
-
       // Test updates from Z2M
       let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
 
       jest.clearAllMocks();
       payload = { state: 'OFF' };
