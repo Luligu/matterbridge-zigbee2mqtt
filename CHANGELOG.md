@@ -26,6 +26,18 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
+## [3.0.8] - Dev branch
+
+### Changed
+
+- [package]: Update dependencies.
+- [package]: Bump package to `automator` v.3.1.0.
+- [package]: Bump `eslint` to v.10.0.2.
+- [package]: Bump `typescript-eslint` to v.8.56.1.
+- [package]: Replace `eslint-plugin-import` with `eslint-plugin-simple-import-sort`.
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
 ## [3.0.7] - 2026-02-20
 
 ### Added

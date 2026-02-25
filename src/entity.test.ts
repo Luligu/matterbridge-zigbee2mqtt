@@ -9,34 +9,34 @@ const HOMEDIR = path.join('jest', NAME);
 import path from 'node:path';
 
 import { jest } from '@jest/globals';
-import { invokeBehaviorCommand, MatterbridgeEndpoint, invokeSubscribeHandler, featuresFor } from 'matterbridge';
-import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import { ColorControl, DoorLock, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import { getMacAddress } from 'matterbridge/utils';
-import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
+import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, MatterbridgeEndpoint } from 'matterbridge';
 import {
   addDevice,
-  flushAsync,
-  loggerLogSpy,
+  addMatterbridgePlatform,
   aggregator,
+  createMatterbridgeEnvironment,
+  destroyMatterbridgeEnvironment,
+  flushAsync,
+  log,
+  loggerDebugSpy,
+  loggerInfoSpy,
+  loggerLogSpy,
+  matterbridge,
   setDebug,
   setupTest,
   startMatterbridgeEnvironment,
-  createMatterbridgeEnvironment,
-  destroyMatterbridgeEnvironment,
   stopMatterbridgeEnvironment,
-  matterbridge,
-  log,
-  addMatterbridgePlatform,
-  loggerInfoSpy,
-  loggerDebugSpy,
 } from 'matterbridge/jestutils';
+import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
+import { ColorControl, DoorLock, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
+import { getMacAddress } from 'matterbridge/utils';
 
+import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
 import { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
+import { Payload } from './payloadTypes.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
 import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
-import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
-import { Payload } from './payloadTypes.js';
 
 // Spy on ZigbeePlatform
 const publishSpy = jest.spyOn(ZigbeePlatform.prototype, 'publish').mockImplementation(async (topic: string, subTopic: string, message: string) => {

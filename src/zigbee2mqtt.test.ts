@@ -4,13 +4,13 @@ const MATTER_PORT = 0;
 const NAME = 'Zigbee';
 const HOMEDIR = path.join('jest', NAME);
 
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
 
 import { describe, expect, jest, test } from '@jest/globals';
+import { setupTest } from 'matterbridge/jestutils';
 import { wait } from 'matterbridge/utils';
 import { LogLevel } from 'node-ansi-logger';
-import { setupTest } from 'matterbridge/jestutils';
 
 import type { Zigbee2MQTT as Zigbee2MQTTType } from './zigbee2mqtt.js';
 

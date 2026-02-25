@@ -26,77 +26,77 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {
-  DeviceTypeDefinition,
   airQualitySensor,
+  bridgedNode,
+  colorTemperatureLight,
   colorTemperatureSwitch,
+  CommandHandlerData,
+  contactSensor,
+  coverDevice,
+  DeviceTypeDefinition,
+  dimmableLight,
+  dimmableOutlet,
   dimmableSwitch,
+  doorLockDevice,
+  electricalSensor,
+  extendedColorLight,
+  genericSwitch,
+  humiditySensor,
+  lightSensor,
+  MatterbridgeEndpoint,
+  occupancySensor,
+  onOffLight,
+  onOffOutlet,
   onOffSwitch,
   powerSource,
-  bridgedNode,
-  electricalSensor,
-  onOffLight,
-  dimmableLight,
-  colorTemperatureLight,
-  onOffOutlet,
-  coverDevice,
-  thermostatDevice,
-  MatterbridgeEndpoint,
-  dimmableOutlet,
-  doorLockDevice,
-  occupancySensor,
-  lightSensor,
-  contactSensor,
-  temperatureSensor,
-  humiditySensor,
   pressureSensor,
-  genericSwitch,
-  waterLeakDetector,
   rainSensor,
   smokeCoAlarm,
-  extendedColorLight,
-  CommandHandlerData,
+  temperatureSensor,
+  thermostatDevice,
+  waterLeakDetector,
 } from 'matterbridge';
-import { AnsiLogger, TimestampFormat, gn, dn, ign, idn, rs, db, debugStringify, hk, zb, or, nf, LogLevel, CYAN, er, YELLOW } from 'matterbridge/logger';
-import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
-import * as color from 'matterbridge/utils';
-import { AtLeastOne, SwitchesTag, NumberTag } from 'matterbridge/matter';
-import { getClusterNameById, ClusterId, VendorId, Semtag } from 'matterbridge/matter/types';
+import { AnsiLogger, CYAN, db, debugStringify, dn, er, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
+import { AtLeastOne, NumberTag, SwitchesTag } from 'matterbridge/matter';
 import {
-  ElectricalEnergyMeasurement,
-  ElectricalPowerMeasurement,
-  WindowCoveringCluster,
-  DoorLockCluster,
-  BridgedDeviceBasicInformation,
-  OnOff,
-  Identify,
-  LevelControl,
-  ColorControl,
-  ColorControlCluster,
-  TemperatureMeasurement,
-  BooleanState,
-  RelativeHumidityMeasurement,
-  PressureMeasurement,
-  OccupancySensing,
-  IlluminanceMeasurement,
-  PowerSource,
-  WindowCovering,
-  DoorLock,
-  ThermostatCluster,
-  Thermostat,
   AirQuality,
-  TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  BooleanState,
+  BridgedDeviceBasicInformation,
   CarbonDioxideConcentrationMeasurement,
   CarbonMonoxideConcentrationMeasurement,
+  ColorControl,
+  ColorControlCluster,
+  DoorLock,
+  DoorLockCluster,
+  ElectricalEnergyMeasurement,
+  ElectricalPowerMeasurement,
   FormaldehydeConcentrationMeasurement,
+  Identify,
+  IlluminanceMeasurement,
+  LevelControl,
+  OccupancySensing,
+  OnOff,
   Pm1ConcentrationMeasurement,
-  Pm25ConcentrationMeasurement,
   Pm10ConcentrationMeasurement,
+  Pm25ConcentrationMeasurement,
+  PowerSource,
+  PressureMeasurement,
+  RelativeHumidityMeasurement,
   SmokeCoAlarm,
+  TemperatureMeasurement,
+  Thermostat,
+  ThermostatCluster,
+  TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  WindowCovering,
+  WindowCoveringCluster,
 } from 'matterbridge/matter/clusters';
+import { ClusterId, getClusterNameById, Semtag, VendorId } from 'matterbridge/matter/types';
+import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
+import * as color from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
-import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
+import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 
 interface BehaviorOptions {
   clusterId: ClusterId;

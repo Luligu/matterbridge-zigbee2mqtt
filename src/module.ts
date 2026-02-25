@@ -24,14 +24,14 @@
 import path from 'node:path';
 
 import { MatterbridgeDynamicPlatform, MatterbridgeEndpoint, PlatformConfig, PlatformMatterbridge } from 'matterbridge';
-import { AnsiLogger, dn, gn, db, wr, zb, payloadStringify, rs, debugStringify, CYAN, er, nf, LogLevel } from 'matterbridge/logger';
-import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
+import { AnsiLogger, CYAN, db, debugStringify, dn, er, gn, LogLevel, nf, payloadStringify, rs, wr, zb } from 'matterbridge/logger';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
+import { isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
-import { Zigbee2MQTT } from './zigbee2mqtt.js';
-import { BridgeInfo, BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 import { Payload } from './payloadTypes.js';
+import { Zigbee2MQTT } from './zigbee2mqtt.js';
+import { BridgeDevice, BridgeGroup, BridgeInfo } from './zigbee2mqttTypes.js';
 
 type DeviceFeatureBlackList = Record<string, string[]>;
 

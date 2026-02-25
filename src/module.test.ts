@@ -6,14 +6,11 @@ const HOMEDIR = path.join('jest', NAME);
 
 /* eslint-disable no-console */
 
-import path from 'node:path';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { jest } from '@jest/globals';
 import { bridgedNode, colorTemperatureLight, coverDevice, dimmableLight, doorLockDevice, extendedColorLight, onOffLight, powerSource, thermostatDevice } from 'matterbridge';
-import { db, idn, ign, LogLevel, rs, or, hk, YELLOW } from 'matterbridge/logger';
-import { getMacAddress, wait } from 'matterbridge/utils';
-import { Thermostat } from 'matterbridge/matter/clusters';
 import {
   addMatterbridgePlatform,
   createMatterbridgeEnvironment,
@@ -29,6 +26,9 @@ import {
   startMatterbridgeEnvironment,
   stopMatterbridgeEnvironment,
 } from 'matterbridge/jestutils';
+import { db, hk, idn, ign, LogLevel, or, rs, YELLOW } from 'matterbridge/logger';
+import { Thermostat } from 'matterbridge/matter/clusters';
+import { getMacAddress, wait } from 'matterbridge/utils';
 
 import initializePlugin, { ZigbeePlatform, ZigbeePlatformConfig } from './module.js';
 import { Zigbee2MQTT } from './zigbee2mqtt.js';
