@@ -33,6 +33,8 @@ If you like this project and find it useful, please consider giving it a star on
 - [devContainer]: Add the new [dev container setup](https://matterbridge.io/reflector/MatterbridgeDevContainer.html).
 - [devContainer]: Add the new [reflector dev container setup](https://matterbridge.io/reflector/Reflector.html).
 - [devContainer]: Add the guide to [pair Matterbridge with Dev Container](https://matterbridge.io/README-DEV.html#how-to-pair-matterbridge-in-dev-containers)
+- [package]: Add `CONTRIBUTING.md`.
+- [package]: Add `STYLEGUIDE.md`.
 
 ### Changed
 
