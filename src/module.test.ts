@@ -292,7 +292,11 @@ describe('TestPlatform', () => {
 
   it('should have configured', async () => {
     expect(platform).toBeDefined();
+    (platform as any).availabilityTimeout = 1;
     await platform.onConfigure();
+    await flushAsync();
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Setting availability for/));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Setting retained values for/));
   });
 
   it('should update entity OFFLINE', async () => {
@@ -767,7 +771,7 @@ describe('TestPlatform', () => {
 
   it('should call onConfigure permit_join = false', async () => {
     (platform as any).z2mBridgeInfo.permit_join = false;
-    (platform as any).availabilityTimeout = 50;
+    (platform as any).availabilityTimeout = 1;
     await platform.onConfigure();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
   });
