@@ -2,6 +2,7 @@
 
 // This ESLint configuration is designed for a TypeScript project.
 
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
 
@@ -19,14 +20,13 @@ import pluginSimpleImportSort from 'eslint-plugin-simple-import-sort';
 import tseslint from 'typescript-eslint';
 
 const sourceFiles = ['**/*.{js,mjs,cjs,ts,mts,cts}'];
-const __filename = url.fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 export default defineConfig([
   {
     name: 'Global Ignores',
     // This works faster in eslint 10.x and is recursive by default, so we don't need to specify '**/' in the patterns
-    ignores: ['.cache', 'build', 'coverage', 'dist', 'jest', 'node_modules', 'screenshots', 'temp', 'vendor', 'vite.config.ts'],
+    ignores: ['**/.cache', '**/build', '**/coverage', '**/dist', '**/jest', '**/node_modules', '**/screenshots', '**/temp', '**/vendor', '**/vite.config.ts'],
   },
   // Comment out this line if you want to enable strict type-checked rules, but be aware that it may cause many errors until you fix all type issues in your codebase
   ...tseslint.configs.strict.map((c) => ({ ...c, files: sourceFiles })),
@@ -81,16 +81,17 @@ export default defineConfig([
   },
   {
     name: 'TypeScript Source Files',
-    files: ['src/**/*.ts'],
-    ignores: ['src/**/*.test.ts', 'src/**/*.spec.ts'], // Ignore test files
+    files: ['**/src/**/*.{ts,mts,cts}'],
+    ignores: ['**/src/**/*.test.{ts,mts,cts}', '**/src/**/*.spec.{ts,mts,cts}'], // Ignore test files
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
         tsconfigRootDir: __dirname,
-        project: './tsconfig.json',
+        project: existsSync(path.join(__dirname, 'tsconfig.eslint.json')) ? './tsconfig.eslint.json' : './tsconfig.json', // Use a separate tsconfig for ESLint if it exists, otherwise fall back to the main tsconfig
       },
     },
     rules: {
+      'no-redeclare': 'off', // Disable no-redeclare for TypeScript files since TypeScript already checks for redeclarations
       'no-undef': 'off', // Disable no-undef for TypeScript files since TypeScript already checks for undefined variables
       'no-unused-vars': 'off', // Disable base rule for unused variables and use the TypeScript-specific rule instead
       '@typescript-eslint/no-unused-vars': [
@@ -112,8 +113,8 @@ export default defineConfig([
   },
   {
     name: 'Jest Test Files',
-    files: ['**/*.spec.ts', '**/*.test.ts', 'test/**/*.ts'],
-    ignores: ['vitest/'], // Ignore Vitest test files
+    files: ['**/*.spec.ts', '**/*.test.ts', '**/__test__/**/*.ts'],
+    ignores: ['**/vitest'], // Ignore Vitest test files
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -136,7 +137,7 @@ export default defineConfig([
   },
   {
     name: 'Vitest Test Files',
-    files: ['vitest/*.spec.ts', 'vitest/*.test.ts'],
+    files: ['**/vitest/**/*.spec.ts', '**/vitest/**/*.test.ts'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
