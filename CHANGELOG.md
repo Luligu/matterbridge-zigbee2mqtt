@@ -32,6 +32,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [config]: Add titles to config.
 - [package]: Require matterbridge v.3.7.0.
+- [mqtt]: In debug mode, a file bridge-publish-payloads.txt is created in the plugin directory with the first 10000 commands.
 
 ### Changed
 
