@@ -5,73 +5,88 @@
   "required": ["host", "port", "topic"],
   "properties": {
     "name": {
+      "title": "Plugin Name",
       "description": "Plugin name",
       "type": "string",
       "readOnly": true,
       "ui:widget": "hidden"
     },
     "type": {
+      "title": "Plugin Type",
       "description": "Plugin type",
       "type": "string",
       "readOnly": true,
       "ui:widget": "hidden"
     },
     "host": {
+      "title": "MQTT Host",
       "description": "MQTT server host (IP address or hostname with mqtt:// or mqtts:// or ws:// or wss:// prefix) or mqtt+unix://<SOCKET_PATH> for Unix socket on Linux (e.g. mqtt+unix:///var/run/mosquitto/mqtt.sock). For secure connections, use the mqtts:// or wss:// prefix and ensure your certificates are configured. If you use a hostname, make sure that the hostname is resolvable by the system running matterbridge.",
       "type": "string",
       "default": "mqtt://localhost"
     },
     "port": {
+      "title": "MQTT Port",
       "description": "MQTT server port (i.e. 1883 for mqtt://, 8883 for mqtts://, 9001 for ws:// or 9443 for wss://). For Unix socket, this value is ignored.",
       "type": "number",
       "default": 1883
     },
     "protocolVersion": {
+      "title": "MQTT Protocol Version",
       "description": "MQTT server protocol version 3, 4 or 5 (default 5). Version 5 is recommended for most modern MQTT brokers.",
       "type": "number",
       "default": 5
     },
     "username": {
+      "title": "MQTT Username",
       "description": "MQTT server authentication user. Only required if the MQTT server requires authentication (i.e allow_anonymous false)",
       "type": "string"
     },
     "password": {
+      "title": "MQTT Password",
       "description": "MQTT server authentication password. Only required if the MQTT server requires authentication (i.e allow_anonymous false)",
       "type": "string",
       "ui:widget": "password"
     },
     "clientId": {
+      "title": "MQTT Client ID",
       "description": "MQTT clientId identifier. If not set, a random clientId will be generated.",
       "type": "string"
     },
     "ca": {
+      "title": "MQTT CA Certificate",
       "description": "Absolute path to the SSL/TLS CA certificate used to sign both the server and client certificates (PEM format). Required for secure connections (i.e. mqtts://) with self-signed certificates.",
       "type": "string"
     },
     "rejectUnauthorized": {
+      "title": "MQTT Reject Unauthorized",
       "description": "Reject unauthorized MQTT server. Only used for secure connections (i.e. mqtts://).",
       "type": "boolean",
       "default": true
     },
     "cert": {
+      "title": "MQTT Client Certificate",
       "description": "Absolute path to the SSL/TLS MQTT client certificate (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
       "type": "string"
     },
     "key": {
+      "title": "MQTT Client Private Key",
       "description": "Absolute path to the SSL/TLS MQTT client private key (PEM format). Only required if the MQTT server requires a client certificate for authentication (i.e. require_certificate true).",
       "type": "string"
     },
     "topic": {
+      "title": "MQTT Topic",
       "description": "MQTT base topic for Zigbee2MQTT MQTT messages. This should match the base_topic in your Zigbee2MQTT configuration.yaml file.",
       "type": "string",
       "default": "zigbee2mqtt"
     },
     "zigbeeFrontend": {
+      "title": "Zigbee Frontend",
       "description": "Zigbee frontend host to prefix the configUrl from matterbridge frontend (i.e. http://192.168.1.100:8080)",
       "type": "string",
       "default": "http://localhost:8080"
     },
     "whiteList": {
+      "title": "White List",
       "description": "Only the devices in the list will be exposed. If the list is empty, all the devices will be exposed.",
       "type": "array",
       "items": {
@@ -81,6 +96,7 @@
       "selectFrom": "name"
     },
     "blackList": {
+      "title": "Black List",
       "description": "The devices in the list will not be exposed. If the list is empty, no devices will be excluded.",
       "type": "array",
       "items": {
@@ -90,6 +106,7 @@
       "selectFrom": "name"
     },
     "switchList": {
+      "title": "Switch List",
       "description": "The devices in the list will be exposed like switches (don't use it for Alexa, use lightList or outletList instead).",
       "type": "array",
       "items": {
@@ -99,6 +116,7 @@
       "selectFrom": "name"
     },
     "lightList": {
+      "title": "Light List",
       "description": "The devices in the list will be exposed like lights.",
       "type": "array",
       "items": {
@@ -108,6 +126,7 @@
       "selectFrom": "name"
     },
     "outletList": {
+      "title": "Outlet List",
       "description": "The devices in the list will be exposed like outlets.",
       "type": "array",
       "items": {
@@ -117,6 +136,7 @@
       "selectFrom": "name"
     },
     "featureBlackList": {
+      "title": "Feature Black List",
       "description": "The features in the list will not be exposed for all devices.",
       "type": "array",
       "items": {
@@ -126,6 +146,7 @@
       "selectEntityFrom": "name"
     },
     "deviceFeatureBlackList": {
+      "title": "Device Feature Black List",
       "description": "List of features not to be exposed for a single device. Enter in the first field the name of the device and in the list add all the features to exclude.",
       "type": "object",
       "uniqueItems": true,
@@ -141,6 +162,7 @@
       }
     },
     "scenesType": {
+      "title": "Scenes Device Type",
       "description": "Device type to use to expose scenes",
       "type": "string",
       "oneOf": [
@@ -164,21 +186,25 @@
       "default": "outlet"
     },
     "scenesPrefix": {
+      "title": "Scenes Prefix",
       "description": "Add the device/group friendly name before the scene name.",
       "type": "boolean",
       "default": true
     },
     "postfix": {
+      "title": "Device Postfix",
       "description": "Add this unique postfix (3 characters max) to each device serial to avoid collision with other instances (you may loose the configuration of the devices in your controller when changing this value).",
       "type": "string",
       "default": ""
     },
     "debug": {
+      "title": "Enable Debug",
       "description": "Enable the debug for the plugin (development only)",
       "type": "boolean",
       "default": false
     },
     "unregisterOnShutdown": {
+      "title": "Unregister On Shutdown",
       "description": "Unregister all devices on shutdown (development only)",
       "type": "boolean",
       "default": false,

@@ -552,9 +552,9 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    await device.executeCommandHandler('identify', { identifyTime: 10 });
-    await device.executeCommandHandler('lockDoor');
-    await device.executeCommandHandler('unlockDoor');
+    await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
+    await device.executeCommandHandler('lockDoor', {}, 'doorLock', {} as any, device);
+    await device.executeCommandHandler('unlockDoor', {}, 'doorLock', {} as any, device);
 
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${idn}${friendlyName}${rs}${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command permit_join false called for ${idn}${friendlyName}${rs}${db}`));
@@ -589,22 +589,40 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    await device.executeCommandHandler('identify', { identifyTime: 10 });
+    await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
     await device.setAttribute('onOff', 'onOff', false);
-    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {} as any, device);
     await device.setAttribute('onOff', 'onOff', true);
-    await device.executeCommandHandler('off', {}, 'onOff', {}, device);
-    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
-    await device.executeCommandHandler('toggle', {}, 'onOff', {}, device);
-    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('off', {}, 'onOff', {} as any, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {} as any, device);
+    await device.executeCommandHandler('toggle', {}, 'onOff', {} as any, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {} as any, device);
     await device.setAttribute('onOff', 'onOff', true);
-    await device.executeCommandHandler('moveToLevel', { level: 100 }, 'levelControl', {}, device);
-    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 50 }, 'levelControl', {}, device);
-    await device.executeCommandHandler('moveToColorTemperature', { colorTemperatureMireds: 400 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToColor', { colorX: 0.2927, colorY: 0.6349 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToHue', { hue: 200 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToSaturation', { saturation: 90 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToHueAndSaturation', { hue: 200, saturation: 90 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('moveToLevel', { level: 100, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'levelControl', {} as any, device);
+    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 50, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'levelControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToColorTemperature',
+      { colorTemperatureMireds: 400, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
+    await device.executeCommandHandler(
+      'moveToColor',
+      { colorX: 0.2927, colorY: 0.6349, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
+    await device.executeCommandHandler('moveToHue', { hue: 200, direction: 0, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler('moveToSaturation', { saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToHueAndSaturation',
+      { hue: 200, saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
 
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${idn}${friendlyName}${rs}${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${idn}${friendlyName}${rs}${db}`));
@@ -644,11 +662,11 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    await device.executeCommandHandler('identify', { identifyTime: 10 });
-    await device.executeCommandHandler('upOrOpen');
-    await device.executeCommandHandler('downOrClose');
-    await device.executeCommandHandler('stopMotion');
-    await device.executeCommandHandler('goToLiftPercentage', { liftPercent100thsValue: 5000 });
+    await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
+    await device.executeCommandHandler('upOrOpen', {}, 'windowCovering', {} as any, device);
+    await device.executeCommandHandler('downOrClose', {}, 'windowCovering', {} as any, device);
+    await device.executeCommandHandler('stopMotion', {}, 'windowCovering', {} as any, device);
+    await device.executeCommandHandler('goToLiftPercentage', { liftPercent100thsValue: 5000 }, 'windowCovering', {} as any, device);
 
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${idn}${friendlyName}${rs}${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command upOrOpen called for ${idn}${friendlyName}${rs}${db}`));
@@ -682,8 +700,8 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    await device.executeCommandHandler('identify', { identifyTime: 10 });
-    await device.executeCommandHandler('setpointRaiseLower', { mode: Thermostat.SetpointRaiseLowerMode.Both, amount: 10 });
+    await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
+    await device.executeCommandHandler('setpointRaiseLower', { mode: Thermostat.SetpointRaiseLowerMode.Both, amount: 10 }, 'thermostat', {} as any, device);
 
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${idn}${friendlyName}${rs}${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command setpointRaiseLower called for ${idn}${friendlyName}${rs}${db}`), expect.anything());
@@ -735,21 +753,39 @@ describe('TestPlatform', () => {
     if (!device) return;
     await device.construction.ready;
     await flushAsync(undefined, undefined, commandTimeout);
-    await device.executeCommandHandler('identify', { identifyTime: 10 });
+    await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
     await device.setAttribute('onOff', 'onOff', false);
-    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {} as any, device);
     await device.setAttribute('onOff', 'onOff', true);
-    await device.executeCommandHandler('off', {}, 'onOff', {}, device);
-    await device.executeCommandHandler('on', {}, 'onOff', {}, device);
-    await device.executeCommandHandler('off', {}, 'onOff', {}, device);
-    await device.executeCommandHandler('toggle', {}, 'onOff', {}, device);
-    await device.executeCommandHandler('moveToLevel', { level: 100 }, 'levelControl', {}, device);
-    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 0 }, 'levelControl', {}, device);
-    await device.executeCommandHandler('moveToColorTemperature', { colorTemperatureMireds: 400 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToColor', { colorX: 0.2927, colorY: 0.6349 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToHue', { hue: 200 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToSaturation', { saturation: 90 }, 'colorControl', {}, device);
-    await device.executeCommandHandler('moveToHueAndSaturation', { hue: 200, saturation: 90 }, 'colorControl', {}, device);
+    await device.executeCommandHandler('off', {}, 'onOff', {} as any, device);
+    await device.executeCommandHandler('on', {}, 'onOff', {} as any, device);
+    await device.executeCommandHandler('off', {}, 'onOff', {} as any, device);
+    await device.executeCommandHandler('toggle', {}, 'onOff', {} as any, device);
+    await device.executeCommandHandler('moveToLevel', { level: 100, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'levelControl', {} as any, device);
+    await device.executeCommandHandler('moveToLevelWithOnOff', { level: 0, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'levelControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToColorTemperature',
+      { colorTemperatureMireds: 400, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
+    await device.executeCommandHandler(
+      'moveToColor',
+      { colorX: 0.2927, colorY: 0.6349, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
+    await device.executeCommandHandler('moveToHue', { hue: 200, direction: 0, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler('moveToSaturation', { saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToHueAndSaturation',
+      { hue: 200, saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
 
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${ign}${friendlyName}${rs}${db}`));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${ign}${friendlyName}${rs}${db}`));
