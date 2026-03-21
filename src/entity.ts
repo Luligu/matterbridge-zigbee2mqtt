@@ -257,7 +257,7 @@ export class ZigbeeEntity extends EventEmitter {
       Object.entries(payload).forEach(([key, value]) => {
         // Skip null and undefined values
         if (value === undefined || value === null) return;
-        if (this.bridgedDevice === undefined || this.noUpdate) return;
+        if (this.bridgedDevice === undefined) return; // Typescript only check for undefined but we checked before
 
         // Modify voltage to battery_voltage
         if (key === 'voltage' && this.isDevice && this.device?.power_source === 'Battery') key = 'battery_voltage';
