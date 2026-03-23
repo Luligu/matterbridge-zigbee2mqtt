@@ -1154,24 +1154,43 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
     if (isCover) {
       await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'cover');
-      zigbeeGroup.bridgedDevice.addCommandHandler('upOrOpen', async () => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('upOrOpen', async ({ attributes }) => {
         zigbeeGroup.log.debug(`Command upOrOpen called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
-        await zigbeeGroup.bridgedDevice?.setWindowCoveringCurrentTargetStatus(0, 0, WindowCovering.MovementStatus.Stopped);
+        attributes.currentPositionLiftPercent100ths = 0;
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
         zigbeeGroup.publishCommand('upOrOpen', group.friendly_name, { state: 'OPEN' });
       });
-      zigbeeGroup.bridgedDevice.addCommandHandler('downOrClose', async () => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('downOrClose', async ({ attributes }) => {
         zigbeeGroup.log.debug(`Command downOrClose called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
-        await zigbeeGroup.bridgedDevice?.setWindowCoveringCurrentTargetStatus(10000, 10000, WindowCovering.MovementStatus.Stopped);
+        attributes.currentPositionLiftPercent100ths = 10000;
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
         zigbeeGroup.publishCommand('downOrClose', group.friendly_name, { state: 'CLOSE' });
       });
-      zigbeeGroup.bridgedDevice.addCommandHandler('stopMotion', async () => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('stopMotion', async ({ attributes }) => {
         zigbeeGroup.log.debug(`Command stopMotion called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
-        await zigbeeGroup.bridgedDevice?.setWindowCoveringTargetAsCurrentAndStopped();
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
         zigbeeGroup.publishCommand('stopMotion', group.friendly_name, { state: 'STOP' });
       });
-      zigbeeGroup.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue } }) => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue }, attributes }) => {
         zigbeeGroup.log.debug(`Command goToLiftPercentage called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} liftPercent100thsValue: ${liftPercent100thsValue}`);
-        await zigbeeGroup.bridgedDevice?.setWindowCoveringCurrentTargetStatus(liftPercent100thsValue, liftPercent100thsValue, WindowCovering.MovementStatus.Stopped);
+        attributes.currentPositionLiftPercent100ths = liftPercent100thsValue;
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
         zigbeeGroup.publishCommand('goToLiftPercentage', group.friendly_name, { position: 100 - liftPercent100thsValue / 100 });
       });
     }
@@ -1376,12 +1395,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async () => {
         zigbeeDevice.log.debug(`Command permit_join false called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
+        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
         zigbeeDevice.publishCommand('permit_join false', 'bridge/request/permit_join', { value: false });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async () => {
         zigbeeDevice.log.debug(`Command permit_join true called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
+        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
         zigbeeDevice.publishCommand('permit_join true', 'bridge/request/permit_join', { value: true });
       });
 
@@ -1872,32 +1891,60 @@ export class ZigbeeDevice extends ZigbeeEntity {
       // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
       // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
 
-      zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', async () => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', async ({ attributes }) => {
         zigbeeDevice.log.debug(`Command upOrOpen called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
+        attributes.currentPositionLiftPercent100ths = 0;
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
+        /*
         if (zigbeeDevice.propertyMap.has('position'))
           await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 0, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(0);
+        */
         zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: 'OPEN' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', async () => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', async ({ attributes }) => {
         zigbeeDevice.log.debug(`Command downOrClose called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
+        attributes.currentPositionLiftPercent100ths = 10000;
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
+        /*
         if (zigbeeDevice.propertyMap.has('position'))
           await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 10000, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(10000);
+        */
         zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: 'CLOSE' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', async () => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', async ({ attributes }) => {
         zigbeeDevice.log.debug(`Command stopMotion called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAsCurrentAndStopped();
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
         zigbeeDevice.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue } }) => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue }, attributes }) => {
         zigbeeDevice.log.debug(
           `Command goToLiftPercentage called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request liftPercent100thsValue: ${liftPercent100thsValue}`,
         );
+        attributes.currentPositionLiftPercent100ths = liftPercent100thsValue;
+        attributes.operationalStatus = {
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+          tilt: WindowCovering.MovementStatus.Stopped,
+        };
+        /*
         if (zigbeeDevice.propertyMap.has('position'))
           await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', liftPercent100thsValue, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(liftPercent100thsValue);
+        */
         zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: (10000 - liftPercent100thsValue) / 100 });
       });
     }
@@ -1905,12 +1952,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (zigbeeDevice.bridgedDevice.hasClusterServer(DoorLockCluster.id)) {
       zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async ({ request: request }) => {
         zigbeeDevice.log.debug(`Command lockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`, request);
-        await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
+        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
         zigbeeDevice.publishCommand('lockDoor', device.friendly_name, { state: 'LOCK' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async ({ request: request }) => {
         zigbeeDevice.log.debug(`Command unlockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`, request);
-        await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
+        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
         zigbeeDevice.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
       });
     }

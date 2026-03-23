@@ -26,6 +26,14 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
+## [3.0.10] - 2026-03-23
+
+### Fixed
+
+- [cover]: Fix command handlers for Matterbridge v.3.7.0. Thanks Henrik (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/161).
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
 ## [3.0.9] - 2026-03-21
 
 ### Added

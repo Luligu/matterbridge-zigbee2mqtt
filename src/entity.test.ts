@@ -917,12 +917,12 @@ describe('Test Entity', () => {
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command upOrOpen called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('upOrOpen', friendlyName, { state: 'OPEN' });
-      await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 0);
+      // await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 0);
 
       jest.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'downOrClose');
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
@@ -931,12 +931,12 @@ describe('Test Entity', () => {
         expect.stringContaining(`Command downOrClose called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
       );
       expect(publishCommandSpy).toHaveBeenCalledWith('downOrClose', friendlyName, { state: 'CLOSE' });
-      await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 10000);
+      // await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 10000);
 
       jest.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'goToLiftPercentage', { liftPercent100thsValue: 5000 });
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
@@ -945,7 +945,7 @@ describe('Test Entity', () => {
         expect.stringContaining(`Command goToLiftPercentage called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
       );
       expect(publishCommandSpy).toHaveBeenCalledWith('goToLiftPercentage', friendlyName, { position: 50 });
-      await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 5000);
+      // await device.setAttribute('WindowCovering', 'currentPositionLiftPercent100ths', 5000);
 
       jest.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'stopMotion');
