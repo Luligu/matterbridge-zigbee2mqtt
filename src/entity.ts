@@ -1950,14 +1950,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(DoorLockCluster.id)) {
-      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async ({ request: request }) => {
-        zigbeeDevice.log.debug(`Command lockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`, request);
-        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
+      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async () => {
+        zigbeeDevice.log.debug(`Command lockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         zigbeeDevice.publishCommand('lockDoor', device.friendly_name, { state: 'LOCK' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async ({ request: request }) => {
-        zigbeeDevice.log.debug(`Command unlockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`, request);
-        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
+      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async () => {
+        zigbeeDevice.log.debug(`Command unlockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         zigbeeDevice.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
       });
     }

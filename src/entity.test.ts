@@ -1068,7 +1068,21 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "doorLock"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
-      expect(featuresFor(device, 'doorLock')).toEqual({});
+      expect(featuresFor(device, 'doorLock')).toEqual({
+        aliroBleuwb: false,
+        aliroProvisioning: false,
+        credentialOverTheAirAccess: false,
+        doorPositionSensor: false,
+        faceCredentials: false,
+        fingerCredentials: false,
+        holidaySchedules: false,
+        pinCredential: false,
+        rfidCredential: false,
+        unbolting: false,
+        user: false,
+        weekDayAccessSchedules: false,
+        yearDayAccessSchedules: false,
+      });
       // await setDebug(false);
 
       jest.clearAllMocks();
@@ -1082,10 +1096,7 @@ describe('Test Entity', () => {
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
-      expect(loggerDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`Command lockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
-        expect.anything(),
-      );
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command lockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('lockDoor', friendlyName, { state: 'LOCK' });
 
       jest.clearAllMocks();
@@ -1093,10 +1104,7 @@ describe('Test Entity', () => {
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
-      expect(loggerDebugSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`Command unlockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
-        expect.anything(),
-      );
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command unlockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('unlockDoor', friendlyName, { state: 'UNLOCK' });
     });
 
