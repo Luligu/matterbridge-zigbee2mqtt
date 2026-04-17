@@ -30,7 +30,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Changed
 
-- [package]: Update dependencies.
+- [package]: Preliminary compatibility update to `matterbridge 3.8.0`, matter 1.5.1 and matter.js 0.17.0.
 - [package]: Update dependencies.
 - [package]: Bump package to `automator` v.3.1.6.
 - [package]: Bump `typescript` to v.6.0.2.

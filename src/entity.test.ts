@@ -28,6 +28,7 @@ import {
   stopMatterbridgeEnvironment,
 } from 'matterbridge/jestutils';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
+import { ClusterBehavior } from 'matterbridge/matter';
 import { ColorControl, DoorLock, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
 import { getMacAddress } from 'matterbridge/utils';
@@ -75,7 +76,7 @@ await setupTest(NAME, false);
 describe('Test Entity', () => {
   let platform: ZigbeePlatform;
 
-  const executeTrue: TypeFromPartialBitSchema<typeof LevelControl.Options> = { executeIfOff: true };
+  const executeTrue = { executeIfOff: true };
 
   const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
   const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
@@ -1052,6 +1053,7 @@ describe('Test Entity', () => {
 
       entity.destroy();
     });
+
     test('create a lock device', async () => {
       // await setDebug(true);
       const z2mDevice = lock;
@@ -1092,7 +1094,7 @@ describe('Test Entity', () => {
 
       // Test commands from the controller
       jest.clearAllMocks();
-      await invokeBehaviorCommand(device, 'doorLock', 'lockDoor');
+      await device.invokeBehaviorCommand('doorLock', 'lockDoor', {});
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
@@ -1100,7 +1102,7 @@ describe('Test Entity', () => {
       expect(publishCommandSpy).toHaveBeenCalledWith('lockDoor', friendlyName, { state: 'LOCK' });
 
       jest.clearAllMocks();
-      await invokeBehaviorCommand(device, 'doorLock', 'unlockDoor');
+      await device.invokeBehaviorCommand('doorLock', 'unlockDoor', {});
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
