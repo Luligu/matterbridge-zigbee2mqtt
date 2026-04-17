@@ -7,10 +7,10 @@
 ![Node.js CI](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/build.yml/badge.svg)
 ![CodeQL](https://github.com/Luligu/matterbridge-zigbee2mqtt/actions/workflows/codeql.yml/badge.svg)
 [![codecov](https://codecov.io/gh/Luligu/matterbridge-zigbee2mqtt/branch/main/graph/badge.svg)](https://codecov.io/gh/Luligu/matterbridge-zigbee2mqtt)
-[![styled with prettier](https://img.shields.io/badge/styled_with-Prettier-f8bc45.svg?logo=prettier)](https://github.com/prettier/prettier)
-[![linted with eslint](https://img.shields.io/badge/linted_with-ES_Lint-4B32C3.svg?logo=eslint)](https://github.com/eslint/eslint)
+[![styled with prettier](https://img.shields.io/badge/styled_with-Prettier-f8bc45.svg?logo=prettier)](https://prettier.io/)
+[![linted with eslint](https://img.shields.io/badge/linted_with-ES_Lint-4B32C3.svg?logo=eslint)](https://eslint.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![ESM](https://img.shields.io/badge/ESM-Node.js-339933?logo=node.js&logoColor=white)](https://nodejs.org/api/esm.html)
+[![ESM](https://img.shields.io/badge/ESM-Node.js-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![matterbridge.io](https://img.shields.io/badge/matterbridge.io-online-brightgreen)](https://matterbridge.io)
 
 [![powered by](https://img.shields.io/badge/powered%20by-matterbridge-blue)](https://www.npmjs.com/package/matterbridge)
@@ -31,9 +31,25 @@ If you like this project and find it useful, please consider giving it a star on
 ### Changed
 
 - [package]: Update dependencies.
-- [package]: Bump package to `automator` v.3.1.4.
+- [package]: Update dependencies.
+- [package]: Bump package to `automator` v.3.1.6.
 - [package]: Bump `typescript` to v.6.0.2.
-- [package]: Bump `typescript-eslint` to v.8.58.0.
+- [package]: Bump `typescript-eslint` to v.8.58.2.
+- [package]: Bump `eslint` to v.10.2.0.
+- [package]: Bump `prettier` to v.3.8.2.
+- [package]: Bump `node-ansi-logger` to v.3.2.1.
+- [package]: Bump `node-persist-manager` to v.2.0.2.
+- [agent]: Add `.vscode\tasks.json`.
+- [agent]: Add `.github\copilot-instructions.md` for copilot.
+- [agent]: Add `.claude\CLAUDE.md` for claude.
+- [agent]: Add agent custom instructions (`testing`) for copilot and claude.
+- [agent]: Add agent custom instructions (`matterbridge`) for copilot and claude.
+- [devcontainer]: Fix pull of new image.
+- [devcontainer]: Update VS Code settings.
+- [devcontainer]: Leave matterbridge scripts in the cloned repo.
+- [scripts]: Update mb-run script.
+- [scripts]: Update package watch script.
+- [scripts]: Add prune-releases script.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

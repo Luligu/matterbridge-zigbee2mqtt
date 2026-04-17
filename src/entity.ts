@@ -92,8 +92,8 @@ import {
   WindowCoveringCluster,
 } from 'matterbridge/matter/clusters';
 import { ClusterId, getClusterNameById, Semtag, VendorId } from 'matterbridge/matter/types';
-import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 import * as color from 'matterbridge/utils';
+import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 
 import { ZigbeePlatform } from './module.js';
 import { Payload, PayloadValue } from './payloadTypes.js';
