@@ -40,7 +40,8 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `node-ansi-logger` to v.3.2.1.
 - [package]: Bump `node-persist-manager` to v.2.0.2.
 - [devcontainer]: Add `Claude Code for VS Code extension` to Dev Container.
-- [agent]: Add `.vscode\tasks.json`.
+- [package]: Add `.vscode\tasks.json`.
+- [package]: Add `.vscode\settings.json`.
 - [agent]: Add `.github\copilot-instructions.md` for copilot.
 - [agent]: Add `.claude\CLAUDE.md` for claude.
 - [agent]: Add agent custom instructions (`testing`) for copilot and claude.
