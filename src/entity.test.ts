@@ -1,4 +1,4 @@
-// src/platform.test.ts
+// src/entity.test.ts
 
 const NAME = 'Entity';
 const MATTER_PORT = 6001;
