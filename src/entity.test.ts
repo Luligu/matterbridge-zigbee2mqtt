@@ -1,8 +1,8 @@
 // src/platform.test.ts
 
-const MATTER_PORT = 6001;
 const NAME = 'Entity';
-const HOMEDIR = path.join('jest', NAME);
+const MATTER_PORT = 6001;
+const MATTER_CREATE_ONLY = true;
 
 /* eslint-disable no-console */
 
@@ -13,7 +13,6 @@ import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, Matterbridg
 import {
   addDevice,
   addMatterbridgePlatform,
-  aggregator,
   createMatterbridgeEnvironment,
   destroyMatterbridgeEnvironment,
   flushAsync,
@@ -28,9 +27,9 @@ import {
   stopMatterbridgeEnvironment,
 } from 'matterbridge/jestutils';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import { ClusterBehavior } from 'matterbridge/matter';
-import { ColorControl, DoorLock, LevelControl, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import { TypeFromPartialBitSchema } from 'matterbridge/matter/types';
+import { Endpoint, ServerNode } from 'matterbridge/matter';
+import { ColorControl, DoorLock, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { getMacAddress } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from './entity.js';
@@ -75,6 +74,8 @@ await setupTest(NAME, false);
 
 describe('Test Entity', () => {
   let platform: ZigbeePlatform;
+  let server: ServerNode<ServerNode.RootEndpoint>;
+  let aggregator: Endpoint<AggregatorEndpoint>;
 
   const executeTrue = { executeIfOff: true };
 
@@ -113,25 +114,23 @@ describe('Test Entity', () => {
 
   beforeAll(async () => {
     // Create Matterbridge environment
-    await createMatterbridgeEnvironment(NAME);
-    await startMatterbridgeEnvironment(MATTER_PORT);
+    await createMatterbridgeEnvironment();
+    [server, aggregator] = await startMatterbridgeEnvironment(MATTER_PORT, MATTER_CREATE_ONLY);
   });
 
   beforeEach(async () => {
     // Clears the call history before each test
     jest.clearAllMocks();
+  });
 
+  afterEach(async () => {
     // Reset debug state
     await setDebug(false);
   });
 
-  afterEach(async () => {
-    // await flushAsync();
-  });
-
   afterAll(async () => {
     // Destroy Matterbridge environment
-    await stopMatterbridgeEnvironment();
+    await stopMatterbridgeEnvironment(MATTER_CREATE_ONLY);
     await destroyMatterbridgeEnvironment();
 
     // Restore the original implementation of the AnsiLogger.log method

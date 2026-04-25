@@ -1,8 +1,8 @@
 // src/module.test.ts
 
-const MATTER_PORT = 6000;
 const NAME = 'Platform';
-const HOMEDIR = path.join('jest', NAME);
+const MATTER_PORT = 6000;
+const MATTER_CREATE_ONLY = true;
 
 /* eslint-disable no-console */
 
@@ -14,12 +14,10 @@ import { bridgedNode, colorTemperatureLight, coverDevice, dimmableLight, doorLoc
 import {
   addMatterbridgePlatform,
   createMatterbridgeEnvironment,
-  createTestEnvironment,
   destroyMatterbridgeEnvironment,
   flushAsync,
   log,
   loggerLogSpy,
-  logKeepAlives,
   matterbridge,
   setDebug,
   setupTest,
@@ -99,25 +97,23 @@ describe('TestPlatform', () => {
 
   beforeAll(async () => {
     // Create Matterbridge environment
-    await createMatterbridgeEnvironment(NAME);
-    await startMatterbridgeEnvironment(MATTER_PORT);
+    await createMatterbridgeEnvironment();
+    await startMatterbridgeEnvironment(MATTER_PORT, MATTER_CREATE_ONLY);
   });
 
   beforeEach(async () => {
     // Clears the call history before each test
     jest.clearAllMocks();
+  });
 
+  afterEach(async () => {
     // Reset debug state
     await setDebug(false);
   });
 
-  afterEach(async () => {
-    // await flushAsync();
-  });
-
   afterAll(async () => {
     // Destroy Matterbridge environment
-    await stopMatterbridgeEnvironment();
+    await stopMatterbridgeEnvironment(MATTER_CREATE_ONLY);
     await destroyMatterbridgeEnvironment();
 
     // Restore the original implementation of the AnsiLogger.log method
