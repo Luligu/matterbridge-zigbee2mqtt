@@ -1,3 +1,5 @@
+<!-- eslint-disable markdown/no-multiple-h1 -->
+
 # <img src="https://matterbridge.io/assets/matterbridge.svg" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin
 
 [![npm version](https://img.shields.io/npm/v/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
@@ -60,7 +62,7 @@ Just open the frontend, select the matterbridge-zigbee2mqtt plugin and click on 
 
 On windows:
 
-```
+```powershell
 cd $HOME\Matterbridge
 npm install -g matterbridge-zigbee2mqtt --omit=dev
 matterbridge -add matterbridge-zigbee2mqtt
@@ -68,7 +70,7 @@ matterbridge -add matterbridge-zigbee2mqtt
 
 On linux and macOS:
 
-```
+```shell
 cd ~/Matterbridge
 sudo npm install -g matterbridge-zigbee2mqtt --omit=dev
 matterbridge -add matterbridge-zigbee2mqtt
@@ -76,7 +78,7 @@ matterbridge -add matterbridge-zigbee2mqtt
 
 Then start Matterbridge
 
-```
+```shell
 matterbridge
 ```
 
@@ -84,7 +86,7 @@ matterbridge
 
 Clone the plugin
 
-```
+```shell
 cd ~/Matterbridge
 git clone https://github.com/Luligu/matterbridge-zigbee2mqtt
 cd matterbridge-zigbee2mqtt
@@ -96,7 +98,7 @@ matterbridge -add .
 
 Then start Matterbridge
 
-```
+```shell
 matterbridge
 ```
 
@@ -193,14 +195,14 @@ You can edit the config file manually if you prefer:
 
 On windows:
 
-```
+```powershell
 cd $HOME\.matterbridge
 notepad matterbridge-zigbee2mqtt.config.json
 ```
 
 On linux:
 
-```
+```shell
 cd ~/.matterbridge
 nano matterbridge-zigbee2mqtt.config.json
 ```
@@ -241,7 +243,7 @@ If the retain option is enabled in zigbee2mqtt settings or device setting, at re
 
 To enable retain globally, stop zigbee2mqtt, add retain: true to device_options and restart zigbee2mqtt.
 
-```
+```text
 device_options:
   retain: true
 ```
@@ -261,7 +263,7 @@ If one of your devices is not supported out of the box, open an issue and we wil
 - Scene buttons are now fully exposed (all actions). The actions are mapped in groups of 3, with each group on a sub endpoint. This is because the controllers expose event in group of single, double, long press.
   In the log you will find the mapping schema like this one:
 
-```
+```text
 [16:25:14.321] [Smart button] Device Smart button has actions mapped to these switches on sub endpoints:
 [16:25:14.321] [Smart button]    controller events      <=> zigbee2mqtt actions
 [16:25:14.322] [Smart button] -- Button 1: Single Press <=> single
@@ -312,7 +314,7 @@ sudo -u mosquitto ls -l /var/run/mosquitto/mqtt.sock
 
 Add this to your mosquitto.conf
 
-```
+```text
 # Unix socket listener
 listener 0 /var/run/mosquitto/mqtt.sock
 protocol mqtt
@@ -337,7 +339,7 @@ sudo chmod 770 "$HOME/mosquitto/run"
 
 Add the unix socket volume for each service using it (i.e. mosquitto, zigbee2mqtt and matterbridge).
 
-```
+```text
   volumes:
     - "${HOME}/mosquitto/run:/var/run/mosquitto"
 ```
