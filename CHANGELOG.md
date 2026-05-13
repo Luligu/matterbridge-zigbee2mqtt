@@ -34,26 +34,25 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [package]: Preliminary compatibility update to `matterbridge 3.8.0`, matter 1.5.1 and matter.js 0.17.0.
 - [package]: Update dependencies.
-- [package]: Bump package to `automator` v.3.1.6.
+- [package]: Bump package to `automator` v.3.1.9.
 - [package]: Bump `typescript` to v.6.0.3.
-- [package]: Bump `eslint` to v.10.2.1.
-- [package]: Bump `typescript-eslint` to v.8.59.0.
-- [package]: Bump `prettier` to v.3.8.2.
+- [package]: Bump `eslint` to v.10.3.0.
+- [package]: Bump `typescript-eslint` to v.8.59.3.
+- [package]: Bump `prettier` to v.3.8.3.
 - [package]: Bump `node-ansi-logger` to v.3.2.1.
 - [package]: Bump `node-persist-manager` to v.2.0.2.
-- [devcontainer]: Add `Claude Code for VS Code extension` to Dev Container.
+- [package]: Bump `jest` to v.30.4.2.
 - [package]: Add `.vscode\tasks.json`.
 - [package]: Add `.vscode\settings.json`.
-- [agent]: Add `.github\copilot-instructions.md` for copilot.
-- [agent]: Add `.claude\CLAUDE.md` for claude.
-- [agent]: Add agent custom instructions (`testing`) for copilot and claude.
-- [agent]: Add agent custom instructions (`matterbridge`) for copilot and claude.
+- [devcontainer]: Add `Claude Code for VS Code extension` to Dev Container.
+- [agent]: Add `.github\copilot-instructions.md` for Copilot.
+- [agent]: Add `.claude\CLAUDE.md` for Claude.
+- [agent]: Add agent custom instructions (`testing`) for Copilot and Claude.
+- [agent]: Add agent custom instructions (`matterbridge`) for Copilot and Claude.
 - [devcontainer]: Fix pull of new image.
 - [devcontainer]: Update VS Code settings.
 - [devcontainer]: Leave matterbridge scripts in the cloned repo.
-- [scripts]: Update mb-run script.
-- [scripts]: Update package watch script.
-- [scripts]: Add prune-releases script.
+- [package]: Refactor `scripts`.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
