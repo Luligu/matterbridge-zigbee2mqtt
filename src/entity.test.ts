@@ -1125,17 +1125,31 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "thermostat", "identify"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
-      expect(featuresFor(device, 'Thermostat')).toEqual({
-        autoMode: true,
-        cooling: true,
-        heating: true,
-        localTemperatureNotExposed: false,
-        matterScheduleConfiguration: false,
-        occupancy: false,
-        presets: false,
-        scheduleConfiguration: false,
-        setback: false,
-      });
+      // Matterbridge 3.7.10 is the last Matter 1.4.2 release
+      expect(featuresFor(device, 'Thermostat')).toEqual(
+        matterbridge.matterbridgeVersion === '3.7.10'
+          ? {
+              autoMode: true,
+              cooling: true,
+              heating: true,
+              localTemperatureNotExposed: false,
+              matterScheduleConfiguration: false,
+              occupancy: false,
+              presets: false,
+              scheduleConfiguration: false,
+              setback: false,
+            }
+          : {
+              autoMode: true,
+              cooling: true,
+              heating: true,
+              localTemperatureNotExposed: false,
+              matterScheduleConfiguration: false,
+              occupancy: false,
+              presets: false,
+              setback: false,
+            },
+      );
       // await setDebug(false);
 
       jest.clearAllMocks();
