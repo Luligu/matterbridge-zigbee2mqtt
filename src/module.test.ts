@@ -129,10 +129,7 @@ describe('TestPlatform', () => {
   });
 
   it('should not initialize platform with wrong version', () => {
-    const saveVersion = matterbridge.matterbridgeVersion;
-    matterbridge.matterbridgeVersion = '1.0.0';
-    expect(() => new ZigbeePlatform(matterbridge, log, mockConfig)).toThrow();
-    matterbridge.matterbridgeVersion = saveVersion;
+    expect(() => new ZigbeePlatform({ ...matterbridge, matterbridgeVersion: '1.0.0' }, log, mockConfig)).toThrow();
   });
 
   it('should initialize platform with default values', async () => {
@@ -142,9 +139,6 @@ describe('TestPlatform', () => {
     config.username = 'user';
     config.password = 'password';
     config.protocolVersion = 10;
-    config.postfixHostname = undefined;
-    config.deviceScenes = undefined;
-    config.groupScenes = undefined;
     config.scenesType = 'outlet';
     config.scenesPrefix = true;
     const platform = new ZigbeePlatform(matterbridge, log, config);
@@ -322,6 +316,7 @@ describe('TestPlatform', () => {
   it('should update with permit_join', async () => {
     platform.z2m.emit('permit_join', 'Coordinator', 30, true);
     platform.z2m.emit('permit_join', 'Coordinator', 30, false);
+    await wait(50);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `Device Coordinator unlocked`);
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `Device Coordinator locked`);
   }, 60000);
@@ -821,8 +816,8 @@ describe('TestPlatform', () => {
 
   it('should call publish', async () => {
     publishSpy.mockRestore();
-    await platform.publish('zigbee2mqtt', 'test', 'message');
-    await platform.publish('zigbee2mqtt', '', 'message');
+    platform.publish('zigbee2mqtt', 'test', 'message');
+    platform.publish('zigbee2mqtt', '', 'message');
     expect(z2mPublishSpy).toHaveBeenCalledTimes(2);
   });
 

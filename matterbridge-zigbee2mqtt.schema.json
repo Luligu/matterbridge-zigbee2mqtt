@@ -163,7 +163,7 @@
     },
     "scenesType": {
       "title": "Scenes Device Type",
-      "description": "Device type to use to expose scenes",
+      "description": "Device type to use to expose scenes. If you use Alexa, don't use switch.",
       "type": "string",
       "oneOf": [
         {

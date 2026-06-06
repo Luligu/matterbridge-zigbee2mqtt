@@ -1,5 +1,5 @@
 // @ts-check
-// eslint.config.js 2.0.4
+// eslint.config.js 2.0.6
 
 // This ESLint configuration is designed for a TypeScript project using ESM modules.
 
@@ -18,29 +18,29 @@ import importsort from 'eslint-plugin-simple-import-sort';
 import tseslint from 'typescript-eslint';
 
 const sourceFiles = ['**/*.{js,mjs,cjs,ts,mts,cts}'];
-const typescriptFiles = [
-  '**/src/**/*.{ts,mts,cts}',
-  '**/test/**/*.spec.{ts,mts,cts}',
-  '**/test/**/*.test.{ts,mts,cts}',
-  '**/test/**/__test__/**/*.{ts,mts,cts}',
-  '**/vitest/**/*.spec.{ts,mts,cts}',
-  '**/vitest/**/*.test.{ts,mts,cts}',
-];
-const jestTestFiles = [
-  '**/src/**/*.spec.{ts,mts,cts}',
-  '**/src/**/*.test.{ts,mts,cts}',
-  '**/src/**/__test__/**/*.{ts,mts,cts}',
-  '**/test/**/*.spec.{ts,mts,cts}',
-  '**/test/**/*.test.{ts,mts,cts}',
-  '**/test/**/__test__/**/*.{ts,mts,cts}',
-];
-const vitestTestFiles = ['**/vitest/**/*.spec.{ts,mts,cts}', '**/vitest/**/*.test.{ts,mts,cts}'];
+const typescriptFiles = ['**/src/**/*.{ts,mts,cts}', '**/test/**/*.{ts,mts,cts}', '**/vitest/**/*.{ts,mts,cts}'];
+const jestTestFiles = ['**/src/**/*.{spec,test}.{ts,mts,cts}', '**/test/**/*.{spec,test}.{ts,mts,cts}'];
+const vitestTestFiles = ['**/vitest/**/*.{spec,test}.{ts,mts,cts}'];
 const configDirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 export default defineConfig([
   {
     name: 'Global Ignores',
-    ignores: [...vitestTestFiles, '**/.cache', '**/build', '**/coverage', '**/dist', '**/jest', '**/node_modules', '**/screenshots', '**/temp', '**/vendor', '**/apps', '**/chip'],
+    ignores: [
+      ...vitestTestFiles,
+      '**/.cache',
+      '**/apps',
+      '**/build',
+      '**/chip',
+      '**/coverage',
+      '**/dist',
+      '**/jest',
+      'mock',
+      '**/node_modules',
+      '**/screenshots',
+      '**/temp',
+      '**/vendor',
+    ],
   },
   {
     name: 'JavaScript & TypeScript Source Files',
@@ -126,14 +126,15 @@ export default defineConfig([
           caughtErrorsIgnorePattern: '^_', // Ignore unused caught errors starting with _
         },
       ],
+      '@typescript-eslint/no-deprecated': 'warn',
       // Eventually we want to enable these rules, but they may cause many errors
-      // '@typescript-eslint/no-floating-promises': 'error', // Require unhandled promises to be explicitly voided or awaited
-      // '@typescript-eslint/no-misused-promises': 'error', // Disallow promises in non-async callbacks or boolean conditions
-      // '@typescript-eslint/await-thenable': 'error', // Disallow awaiting non-Promise values
-      // '@typescript-eslint/return-await': ['error', 'in-try-catch'], // Require return await inside try-catch so rejections are caught locally
-      // '@typescript-eslint/only-throw-error': 'error', // Require only Error objects to be thrown or rejected
-      // '@typescript-eslint/promise-function-async': 'warn', // Require Promise-returning functions to be async
-      // '@typescript-eslint/require-await': 'warn', // Disallow async functions without any await expression
+      '@typescript-eslint/no-floating-promises': 'error', // Require unhandled promises to be explicitly voided or awaited
+      '@typescript-eslint/no-misused-promises': 'error', // Disallow promises in non-async callbacks or boolean conditions
+      '@typescript-eslint/await-thenable': 'error', // Disallow awaiting non-Promise values
+      '@typescript-eslint/return-await': ['error', 'in-try-catch'], // Require return await inside try-catch so rejections are caught locally
+      '@typescript-eslint/only-throw-error': 'error', // Require only Error objects to be thrown or rejected
+      '@typescript-eslint/promise-function-async': 'warn', // Require Promise-returning functions to be async
+      '@typescript-eslint/require-await': 'warn', // Disallow async functions without any await expression
     },
   },
   {
@@ -143,7 +144,7 @@ export default defineConfig([
       parser: tseslint.parser,
       parserOptions: {
         tsconfigRootDir: configDirname,
-        project: 'tsconfig.json',
+        project: 'tsconfig.jest.json', // Use a separate tsconfig for Jest tests
       },
     },
     extends: [jest.configs['flat/recommended']],
@@ -152,6 +153,7 @@ export default defineConfig([
       'no-unused-vars': 'off', // Disable base rule for unused variables and use the TypeScript-specific rule instead
       'n/no-extraneous-import': 'off', // Allow imports from devDependencies in test files
       'n/no-unpublished-import': 'off', // Allow imports from unpublished packages
+      '@typescript-eslint/no-deprecated': 'off', // Disable deprecation warnings in test files
       '@typescript-eslint/no-unused-vars': 'off', // Disable TypeScript rule for unused variables in test files
       '@typescript-eslint/no-explicit-any': 'off', // Allow 'any' type in test files
       '@typescript-eslint/no-empty-function': 'off', // Allow empty functions in test files
@@ -168,23 +170,21 @@ export default defineConfig([
   {
     name: 'JSON Files',
     files: ['**/*.json'],
-    ignores: ['**/devcontainer.json', '**/.vscode/*.json', '**/package-lock.json'],
+    ignores: ['**/devcontainer.json', '**/.vscode/*.json', '**/.oxlintrc.json', '**/.oxfmtrc.json', '**/package-lock.json'],
     plugins: { json, prettier },
     language: 'json/json',
     extends: [json.configs.recommended],
     rules: {
-      'json/no-unsafe-values': 'off',
       'prettier/prettier': 'warn', // Use Prettier for formatting
     },
   },
   {
     name: 'JSON with Comments Files',
-    files: ['**/*.jsonc', '**/devcontainer.json', '**/.vscode/*.json'],
+    files: ['**/*.jsonc', '**/devcontainer.json', '**/.vscode/*.json', '**/.oxlintrc.json', '**/.oxfmtrc.json'],
     plugins: { json, prettier },
     language: 'json/jsonc',
     extends: [json.configs.recommended],
     rules: {
-      'json/no-unsafe-values': 'off',
       'prettier/prettier': 'warn', // Use Prettier for formatting
     },
   },

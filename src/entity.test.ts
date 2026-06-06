@@ -728,9 +728,9 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(3); // 2 channels + root
-      const ch1 = device.getChildEndpointByName('l1');
+      const ch1 = device.getChildEndpointById('l1');
       expect(ch1).toBeInstanceOf(MatterbridgeEndpoint);
-      const ch2 = device.getChildEndpointByName('l2');
+      const ch2 = device.getChildEndpointById('l2');
       expect(ch2).toBeInstanceOf(MatterbridgeEndpoint);
       if (!ch1 || !ch2) throw new Error('Child endpoints not found');
       // prettier-ignore

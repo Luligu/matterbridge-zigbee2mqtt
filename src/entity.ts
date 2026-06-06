@@ -57,7 +57,7 @@ import {
   thermostatDevice,
   waterLeakDetector,
 } from 'matterbridge';
-import { AnsiLogger, CYAN, db, debugStringify, dn, er, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
+import { AnsiLogger, CYAN, db, debugStringify, dn, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
 import { AtLeastOne, NumberTag, SwitchesTag } from 'matterbridge/matter';
 import {
   AirQuality,
@@ -66,9 +66,7 @@ import {
   CarbonDioxideConcentrationMeasurement,
   CarbonMonoxideConcentrationMeasurement,
   ColorControl,
-  ColorControlCluster,
   DoorLock,
-  DoorLockCluster,
   ElectricalEnergyMeasurement,
   ElectricalPowerMeasurement,
   FormaldehydeConcentrationMeasurement,
@@ -86,18 +84,15 @@ import {
   SmokeCoAlarm,
   TemperatureMeasurement,
   Thermostat,
-  ThermostatCluster,
   TotalVolatileOrganicCompoundsConcentrationMeasurement,
   WindowCovering,
-  WindowCoveringCluster,
 } from 'matterbridge/matter/clusters';
 import { ClusterId, getClusterNameById, Semtag, VendorId } from 'matterbridge/matter/types';
-import * as color from 'matterbridge/utils';
-import { deepCopy, deepEqual, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
+import { deepCopy, deepEqual, fireAndForget, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin, xyColorToRgbColor, xyToHsl } from 'matterbridge/utils';
 
-import { ZigbeePlatform } from './module.js';
-import { Payload, PayloadValue } from './payloadTypes.js';
-import { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
+import type { ZigbeePlatform } from './module.js';
+import type { Payload, PayloadValue } from './payloadTypes.js';
+import type { BridgeDevice, BridgeGroup } from './zigbee2mqttTypes.js';
 
 interface BehaviorOptions {
   clusterId: ClusterId;
@@ -265,11 +260,11 @@ export class ZigbeeEntity extends EventEmitter {
         // Set batChargeLevel to critical if batter is less than 20%
         if (key === 'battery' && !('battery_low' in payload) && isValidNumber(value, 0, 100) && this.isDevice && this.device?.power_source === 'Battery') {
           if (value < 20) {
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.Cluster.id, 'batChargeLevel', PowerSource.BatChargeLevel.Critical);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.id, 'batChargeLevel', PowerSource.BatChargeLevel.Critical);
           } else if (value < 40) {
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.Cluster.id, 'batChargeLevel', PowerSource.BatChargeLevel.Warning);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.id, 'batChargeLevel', PowerSource.BatChargeLevel.Warning);
           } else {
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.Cluster.id, 'batChargeLevel', PowerSource.BatChargeLevel.Ok);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, PowerSource.id, 'batChargeLevel', PowerSource.BatChargeLevel.Ok);
           }
         }
 
@@ -307,8 +302,13 @@ export class ZigbeeEntity extends EventEmitter {
           const propertyMap = this.propertyMap.get(('action_' + value) as string);
           if (propertyMap) {
             // this.log.debug(`Payload entry ${CYAN}${value}${db} => name: ${CYAN}${propertyMap.name}${db} endpoint: ${CYAN}${propertyMap.endpoint}${db} action: ${CYAN}${propertyMap.action}${db}`);
-            const child = this.bridgedDevice.getChildEndpointByName(propertyMap.endpoint);
-            if (child && child.maybeNumber) child.triggerSwitchEvent(propertyMap.action as 'Single' | 'Double' | 'Long', this.log);
+            const child = this.bridgedDevice.getChildEndpointById(propertyMap.endpoint);
+            if (child && child.maybeNumber)
+              fireAndForget(
+                child.triggerSwitchEvent(propertyMap.action as 'Single' | 'Double' | 'Long', this.log),
+                this.log,
+                `Error triggering switch event ${propertyMap.action} on ${propertyMap.endpoint}`,
+              );
           } else this.log.debug(`*Payload entry ${CYAN}${('action_' + value) as string}${db} not found in propertyMap`);
         }
 
@@ -316,57 +316,57 @@ export class ZigbeeEntity extends EventEmitter {
         // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
         // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', value * 100);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', value * 100);
         }
         if (key === 'moving' && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           if (value === 'UP') {
             const status = WindowCovering.MovementStatus.Opening;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
           } else if (value === 'DOWN') {
             const status = WindowCovering.MovementStatus.Closing;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
           } else if (value === 'STOP') {
             const status = WindowCovering.MovementStatus.Stopped;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-            const position = this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
           }
         }
         if (key === 'motor_state' && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           if (value === 'opening') {
             const status = WindowCovering.MovementStatus.Opening;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
           } else if (value === 'closing') {
             const status = WindowCovering.MovementStatus.Closing;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
           } else if (value === 'stopped') {
             const status = WindowCovering.MovementStatus.Stopped;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-            const position = this.bridgedDevice.getAttribute(WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', this.log);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'currentPositionLiftPercent100ths', position);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.Cluster.id, 'targetPositionLiftPercent100ths', position);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
           }
         }
 
         // Thermostat current_heating_setpoint is published and exposed like it is current_heating_setpoint and current_cooling_setpoint
         if (key === 'current_heating_setpoint' && 'system_mode' in payload && payload['system_mode'] === 'heat' && isValidNumber(value)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, Thermostat.Cluster.id, 'occupiedHeatingSetpoint', value * 100);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, Thermostat.id, 'occupiedHeatingSetpoint', value * 100);
         }
         if (key === 'current_heating_setpoint' && 'system_mode' in payload && payload['system_mode'] === 'cool' && isValidNumber(value)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, Thermostat.Cluster.id, 'occupiedCoolingSetpoint', value * 100);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, Thermostat.id, 'occupiedCoolingSetpoint', value * 100);
         }
 
         // ColorControl colorTemperatureMired (clamped to value_min and value_max) and colorMode
         if (key === 'color_temp' && 'color_mode' in payload && payload['color_mode'] === 'color_temp' && isValidNumber(value)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.id, 'colorMode', ColorControl.ColorMode.ColorTemperatureMireds);
           const colorTemp = this.propertyMap.get('color_temp');
           this.updateAttributeIfChanged(
             this.bridgedDevice,
             undefined,
-            ColorControl.Cluster.id,
+            ColorControl.id,
             'colorTemperatureMireds',
             Math.max(colorTemp?.value_min ?? 147, Math.min(colorTemp?.value_max ?? 500, value)),
           );
@@ -376,9 +376,9 @@ export class ZigbeeEntity extends EventEmitter {
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'hs') {
           const { hue, saturation } = value as { hue: number; saturation: number };
           if(isValidNumber(hue, 0, 360) && isValidNumber(saturation, 0, 100)) {
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round(hue / 360 * 254));
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(saturation / 100 * 254));
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.id, 'currentHue', Math.round(hue / 360 * 254));
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.id, 'currentSaturation', Math.round(saturation / 100 * 254));
           }
         }
         // ColorControl currentX, currentY and colorMode
@@ -387,13 +387,13 @@ export class ZigbeeEntity extends EventEmitter {
           // not supported by Apple Home so we convert xy to hue and saturation
           const { x, y } = value as { x: number; y: number };
           if (isValidNumber(x, 0, 1) && isValidNumber(y, 0, 1)) {
-            const hsl = color.xyToHsl(x, y);
-            const rgb = color.xyColorToRgbColor(x, y);
+            const hsl = xyToHsl(x, y);
+            const rgb = xyColorToRgbColor(x, y);
             this.log.debug(`ColorControl xyToHsl ${CYAN}${x}${db} ${CYAN}${y}${db} => h ${CYAN}${hsl.h}${db} s ${CYAN}${hsl.s}${db} l ${CYAN}${hsl.l}${db}`);
             this.log.debug(`ColorControl xyToRgb ${CYAN}${x}${db} ${CYAN}${y}${db} => r ${CYAN}${rgb.r}${db} g ${CYAN}${rgb.g}${db} b ${CYAN}${rgb.b}${db}`);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentHue', Math.round(hsl.h / 360 * 254));
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.Cluster.id, 'currentSaturation', Math.round(hsl.s / 100 * 254));
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.id, 'colorMode', ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.id, 'currentHue', Math.round(hsl.h / 360 * 254));
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, ColorControl.id, 'currentSaturation', Math.round(hsl.s / 100 * 254));
           }
         }
       });
@@ -401,17 +401,31 @@ export class ZigbeeEntity extends EventEmitter {
 
     this.platform.z2m.on('ONLINE-' + this.entityName, () => {
       this.log.info(`ONLINE message for device ${this.ien}${this.entityName}${rs}`);
-      if (this.bridgedDevice?.maybeNumber !== undefined) {
-        this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', true, this.log);
-        this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: true }, this.log);
+      const device = this.bridgedDevice;
+      if (device?.maybeNumber !== undefined) {
+        fireAndForget(
+          (async () => {
+            await device.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', true, this.log);
+            await device.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: true }, this.log);
+          })(),
+          this.log,
+          'Error setting reachable online',
+        );
       }
     });
 
     this.platform.z2m.on('OFFLINE-' + this.entityName, () => {
       this.log.warn(`OFFLINE message for device ${this.ien}${this.entityName}${rs}`);
-      if (this.bridgedDevice?.maybeNumber !== undefined) {
-        this.bridgedDevice?.setAttribute(BridgedDeviceBasicInformation.Cluster.id, 'reachable', false, this.log);
-        this.bridgedDevice?.triggerEvent(BridgedDeviceBasicInformation.Cluster.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+      const device = this.bridgedDevice;
+      if (device?.maybeNumber !== undefined) {
+        fireAndForget(
+          (async () => {
+            await device.setAttribute(BridgedDeviceBasicInformation.id, 'reachable', false, this.log);
+            await device.triggerEvent(BridgedDeviceBasicInformation.id, 'reachableChanged', { reachableNewValue: false }, this.log);
+          })(),
+          this.log,
+          'Error setting reachable offline',
+        );
       }
     });
   }
@@ -485,36 +499,31 @@ export class ZigbeeEntity extends EventEmitter {
    */
   protected setCachePublishAttributes(endpoint: MatterbridgeEndpoint, postfix: string | undefined = undefined) {
     // We need to add the cluster attributes if we are turning on the light and it was off
-    const brightness = endpoint.hasAttributeServer(LevelControl.Cluster.id, 'currentLevel')
-      ? Math.round((endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') / 254) * 255)
-      : undefined;
+    const brightness = endpoint.hasAttributeServer(LevelControl.id, 'currentLevel') ? Math.round((endpoint.getAttribute(LevelControl.id, 'currentLevel') / 254) * 255) : undefined;
     if (isValidNumber(brightness, 1, 255)) this.cachePayload['brightness' + (postfix || '')] = brightness;
     const color_temp =
-      endpoint.hasClusterServer(ColorControl.Cluster.id) &&
-      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds') &&
-      endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds
-        ? endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds')
+      endpoint.hasClusterServer(ColorControl.id) &&
+      endpoint.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds') &&
+      endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds
+        ? endpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds')
         : undefined;
     if (isValidNumber(color_temp)) this.cachePayload['color_temp' + (postfix || '')] = color_temp;
     const hs_color =
-      endpoint.hasClusterServer(ColorControl.Cluster.id) &&
-      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentHue') &&
-      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentSaturation') &&
-      endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation
-        ? [
-            Math.round((endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') / 254) * 360),
-            Math.round((endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') / 254) * 100),
-          ]
+      endpoint.hasClusterServer(ColorControl.id) &&
+      endpoint.hasAttributeServer(ColorControl.id, 'currentHue') &&
+      endpoint.hasAttributeServer(ColorControl.id, 'currentSaturation') &&
+      endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation
+        ? [Math.round((endpoint.getAttribute(ColorControl.id, 'currentHue') / 254) * 360), Math.round((endpoint.getAttribute(ColorControl.id, 'currentSaturation') / 254) * 100)]
         : undefined;
     if (isValidArray(hs_color, 2)) {
       this.cachePayload['color' + (postfix || '')] = { h: hs_color[0], s: hs_color[1] };
     }
     const xy_color =
-      endpoint.hasClusterServer(ColorControl.Cluster.id) &&
-      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentX') &&
-      endpoint.hasAttributeServer(ColorControl.Cluster.id, 'currentY') &&
-      endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY
-        ? [endpoint.getAttribute(ColorControl.Cluster.id, 'currentX') / 65535, endpoint.getAttribute(ColorControl.Cluster.id, 'currentY') / 65535]
+      endpoint.hasClusterServer(ColorControl.id) &&
+      endpoint.hasAttributeServer(ColorControl.id, 'currentX') &&
+      endpoint.hasAttributeServer(ColorControl.id, 'currentY') &&
+      endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY
+        ? [endpoint.getAttribute(ColorControl.id, 'currentX') / 65535, endpoint.getAttribute(ColorControl.id, 'currentY') / 65535]
         : undefined;
     if (isValidArray(xy_color, 2)) this.cachePayload['color' + (postfix || '')] = { x: xy_color[0], y: xy_color[1] };
     const lookupColorMode = [
@@ -527,11 +536,11 @@ export class ZigbeeEntity extends EventEmitter {
       'Unknown',
     ];
     let colorMode = 6;
-    if (endpoint.hasClusterServer(ColorControl.Cluster.id)) {
-      colorMode = endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode');
-    } else if (endpoint.hasClusterServer(LevelControl.Cluster.id)) {
+    if (endpoint.hasClusterServer(ColorControl.id)) {
+      colorMode = endpoint.getAttribute(ColorControl.id, 'colorMode');
+    } else if (endpoint.hasClusterServer(LevelControl.id)) {
       colorMode = 4;
-    } else if (endpoint.hasClusterServer(OnOff.Cluster.id)) {
+    } else if (endpoint.hasClusterServer(OnOff.id)) {
       colorMode = 5;
     }
     this.log.debug(
@@ -550,9 +559,9 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async onCommandHandler(data: CommandHandlerData) {
+  protected  onCommandHandler(data: CommandHandlerData) {
     this.saveCommands('on', data);
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === true) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === true) {
       this.log.debug(`Command on ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already ON`);
       return;
     }
@@ -563,9 +572,9 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async offCommandHandler(data: CommandHandlerData) {
+  protected  offCommandHandler(data: CommandHandlerData) {
     this.saveCommands('off', data);
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false) {
       this.log.debug(`Command off ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} already OFF`);
       return;
     }
@@ -575,11 +584,11 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async toggleCommandHandler(data: CommandHandlerData) {
+  protected  toggleCommandHandler(data: CommandHandlerData) {
     this.saveCommands('toggle', data);
     this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false) {
       this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.id : undefined);
       this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'ON' });
     } else {
@@ -588,9 +597,9 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToLevelCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevel']): Promise<void> {
+  protected  moveToLevelCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevel']) {
     this.saveCommands('moveToLevel', data);
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.Cluster.id, 'currentLevel') === data.request.level) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.id, 'currentLevel') === data.request.level) {
       this.log.debug(`Command moveToLevel ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or level unchanged`);
       return;
     }
@@ -600,20 +609,20 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToLevelWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevelWithOnOff']): Promise<void> {
+  protected  moveToLevelWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevelWithOnOff']) {
     this.saveCommands('moveToLevelWithOnOff', data);
     this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    if (data.request['level'] <= (data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel') ?? 1)) {
-      if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
+    if (data.request['level'] <= (data.endpoint.getAttribute(LevelControl.id, 'minLevel') ?? 1)) {
+      if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false) {
         this.log.debug(`*Command moveToLevelWithOnOff ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF`);
         return;
       }
-      data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level <= minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) => turn off the light`);
+      data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level <= minLevel(${data.endpoint.getAttribute(LevelControl.id, 'minLevel')}) => turn off the light`);
       this.cachePublish('moveToLevelWithOnOff', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' }, data.request.transitionTime);
     } else {
-      if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false) {
-        data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level > minLevel(${data.endpoint.getAttribute(LevelControl.Cluster.id, 'minLevel')}) and light is off => turn on the light with attributes`);
+      if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false) {
+        data.endpoint.log.debug(`Command moveToLevelWithOnOff received with level > minLevel(${data.endpoint.getAttribute(LevelControl.id, 'minLevel')}) and light is off => turn on the light with attributes`);
         this.cachePayload['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')] = 'ON';
         this.setCachePublishAttributes(data.endpoint, isChildEndpoint ? '_' + data.endpoint.id : '');
       }
@@ -622,10 +631,10 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColorTemperature']): Promise<void> {
+  protected  moveToColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColorTemperature']) {
     this.saveCommands('moveToColorTemperature', data);
     delete this.cachePayload['color'];
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (this.propertyMap.get('color_temp') && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds && data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds)) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (this.propertyMap.get('color_temp') && data.endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.ColorTemperatureMireds && data.endpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds') === data.request.colorTemperatureMireds)) {
       this.log.debug(`*Command moveToColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or colorTemperatureMireds unchanged`);
       return;
     }
@@ -641,10 +650,10 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToColorCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColor']): Promise<void> {
+  protected  moveToColorCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColor']) {
     this.saveCommands('moveToColor', data);
     delete this.cachePayload['color_temp'];
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentX') === data.request.colorX && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentY') === data.request.colorY)) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.CurrentXAndCurrentY && data.endpoint.getAttribute(ColorControl.id, 'currentX') === data.request.colorX && data.endpoint.getAttribute(ColorControl.id, 'currentY') === data.request.colorY)) {
       this.log.debug(`Command moveToColor ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or color unchanged`);
       return;
     }
@@ -654,36 +663,36 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   // prettier-ignore
-  protected async moveToHueCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHue']): Promise<void> {
+  protected  moveToHueCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHue']) {
     this.saveCommands('moveToHue', data);
     delete this.cachePayload['color_temp'];
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue)) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.id, 'currentHue') === data.request.hue)) {
       this.log.debug(`Command moveToHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue unchanged`);
       return;
     }
     this.log.debug(`Command moveToHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
+    this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControl.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
   }
 
   // prettier-ignore
-  protected async moveToSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToSaturation']): Promise<void> {
+  protected  moveToSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToSaturation']) {
     this.saveCommands('moveToSaturation', data);
     delete this.cachePayload['color_temp'];
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.id, 'currentSaturation') === data.request.saturation)) {
       this.log.debug(`Command moveToSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or saturation unchanged`);
       return;
     }
     this.log.debug(`Command moveToSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.saturation} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControlCluster.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+    this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControl.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
   // prettier-ignore
-  protected async moveToHueAndSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHueAndSaturation']): Promise<void> {
+  protected  moveToHueAndSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHueAndSaturation']) {
     this.saveCommands('moveToHueAndSaturation', data);
     delete this.cachePayload['color_temp'];
-    if (data.endpoint.getAttribute(OnOff.Cluster.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.Cluster.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentHue') === data.request.hue && data.endpoint.getAttribute(ColorControl.Cluster.id, 'currentSaturation') === data.request.saturation)) {
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.endpoint.getAttribute(ColorControl.id, 'colorMode') === ColorControl.ColorMode.CurrentHueAndCurrentSaturation && data.endpoint.getAttribute(ColorControl.id, 'currentHue') === data.request.hue && data.endpoint.getAttribute(ColorControl.id, 'currentSaturation') === data.request.saturation)) {
       this.log.debug(`Command moveToHueAndSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or hue/saturation unchanged`);
       return;
     }
@@ -809,35 +818,35 @@ export class ZigbeeEntity extends EventEmitter {
    * operation event based on the current state.
    */
   async configure(): Promise<void> {
-    if (this.bridgedDevice?.hasClusterServer(WindowCovering.Cluster.id)) {
+    if (this.bridgedDevice?.hasClusterServer(WindowCovering.id)) {
       this.log.info(`Configuring ${this.bridgedDevice?.deviceName} WindowCovering cluster`);
       await this.bridgedDevice?.setWindowCoveringTargetAsCurrentAndStopped();
     }
-    if (this.bridgedDevice?.hasClusterServer(DoorLock.Cluster.id)) {
+    if (this.bridgedDevice?.hasClusterServer(DoorLock.id)) {
       this.log.info(`Configuring ${this.bridgedDevice?.deviceName} DoorLock cluster`);
-      const state = this.bridgedDevice?.getAttribute(DoorLock.Cluster.id, 'lockState', this.log);
+      const state = this.bridgedDevice?.getAttribute(DoorLock.id, 'lockState', this.log);
       if (this.bridgedDevice.maybeNumber) {
         if (state === DoorLock.LockState.Locked)
-          this.bridgedDevice?.triggerEvent(
-            DoorLock.Cluster.id,
+          await this.bridgedDevice?.triggerEvent(
+            DoorLock.id,
             'lockOperation',
             { lockOperationType: DoorLock.LockOperationType.Lock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
             this.log,
           );
         if (state === DoorLock.LockState.Unlocked)
-          this.bridgedDevice?.triggerEvent(
-            DoorLock.Cluster.id,
+          await this.bridgedDevice?.triggerEvent(
+            DoorLock.id,
             'lockOperation',
             { lockOperationType: DoorLock.LockOperationType.Unlock, operationSource: DoorLock.OperationSource.Manual, userIndex: null, fabricIndex: null, sourceNode: null },
             this.log,
           );
       }
     }
-    if (this.bridgedDevice?.hasClusterServer(ColorControl.Cluster.id)) {
+    if (this.bridgedDevice?.hasClusterServer(ColorControl.id)) {
       this.log.info(`Configuring ${this.bridgedDevice?.deviceName} ColorControl cluster`);
       const colorTemp = this.propertyMap.get('color_temp');
-      this.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTempPhysicalMinMireds', colorTemp?.value_min ?? 147, this.log);
-      this.bridgedDevice?.setAttribute(ColorControl.Cluster.id, 'colorTempPhysicalMaxMireds', colorTemp?.value_max ?? 500, this.log);
+      await this.bridgedDevice?.setAttribute(ColorControl.id, 'colorTempPhysicalMinMireds', colorTemp?.value_min ?? 147, this.log);
+      await this.bridgedDevice?.setAttribute(ColorControl.id, 'colorTempPhysicalMaxMireds', colorTemp?.value_max ?? 500, this.log);
     }
   }
 
@@ -867,7 +876,7 @@ export class ZigbeeEntity extends EventEmitter {
   ): void {
     if (value === undefined) return;
     if (childEndpointName && childEndpointName !== '') {
-      deviceEndpoint = this.bridgedDevice?.getChildEndpointByName(childEndpointName) ?? deviceEndpoint;
+      deviceEndpoint = this.bridgedDevice?.getChildEndpointById(childEndpointName) ?? deviceEndpoint;
     }
     // const cluster = deviceEndpoint.getClusterServerById(ClusterId(clusterId));
     if (!deviceEndpoint.hasClusterServer(ClusterId(clusterId))) {
@@ -905,11 +914,11 @@ export class ZigbeeEntity extends EventEmitter {
       `${db}Update endpoint ${this.eidn}${deviceEndpoint.name}:${deviceEndpoint.maybeNumber}${db}${childEndpointName ? ' (' + zb + childEndpointName + db + ')' : ''} ` +
         `attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${db}.${hk}${attributeName}${db} from ${YELLOW}${typeof localValue === 'object' ? debugStringify(localValue) : localValue}${db} to ${YELLOW}${typeof value === 'object' ? debugStringify(value) : value}${db}`,
     );
-    try {
-      deviceEndpoint.setAttribute(ClusterId(clusterId), attributeName, value);
-    } catch (error) {
-      this.log.error(`Error setting attribute ${hk}${getClusterNameById(ClusterId(clusterId))}${er}.${hk}${attributeName}${er} to ${value}: ${error}`);
-    }
+    fireAndForget(
+      deviceEndpoint.setAttribute(ClusterId(clusterId), attributeName, value),
+      this.log,
+      `Error setting attribute ${getClusterNameById(ClusterId(clusterId))}.${attributeName} to ${value}`,
+    );
   }
 
   /**
@@ -1099,14 +1108,13 @@ export class ZigbeeGroup extends ZigbeeEntity {
 
     if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
       for (const scene of group.scenes) {
-        // group.scenes.forEach(async (scene) => {
         zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
         platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
+        // eslint-disable-next-line @typescript-eslint/require-await
         await platform.registerVirtualDevice(`${platform.config.scenesPrefix ? group.friendly_name + ' ' : ''}${scene.name}`, platform.config.scenesType, async () => {
           zigbeeGroup.log.info(`Triggered scene "${scene.name}" id ${scene.id} from group ${group.friendly_name}`);
           zigbeeGroup.publishCommand('scene_recall', group.friendly_name, { scene_recall: scene.id });
         });
-        // });
       }
     }
 
@@ -1127,11 +1135,11 @@ export class ZigbeeGroup extends ZigbeeEntity {
     if (isSwitch || isLight) {
       if (isSwitch && !isLight) await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'switch');
       if (isLight) await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'light');
-      zigbeeGroup.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('identify', ({ request: { identifyTime } }) => {
         zigbeeGroup.log.debug(`Command identify called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
         // logEndpoint(zigbeeGroup.bridgedDevice!);
       });
-      if (zigbeeGroup.bridgedDevice.hasClusterServer(OnOff.Cluster.id)) {
+      if (zigbeeGroup.bridgedDevice.hasClusterServer(OnOff.id)) {
         zigbeeGroup.bridgedDevice.addCommandHandler('on', zigbeeGroup.onCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
@@ -1154,7 +1162,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
     if (isCover) {
       await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'cover');
-      zigbeeGroup.bridgedDevice.addCommandHandler('upOrOpen', async ({ attributes }) => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('upOrOpen', ({ attributes }) => {
         zigbeeGroup.log.debug(`Command upOrOpen called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
         attributes.currentPositionLiftPercent100ths = 0;
         attributes.operationalStatus = {
@@ -1164,7 +1172,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         };
         zigbeeGroup.publishCommand('upOrOpen', group.friendly_name, { state: 'OPEN' });
       });
-      zigbeeGroup.bridgedDevice.addCommandHandler('downOrClose', async ({ attributes }) => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('downOrClose', ({ attributes }) => {
         zigbeeGroup.log.debug(`Command downOrClose called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
         attributes.currentPositionLiftPercent100ths = 10000;
         attributes.operationalStatus = {
@@ -1174,7 +1182,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         };
         zigbeeGroup.publishCommand('downOrClose', group.friendly_name, { state: 'CLOSE' });
       });
-      zigbeeGroup.bridgedDevice.addCommandHandler('stopMotion', async ({ attributes }) => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('stopMotion', ({ attributes }) => {
         zigbeeGroup.log.debug(`Command stopMotion called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db}`);
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
@@ -1183,7 +1191,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         };
         zigbeeGroup.publishCommand('stopMotion', group.friendly_name, { state: 'STOP' });
       });
-      zigbeeGroup.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue }, attributes }) => {
+      zigbeeGroup.bridgedDevice.addCommandHandler('goToLiftPercentage', ({ request: { liftPercent100thsValue }, attributes }) => {
         zigbeeGroup.log.debug(`Command goToLiftPercentage called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} liftPercent100thsValue: ${liftPercent100thsValue}`);
         attributes.currentPositionLiftPercent100ths = liftPercent100thsValue;
         attributes.operationalStatus = {
@@ -1196,8 +1204,8 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
     if (isThermostat) {
       await zigbeeGroup.bridgedDevice.addFixedLabel('type', 'climate');
-      zigbeeGroup.bridgedDevice.subscribeAttribute(
-        ThermostatCluster.id,
+      void zigbeeGroup.bridgedDevice.subscribeAttribute(
+        Thermostat.id,
         'systemMode',
         (newValue, oldValue, context) => {
           zigbeeGroup.bridgedDevice?.log.info(`Thermostat systemMode changed from ${oldValue} to ${newValue}`);
@@ -1219,8 +1227,8 @@ export class ZigbeeGroup extends ZigbeeEntity {
         },
         zigbeeGroup.log,
       );
-      zigbeeGroup.bridgedDevice.subscribeAttribute(
-        ThermostatCluster.id,
+      void zigbeeGroup.bridgedDevice.subscribeAttribute(
+        Thermostat.id,
         'occupiedHeatingSetpoint',
         (newValue, oldValue, context) => {
           if (oldValue !== newValue && context.fabric !== undefined) {
@@ -1236,8 +1244,8 @@ export class ZigbeeGroup extends ZigbeeEntity {
         },
         zigbeeGroup.log,
       );
-      zigbeeGroup.bridgedDevice.subscribeAttribute(
-        ThermostatCluster.id,
+      void zigbeeGroup.bridgedDevice.subscribeAttribute(
+        Thermostat.id,
         'occupiedCoolingSetpoint',
         (newValue, oldValue, context) => {
           if (oldValue !== newValue && context.fabric !== undefined) {
@@ -1272,65 +1280,65 @@ interface ZigbeeToMatter {
 
 // prettier-ignore
 const z2ms: ZigbeeToMatter[] = [
-  { type: 'switch', name: 'state', property: 'state', deviceType: onOffSwitch, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
-  { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
-  { type: 'switch', name: 'color_hs', property: 'color_hs', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'switch', name: 'color_xy', property: 'color_xy', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'switch', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureSwitch, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'outlet', name: 'state', property: 'state', deviceType: onOffOutlet, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
-  { type: 'outlet', name: 'brightness', property: 'brightness', deviceType: dimmableOutlet, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
-  { type: 'light', name: 'state', property: 'state', deviceType: onOffLight, cluster: OnOff.Cluster.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
-  { type: 'light', name: 'brightness', property: 'brightness', deviceType: dimmableLight, cluster: LevelControl.Cluster.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
-  { type: 'light', name: 'color_hs', property: 'color_hs', deviceType: extendedColorLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'light', name: 'color_xy', property: 'color_xy', deviceType: extendedColorLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'light', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureLight, cluster: ColorControl.Cluster.id, attribute: 'colorMode' },
-  { type: 'cover', name: 'state', property: 'state', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'targetPositionLiftPercent100ths' },
-  { type: 'cover', name: 'moving', property: 'moving', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'operationalStatus' },
-  { type: 'cover', name: 'position', property: 'position', deviceType: coverDevice, cluster: WindowCovering.Cluster.id, attribute: 'currentPositionLiftPercent100ths' },
-  { type: 'lock', name: 'state', property: 'state', deviceType: doorLockDevice, cluster: DoorLock.Cluster.id, attribute: 'lockState', converter: (value) => { return value === 'LOCK' ? DoorLock.LockState.Locked : DoorLock.LockState.Unlocked } },
-  { type: 'climate', name: 'local_temperature', property: 'local_temperature', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'localTemperature', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'climate', name: 'current_heating_setpoint', property: 'current_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint' },
-  { type: 'climate', name: 'occupied_heating_setpoint', property: 'occupied_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'climate', name: 'occupied_cooling_setpoint', property: 'occupied_cooling_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'climate', name: 'unoccupied_heating_setpoint', property: 'unoccupied_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'climate', name: 'unoccupied_cooling_setpoint', property: 'unoccupied_cooling_setpoint', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: 'climate', name: 'running_state', property: 'running_state', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'thermostatRunningMode', valueLookup: ['idle', '', '', 'cool', 'heat'] },
-  { type: 'climate', name: 'system_mode', property: 'system_mode', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'systemMode', valueLookup: ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'] },
-  { type: '', name: 'min_temperature_limit', property: 'min_temperature_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'minHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: '', name: 'max_temperature_limit', property: 'max_temperature_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'maxHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: '', name: 'min_heat_setpoint_limit', property: 'min_heat_setpoint_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'minHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
-  { type: '', name: 'max_heat_setpoint_limit', property: 'max_heat_setpoint_limit', deviceType: thermostatDevice, cluster: Thermostat.Cluster.id, attribute: 'maxHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'switch', name: 'state', property: 'state', deviceType: onOffSwitch, cluster: OnOff.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
+  { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmableSwitch, cluster: LevelControl.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
+  { type: 'switch', name: 'color_hs', property: 'color_hs', deviceType: colorTemperatureSwitch, cluster: ColorControl.id, attribute: 'colorMode' },
+  { type: 'switch', name: 'color_xy', property: 'color_xy', deviceType: colorTemperatureSwitch, cluster: ColorControl.id, attribute: 'colorMode' },
+  { type: 'switch', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureSwitch, cluster: ColorControl.id, attribute: 'colorMode' },
+  { type: 'outlet', name: 'state', property: 'state', deviceType: onOffOutlet, cluster: OnOff.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
+  { type: 'outlet', name: 'brightness', property: 'brightness', deviceType: dimmableOutlet, cluster: LevelControl.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
+  { type: 'light', name: 'state', property: 'state', deviceType: onOffLight, cluster: OnOff.id, attribute: 'onOff', converter: (value) => { return value === 'ON' ? true : false } },
+  { type: 'light', name: 'brightness', property: 'brightness', deviceType: dimmableLight, cluster: LevelControl.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
+  { type: 'light', name: 'color_hs', property: 'color_hs', deviceType: extendedColorLight, cluster: ColorControl.id, attribute: 'colorMode' },
+  { type: 'light', name: 'color_xy', property: 'color_xy', deviceType: extendedColorLight, cluster: ColorControl.id, attribute: 'colorMode' },
+  { type: 'light', name: 'color_temp', property: 'color_temp', deviceType: colorTemperatureLight, cluster: ColorControl.id, attribute: 'colorMode' },
+  { type: 'cover', name: 'state', property: 'state', deviceType: coverDevice, cluster: WindowCovering.id, attribute: 'targetPositionLiftPercent100ths' },
+  { type: 'cover', name: 'moving', property: 'moving', deviceType: coverDevice, cluster: WindowCovering.id, attribute: 'operationalStatus' },
+  { type: 'cover', name: 'position', property: 'position', deviceType: coverDevice, cluster: WindowCovering.id, attribute: 'currentPositionLiftPercent100ths' },
+  { type: 'lock', name: 'state', property: 'state', deviceType: doorLockDevice, cluster: DoorLock.id, attribute: 'lockState', converter: (value) => { return value === 'LOCK' ? DoorLock.LockState.Locked : DoorLock.LockState.Unlocked } },
+  { type: 'climate', name: 'local_temperature', property: 'local_temperature', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'localTemperature', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'current_heating_setpoint', property: 'current_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'occupiedHeatingSetpoint' },
+  { type: 'climate', name: 'occupied_heating_setpoint', property: 'occupied_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'occupied_cooling_setpoint', property: 'occupied_cooling_setpoint', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'unoccupied_heating_setpoint', property: 'unoccupied_heating_setpoint', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'occupiedHeatingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'unoccupied_cooling_setpoint', property: 'unoccupied_cooling_setpoint', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'occupiedCoolingSetpoint', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: 'climate', name: 'running_state', property: 'running_state', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'thermostatRunningMode', valueLookup: ['idle', '', '', 'cool', 'heat'] },
+  { type: 'climate', name: 'system_mode', property: 'system_mode', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'systemMode', valueLookup: ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'] },
+  { type: '', name: 'min_temperature_limit', property: 'min_temperature_limit', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'minHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: '', name: 'max_temperature_limit', property: 'max_temperature_limit', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'maxHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: '', name: 'min_heat_setpoint_limit', property: 'min_heat_setpoint_limit', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'minHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
+  { type: '', name: 'max_heat_setpoint_limit', property: 'max_heat_setpoint_limit', deviceType: thermostatDevice, cluster: Thermostat.id, attribute: 'maxHeatSetpointLimit', converter: (value) => { return Math.max(-5000, Math.min(5000, value * 100)) } },
 
-  { type: '', name: 'presence', property: 'presence', deviceType: occupancySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
-  { type: '', name: 'occupancy', property: 'occupancy', deviceType: occupancySensor, cluster: OccupancySensing.Cluster.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
-  { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(10000 * Math.log10(value), 0xfffe), 0)) } },
-  { type: '', name: 'contact', property: 'contact', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
-  { type: '', name: 'water_leak', property: 'water_leak', deviceType: waterLeakDetector, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
-  { type: '', name: 'rain', property: 'rain', deviceType: rainSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return value } },
-  { type: '', name: 'vibration', property: 'vibration', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
-  { type: '', name: 'smoke', property: 'smoke', deviceType: smokeCoAlarm, cluster: SmokeCoAlarm.Cluster.id, attribute: 'smokeState', converter: (value) => { return value ? SmokeCoAlarm.AlarmState.Critical : SmokeCoAlarm.AlarmState.Normal } },
-  { type: '', name: 'carbon_monoxide', property: 'carbon_monoxide', deviceType: contactSensor, cluster: BooleanState.Cluster.id, attribute: 'stateValue', converter: (value) => { return !value } },
-  { type: '', name: 'temperature', property: 'temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
-  { type: '', name: 'humidity', property: 'humidity', deviceType: humiditySensor, cluster: RelativeHumidityMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
-  { type: '', name: 'soil_moisture', property: 'soil_moisture', deviceType: humiditySensor, cluster: RelativeHumidityMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
-  { type: '', name: 'pressure', property: 'pressure', deviceType: pressureSensor, cluster: PressureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return value } },
-  { type: '', name: 'air_quality', property: 'air_quality', deviceType: airQualitySensor, cluster: AirQuality.Cluster.id, attribute: 'airQuality', valueLookup: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] },
-  { type: '', name: 'voc', property: 'voc', deviceType: airQualitySensor, cluster: TotalVolatileOrganicCompoundsConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.min(65535, value) } },
-  { type: '', name: 'co', property: 'co', deviceType: airQualitySensor, cluster: CarbonMonoxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'co2', property: 'co2', deviceType: airQualitySensor, cluster: CarbonDioxideConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'formaldehyd', property: 'formaldehyd', deviceType: airQualitySensor, cluster: FormaldehydeConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'pm1', property: 'pm1', deviceType: airQualitySensor, cluster: Pm1ConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'pm25', property: 'pm25', deviceType: airQualitySensor, cluster: Pm25ConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'pm10', property: 'pm10', deviceType: airQualitySensor, cluster: Pm10ConcentrationMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'cpu_temperature', property: 'temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
-  { type: '', name: 'device_temperature', property: 'device_temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.Cluster.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
-  { type: '', name: '', property: 'battery', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
-  { type: '', name: '', property: 'battery_low', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
-  { type: '', name: '', property: 'battery_voltage', deviceType: powerSource, cluster: PowerSource.Cluster.id, attribute: 'batVoltage', converter: (value) => { return value } },
-  { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.Cluster.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: Math.round(value * 1000000) } } },
-  { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activePower', converter: (value) => { return Math.round(value * 1000) } },
-  { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
-  { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.Cluster.id, attribute: 'activeCurrent', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'presence', property: 'presence', deviceType: occupancySensor, cluster: OccupancySensing.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
+  { type: '', name: 'occupancy', property: 'occupancy', deviceType: occupancySensor, cluster: OccupancySensing.id, attribute: 'occupancy', converter: (value) => { return { occupied: value as boolean } } },
+  { type: '', name: 'illuminance', property: 'illuminance', deviceType: lightSensor, cluster: IlluminanceMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(Math.max(Math.min(10000 * Math.log10(value), 0xfffe), 0)) } },
+  { type: '', name: 'contact', property: 'contact', deviceType: contactSensor, cluster: BooleanState.id, attribute: 'stateValue', converter: (value) => { return value } },
+  { type: '', name: 'water_leak', property: 'water_leak', deviceType: waterLeakDetector, cluster: BooleanState.id, attribute: 'stateValue', converter: (value) => { return value } },
+  { type: '', name: 'rain', property: 'rain', deviceType: rainSensor, cluster: BooleanState.id, attribute: 'stateValue', converter: (value) => { return value } },
+  { type: '', name: 'vibration', property: 'vibration', deviceType: contactSensor, cluster: BooleanState.id, attribute: 'stateValue', converter: (value) => { return !value } },
+  { type: '', name: 'smoke', property: 'smoke', deviceType: smokeCoAlarm, cluster: SmokeCoAlarm.id, attribute: 'smokeState', converter: (value) => { return value ? SmokeCoAlarm.AlarmState.Critical : SmokeCoAlarm.AlarmState.Normal } },
+  { type: '', name: 'carbon_monoxide', property: 'carbon_monoxide', deviceType: contactSensor, cluster: BooleanState.id, attribute: 'stateValue', converter: (value) => { return !value } },
+  { type: '', name: 'temperature', property: 'temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
+  { type: '', name: 'humidity', property: 'humidity', deviceType: humiditySensor, cluster: RelativeHumidityMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
+  { type: '', name: 'soil_moisture', property: 'soil_moisture', deviceType: humiditySensor, cluster: RelativeHumidityMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
+  { type: '', name: 'pressure', property: 'pressure', deviceType: pressureSensor, cluster: PressureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return value } },
+  { type: '', name: 'air_quality', property: 'air_quality', deviceType: airQualitySensor, cluster: AirQuality.id, attribute: 'airQuality', valueLookup: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] },
+  { type: '', name: 'voc', property: 'voc', deviceType: airQualitySensor, cluster: TotalVolatileOrganicCompoundsConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.min(65535, value) } },
+  { type: '', name: 'co', property: 'co', deviceType: airQualitySensor, cluster: CarbonMonoxideConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '', name: 'co2', property: 'co2', deviceType: airQualitySensor, cluster: CarbonDioxideConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '', name: 'formaldehyd', property: 'formaldehyd', deviceType: airQualitySensor, cluster: FormaldehydeConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '', name: 'pm1', property: 'pm1', deviceType: airQualitySensor, cluster: Pm1ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '', name: 'pm25', property: 'pm25', deviceType: airQualitySensor, cluster: Pm25ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '', name: 'pm10', property: 'pm10', deviceType: airQualitySensor, cluster: Pm10ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
+  { type: '', name: 'cpu_temperature', property: 'temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
+  { type: '', name: 'device_temperature', property: 'device_temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
+  { type: '', name: '', property: 'battery', deviceType: powerSource, cluster: PowerSource.id, attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
+  { type: '', name: '', property: 'battery_low', deviceType: powerSource, cluster: PowerSource.id, attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
+  { type: '', name: '', property: 'battery_voltage', deviceType: powerSource, cluster: PowerSource.id, attribute: 'batVoltage', converter: (value) => { return value } },
+  { type: '', name: 'energy', property: 'energy', deviceType: electricalSensor, cluster: ElectricalEnergyMeasurement.id, attribute: 'cumulativeEnergyImported', converter: (value) => { return { energy: Math.round(value * 1000000) } } },
+  { type: '', name: 'power', property: 'power', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activePower', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'voltage', property: 'voltage', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'voltage', converter: (value) => { return Math.round(value * 1000) } },
+  { type: '', name: 'current', property: 'current', deviceType: electricalSensor, cluster: ElectricalPowerMeasurement.id, attribute: 'activeCurrent', converter: (value) => { return Math.round(value * 1000) } },
 ];
 
 /**
@@ -1389,18 +1397,18 @@ export class ZigbeeDevice extends ZigbeeEntity {
       await zigbeeDevice.bridgedDevice.addFixedLabel('type', 'lock');
       zigbeeDevice.verifyMutableDevice(zigbeeDevice.bridgedDevice);
 
-      zigbeeDevice.bridgedDevice.addCommandHandler('identify', async (data) => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('identify', (data) => {
         zigbeeDevice.log.debug(`Command identify called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request identifyTime:${data.request.identifyTime} `);
         // logEndpoint(zigbeeDevice.bridgedDevice);
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async () => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', () => {
         zigbeeDevice.log.debug(`Command permit_join false called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
+        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLock.id, 'lockState', DoorLock.LockState.Locked, zigbeeDevice.log);
         zigbeeDevice.publishCommand('permit_join false', 'bridge/request/permit_join', { value: false });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async () => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', () => {
         zigbeeDevice.log.debug(`Command permit_join true called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLockCluster.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
+        // await zigbeeDevice.bridgedDevice?.setAttribute(DoorLock.id, 'lockState', DoorLock.LockState.Unlocked, zigbeeDevice.log);
         zigbeeDevice.publishCommand('permit_join true', 'bridge/request/permit_join', { value: true });
       });
 
@@ -1412,6 +1420,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         for (const scene of Object.values(endpoint.scenes)) {
           zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
           platform.setSelectDeviceEntity(device.ieee_address, 'scenes', 'Scenes', 'component');
+          // eslint-disable-next-line @typescript-eslint/require-await
           await platform.registerVirtualDevice(`${platform.config.scenesPrefix ? device.friendly_name + ' ' : ''}${scene.name}`, platform.config.scenesType, async () => {
             zigbeeDevice.log.info(`Triggered scene "${scene.name}" id ${scene.id} from device ${device.friendly_name}`);
             zigbeeDevice.publishCommand('scene_recall', device.friendly_name, { scene_recall: scene.id });
@@ -1690,8 +1699,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Add PowerSource cluster
     zigbeeDevice.addPowerSource();
-    if (mainEndpoint.clusterServersIds.includes(PowerSource.Cluster.id)) {
-      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(PowerSource.Cluster.id), 1);
+    if (mainEndpoint.clusterServersIds.includes(PowerSource.id)) {
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(PowerSource.id), 1);
     }
 
     // Filter out duplicate clusters and clusters objects
@@ -1731,22 +1740,22 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Configure BooleanStateCluster for water leak detector and rain sensor
     if (
       (mainEndpoint.deviceTypes.find((dt) => dt.code === waterLeakDetector.code) || mainEndpoint.deviceTypes.find((dt) => dt.code === rainSensor.code)) &&
-      mainEndpoint.clusterServersIds.includes(BooleanState.Cluster.id)
+      mainEndpoint.clusterServersIds.includes(BooleanState.id)
     ) {
       zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} BooleanStateCluster cluster with`);
       zigbeeDevice.bridgedDevice.createDefaultBooleanStateClusterServer(false);
-      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(BooleanState.Cluster.id), 1);
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(BooleanState.id), 1);
     }
 
     // Configure SmokeCoAlarmCluster for smoke only sensors
-    if (mainEndpoint.deviceTypes.find((dt) => dt.code === smokeCoAlarm.code) && mainEndpoint.clusterServersIds.includes(SmokeCoAlarm.Cluster.id)) {
+    if (mainEndpoint.deviceTypes.find((dt) => dt.code === smokeCoAlarm.code) && mainEndpoint.clusterServersIds.includes(SmokeCoAlarm.id)) {
       zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} SmokeCoAlarmCluster cluster with`);
       zigbeeDevice.bridgedDevice.createSmokeOnlySmokeCOAlarmClusterServer(SmokeCoAlarm.AlarmState.Normal);
-      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(SmokeCoAlarm.Cluster.id), 1);
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(SmokeCoAlarm.id), 1);
     }
 
     // Configure ColorControlCluster
-    if (mainEndpoint.clusterServersIds.includes(ColorControl.Cluster.id)) {
+    if (mainEndpoint.clusterServersIds.includes(ColorControl.id)) {
       if (!names.includes('color_hs') && !names.includes('color_xy')) {
         zigbeeDevice.log.debug(
           `Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ColorControlCluster cluster with CT: ${names.includes('color_temp')} min: ${zigbeeDevice.propertyMap.get('color_temp')?.value_min} max: ${zigbeeDevice.propertyMap.get('color_temp')?.value_max}`,
@@ -1758,11 +1767,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
         );
         zigbeeDevice.bridgedDevice.createDefaultColorControlClusterServer();
       }
-      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ColorControl.Cluster.id), 1);
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ColorControl.id), 1);
     }
 
     // Configure ThermostatCluster: Auto or Heating only or Cooling only. Set also min and max if available
-    if (mainEndpoint.clusterServersIds.includes(Thermostat.Cluster.id)) {
+    if (mainEndpoint.clusterServersIds.includes(Thermostat.id)) {
       const system_mode = zigbeeDevice.propertyMap.get('system_mode');
       const system_mode_values = system_mode?.values;
       const heat = zigbeeDevice.propertyMap.get('occupied_heating_setpoint') || zigbeeDevice.propertyMap.get('unoccupied_heating_setpoint');
@@ -1779,18 +1788,18 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if ((heat && !cool) || (!system_mode_values?.includes('auto') && system_mode_values?.includes('heat'))) {
         zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only heating is supported cause it's not supported by the cluster without AutoMode
         zigbeeDevice.bridgedDevice.createDefaultHeatingThermostatClusterServer(undefined, undefined, minHeating, maxHeating);
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.id), 1);
         const sMode = zigbeeDevice.propertyMap.get('system_mode');
         if (sMode) sMode.values = 'off|heat'; // Set system_mode to off|heat if only heating is supported cause it's not supported by the cluster without AutoMode
       } else if ((!heat && cool) || (!system_mode_values?.includes('auto') && system_mode_values?.includes('cool'))) {
         zigbeeDevice.propertyMap.delete('running_state'); // Remove running_state if only cooling is supported cause it's not supported by the cluster without AutoMode
         zigbeeDevice.bridgedDevice.createDefaultCoolingThermostatClusterServer(undefined, undefined, minCooling, maxCooling);
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.id), 1);
         const sMode = zigbeeDevice.propertyMap.get('system_mode');
         if (sMode) sMode.values = 'off|cool'; // Set system_mode to off|cool if only cooling is supported cause it's not supported by the cluster without AutoMode
       } else {
         zigbeeDevice.bridgedDevice.createDefaultThermostatClusterServer(undefined, undefined, undefined, undefined, minHeating, maxHeating, minCooling, maxCooling);
-        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.Cluster.id), 1);
+        mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(Thermostat.id), 1);
       }
     }
 
@@ -1824,74 +1833,74 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Add command handlers
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(Identify.Cluster.id)) {
-      zigbeeDevice.bridgedDevice.addCommandHandler('identify', async ({ request: { identifyTime } }) => {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(Identify.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('identify', ({ request: { identifyTime } }) => {
         zigbeeDevice.log.debug(`Command identify called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
         // logEndpoint(zigbeeDevice.bridgedDevice!);
       });
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(OnOff.Cluster.id)) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(OnOff.id)) {
       zigbeeDevice.bridgedDevice.addCommandHandler('on', zigbeeDevice.onCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('off', zigbeeDevice.offCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('toggle', zigbeeDevice.toggleCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-      if (child.hasClusterServer(OnOff.Cluster.id)) {
+      if (child.hasClusterServer(OnOff.id)) {
         child.addCommandHandler('on', zigbeeDevice.onCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('off', zigbeeDevice.offCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('toggle', zigbeeDevice.toggleCommandHandler.bind(zigbeeDevice));
       }
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(LevelControl.Cluster.id)) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(LevelControl.id)) {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevel', zigbeeDevice.moveToLevelCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', zigbeeDevice.moveToLevelWithOnOffCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-      if (child.hasClusterServer(LevelControl.Cluster.id)) {
+      if (child.hasClusterServer(LevelControl.id)) {
         child.addCommandHandler('moveToLevel', zigbeeDevice.moveToLevelCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('moveToLevelWithOnOff', zigbeeDevice.moveToLevelWithOnOffCommandHandler.bind(zigbeeDevice));
       }
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.Cluster.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds')) {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToColorTemperature', zigbeeDevice.moveToColorTemperatureCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-      if (child.hasClusterServer(ColorControl.Cluster.id) && child.hasAttributeServer(ColorControl.Cluster.id, 'colorTemperatureMireds')) {
+      if (child.hasClusterServer(ColorControl.id) && child.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds')) {
         child.addCommandHandler('moveToColorTemperature', zigbeeDevice.moveToColorTemperatureCommandHandler.bind(zigbeeDevice));
       }
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.Cluster.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.Cluster.id, 'currentX')) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.id, 'currentX')) {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToColor', zigbeeDevice.moveToColorCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-      if (child.hasClusterServer(ColorControl.Cluster.id) && child.hasAttributeServer(ColorControl.Cluster.id, 'currentX')) {
+      if (child.hasClusterServer(ColorControl.id) && child.hasAttributeServer(ColorControl.id, 'currentX')) {
         child.addCommandHandler('moveToColor', zigbeeDevice.moveToColorCommandHandler.bind(zigbeeDevice));
       }
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.Cluster.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.Cluster.id, 'currentHue')) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.id, 'currentHue')) {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToHue', zigbeeDevice.moveToHueCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToSaturation', zigbeeDevice.moveToSaturationCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToHueAndSaturation', zigbeeDevice.moveToHueAndSaturationCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-      if (child.hasClusterServer(ColorControl.Cluster.id) && child.hasAttributeServer(ColorControl.Cluster.id, 'currentHue')) {
+      if (child.hasClusterServer(ColorControl.id) && child.hasAttributeServer(ColorControl.id, 'currentHue')) {
         child.addCommandHandler('moveToHue', zigbeeDevice.moveToHueCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('moveToSaturation', zigbeeDevice.moveToSaturationCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('moveToHueAndSaturation', zigbeeDevice.moveToHueAndSaturationCommandHandler.bind(zigbeeDevice));
       }
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(WindowCoveringCluster.id)) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(WindowCovering.id)) {
       // WindowCovering
       // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
       // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
 
-      zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', async ({ attributes }) => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', ({ attributes }) => {
         zigbeeDevice.log.debug(`Command upOrOpen called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         attributes.currentPositionLiftPercent100ths = 0;
         attributes.operationalStatus = {
@@ -1901,12 +1910,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 0, zigbeeDevice.log);
+          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', 0, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(0);
         */
         zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: 'OPEN' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', async ({ attributes }) => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', ({ attributes }) => {
         zigbeeDevice.log.debug(`Command downOrClose called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         attributes.currentPositionLiftPercent100ths = 10000;
         attributes.operationalStatus = {
@@ -1916,12 +1925,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', 10000, zigbeeDevice.log);
+          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', 10000, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(10000);
         */
         zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: 'CLOSE' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', async ({ attributes }) => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', ({ attributes }) => {
         zigbeeDevice.log.debug(`Command stopMotion called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
@@ -1930,7 +1939,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         };
         zigbeeDevice.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', async ({ request: { liftPercent100thsValue }, attributes }) => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', ({ request: { liftPercent100thsValue }, attributes }) => {
         zigbeeDevice.log.debug(
           `Command goToLiftPercentage called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request liftPercent100thsValue: ${liftPercent100thsValue}`,
         );
@@ -1942,29 +1951,29 @@ export class ZigbeeDevice extends ZigbeeEntity {
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCoveringCluster.id, 'targetPositionLiftPercent100ths', liftPercent100thsValue, zigbeeDevice.log);
+          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', liftPercent100thsValue, zigbeeDevice.log);
         else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(liftPercent100thsValue);
         */
         zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: (10000 - liftPercent100thsValue) / 100 });
       });
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(DoorLockCluster.id)) {
-      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', async () => {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(DoorLock.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('lockDoor', () => {
         zigbeeDevice.log.debug(`Command lockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         zigbeeDevice.publishCommand('lockDoor', device.friendly_name, { state: 'LOCK' });
       });
-      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', async () => {
+      zigbeeDevice.bridgedDevice.addCommandHandler('unlockDoor', () => {
         zigbeeDevice.log.debug(`Command unlockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         zigbeeDevice.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
       });
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(ThermostatCluster.id)) {
-      zigbeeDevice.bridgedDevice.addCommandHandler('setpointRaiseLower', async ({ request: request }) => {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(Thermostat.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('setpointRaiseLower', ({ request: request }) => {
         zigbeeDevice.log.debug(`Command setpointRaiseLower called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request:`, request);
         if (request.mode === Thermostat.SetpointRaiseLowerMode.Heat || request.mode === Thermostat.SetpointRaiseLowerMode.Both) {
-          const t = zigbeeDevice.bridgedDevice?.getAttribute(ThermostatCluster.id, 'occupiedHeatingSetpoint', zigbeeDevice.log);
+          const t = zigbeeDevice.bridgedDevice?.getAttribute(Thermostat.id, 'occupiedHeatingSetpoint', zigbeeDevice.log);
           const setpoint = Math.round(t / 100 + request.amount / 10);
           if (zigbeeDevice.propertyMap.has('current_heating_setpoint')) {
             zigbeeDevice.publishCommand('CurrentHeatingSetpoint', device.friendly_name, { current_heating_setpoint: setpoint });
@@ -1973,7 +1982,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           }
         }
         if (request.mode === Thermostat.SetpointRaiseLowerMode.Cool || request.mode === Thermostat.SetpointRaiseLowerMode.Both) {
-          const t = zigbeeDevice.bridgedDevice?.getAttribute(ThermostatCluster.id, 'occupiedCoolingSetpoint', zigbeeDevice.log);
+          const t = zigbeeDevice.bridgedDevice?.getAttribute(Thermostat.id, 'occupiedCoolingSetpoint', zigbeeDevice.log);
           const setpoint = Math.round(t / 100 + request.amount / 10);
           if (zigbeeDevice.propertyMap.has('current_heating_setpoint')) {
             zigbeeDevice.publishCommand('CurrentCoolingSetpoint', device.friendly_name, { current_heating_setpoint: setpoint });
@@ -1982,8 +1991,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
           }
         }
       });
-      zigbeeDevice.bridgedDevice.subscribeAttribute(
-        ThermostatCluster.id,
+      void zigbeeDevice.bridgedDevice.subscribeAttribute(
+        Thermostat.id,
         'systemMode',
         (newValue, oldValue, context) => {
           if (newValue === oldValue || context.fabric === undefined) return;
@@ -1999,9 +2008,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
         },
         zigbeeDevice.log,
       );
-      if (zigbeeDevice.bridgedDevice.hasAttributeServer(ThermostatCluster.id, 'occupiedHeatingSetpoint'))
-        zigbeeDevice.bridgedDevice.subscribeAttribute(
-          ThermostatCluster.id,
+      if (zigbeeDevice.bridgedDevice.hasAttributeServer(Thermostat.id, 'occupiedHeatingSetpoint'))
+        void zigbeeDevice.bridgedDevice.subscribeAttribute(
+          Thermostat.id,
           'occupiedHeatingSetpoint',
           (newValue, oldValue, context) => {
             if (newValue === oldValue || context.fabric === undefined) return;
@@ -2017,9 +2026,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
           },
           zigbeeDevice.log,
         );
-      if (zigbeeDevice.bridgedDevice.hasAttributeServer(ThermostatCluster.id, 'occupiedCoolingSetpoint'))
-        zigbeeDevice.bridgedDevice.subscribeAttribute(
-          ThermostatCluster.id,
+      if (zigbeeDevice.bridgedDevice.hasAttributeServer(Thermostat.id, 'occupiedCoolingSetpoint'))
+        void zigbeeDevice.bridgedDevice.subscribeAttribute(
+          Thermostat.id,
           'occupiedCoolingSetpoint',
           (newValue, oldValue, context) => {
             if (newValue === oldValue || context.fabric === undefined) return;

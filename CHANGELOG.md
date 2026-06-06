@@ -28,24 +28,50 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
-## [3.0.12] - Dev branch
+## [3.1.0] - 2026-06-06
+
+### Breaking changes
+
+- [matterbridge]: Require matterbridge v.3.8.0 with matter v.1.5.1 and matter.js v.0.17.1.
+
+### Added
+
+- [codecov]: Add merge of Jest and Vitest coverage reports. This allows to run both Jest and Vitest tests in the same package and have a unified coverage report in Codecov.
+- [promise]: Add eslint promise rules. Refactor all async code.
 
 ### Changed
 
 - [package]: Update dependencies.
-- [package]: Bump package to `automator` v.3.1.10.
-- [package]: Bump `eslint` to v.10.4.0.
-- [package]: Bump `@types/node` to v.25.9.1.
-- [package]: Bump `ts-jest` to v.29.4.11.
-- [package]: Bump `typescript-eslint` to v.8.59.4.
-- [package]: Bump `vitest` to v.4.1.7.
-- [package]: Bump `@vitest/coverage-v8` to v.4.1.7.
-- [package]: Bump `eslint-plugin-jsdoc` to v.63.0.0.
+- [package]: Bump package to `automator` v.3.1.11.
+
+- [package]: Bump `@eslint/json` to v.2.0.0.
 - [package]: Bump `@eslint/markdown` to v.8.0.2.
-- [package]: Bump `npm-check-updates` to v.22.2.0.
-- [package]: Update `.devcontainer/devcontainer.json`.
-- [package]: Update `.vscode/settings.json`.
-- [package]: Add `.vscode/extensions.json`.
+- [package]: Bump `@types/node` to v.25.9.1.
+- [package]: Bump `@vitest/coverage-istanbul` to v.4.1.8.
+- [package]: Bump `@vitest/eslint-plugin` to v.1.6.19.
+- [package]: Bump `eslint` to v.10.4.1.
+- [package]: Bump `eslint-plugin-jsdoc` to v.63.0.1.
+- [package]: Bump `eslint-plugin-prettier` to v.5.5.6.
+- [package]: Bump `npm-check-updates` to v.22.2.2.
+- [package]: Bump `ts-jest` to v.29.4.11.
+- [package]: Bump `typescript-eslint` to v.8.60.1.
+- [package]: Bump `vitest` to v.4.1.8.
+
+- [oxlint]: Bump `oxlint` config to v.1.0.2.
+- [oxfmt]: Bump `oxfmt` config to v.1.0.2.
+- [jest]: Bump `jest` config to v.2.0.2.
+- [vitest]: Bump `vitest` config to v.2.0.5.
+- [eslint]: Bump `eslint` config to v.2.0.5.
+- [prettier]: Bump `.prettierignore` config to v.1.0.1.
+- [package]: Bump `.devcontainer/devcontainer.json` config to v.1.0.1.
+- [package]: Bump `.vscode/settings.json` config to v.1.0.1.
+- [package]: Bump `.vscode/extensions.json` config to v.1.0.1.
+- [workflow]: Bump `.github\workflows\build.yml` config to v.2.0.4.
+- [workflow]: Bump `.github\workflows\codecov.yml` config to v.2.0.4.
+- [workflow]: Bump `.github\workflows\publish.yml` config to v.2.0.4.
+
+- [claude]: Move CLAUDE.md in the repo root.
+- [claude]: Add .claude/settings.json with permissions configuration.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

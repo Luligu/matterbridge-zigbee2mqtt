@@ -59,13 +59,13 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('Data path', async () => {
-    await z2m.setDataPath(HOMEDIR);
+    z2m.setDataPath(HOMEDIR);
     // @ts-expect-error accessing private member for testing purposes
     expect(z2m.mqttDataPath).toBe(HOMEDIR);
   });
 
   test('Zigbee2MQTT start', async () => {
-    await z2m.start();
+    z2m.start();
     await wait(250);
     expect(connectAsync).toHaveBeenCalledWith('mqtt://localhost:1883', {
       clean: true,
@@ -81,7 +81,7 @@ describe('TestZigbee2MQTT', () => {
   });
 
   test('Zigbee2MQTT stop', async () => {
-    await z2m.stop();
+    z2m.stop();
     await wait(250);
     expect(mockClient.endAsync).toHaveBeenCalled();
     expect(mockClient.removeAllListeners).toHaveBeenCalled();
@@ -91,8 +91,8 @@ describe('TestZigbee2MQTT', () => {
     const z2m2 = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
     const subCalls = mockClient.subscribeAsync.mock.calls.length;
     const pubCalls = mockClient.publishAsync.mock.calls.length;
-    await z2m2.subscribe('zigbee2mqtt/#');
-    await z2m2.publish('zigbee2mqtt/test', '{}');
+    z2m2.subscribe('zigbee2mqtt/#');
+    z2m2.publish('zigbee2mqtt/test', '{}');
     expect(mockClient.subscribeAsync.mock.calls.length).toBe(subCalls);
     expect(mockClient.publishAsync.mock.calls.length).toBe(pubCalls);
   });
@@ -102,13 +102,14 @@ describe('TestZigbee2MQTT', () => {
     const z2mQ = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
     // @ts-expect-error private access for test
     z2mQ.mqttDataPath = HOMEDIR;
-    await z2mQ.start();
+    z2mQ.start();
+    await wait(10);
     mockClient.publishAsync.mockClear();
-    await z2mQ.publish('zigbee2mqtt/dev1/set', JSON.stringify({ state: 'ON' }), true);
-    await z2mQ.publish('zigbee2mqtt/dev1/set', JSON.stringify({ brightness: 123 }), true);
+    z2mQ.publish('zigbee2mqtt/dev1/set', JSON.stringify({ state: 'ON' }), true);
+    z2mQ.publish('zigbee2mqtt/dev1/set', JSON.stringify({ brightness: 123 }), true);
     await wait(200);
     expect(mockClient.publishAsync.mock.calls.length).toBeGreaterThanOrEqual(1);
-    await z2mQ.stop();
+    z2mQ.stop();
   });
 
   test('messageHandler: bridge/state online/offline toggles flag', async () => {
@@ -291,7 +292,7 @@ describe('TestZigbee2MQTT', () => {
   test('bridge/devices invalid JSON triggers parse error paths', async () => {
     // Use an isolated instance to avoid polluting shared state
     const zTmp = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    await zTmp.setDataPath(HOMEDIR);
+    zTmp.setDataPath(HOMEDIR);
     zTmp.setLogDebug(true);
     // @ts-expect-error private method access for test
     zTmp.messageHandler('zigbee2mqtt/bridge/devices', Buffer.from('not-json'));
@@ -478,34 +479,36 @@ describe('TestZigbee2MQTT', () => {
     const errSpy = jest.fn();
     z2mErr.on('mqtt_error', errSpy);
     connectAsync.mockRejectedValueOnce(new Error('connect-fail'));
-    await z2mErr.start();
+    z2mErr.start();
     await wait(100);
     expect(errSpy).toHaveBeenCalled();
   });
 
   test('subscribe handles error path when client is connected', async () => {
     const z2mSub = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    await z2mSub.start();
+    z2mSub.start();
+    await wait(10);
     mockClient.subscribeAsync.mockRejectedValueOnce(new Error('sub-fail'));
-    await z2mSub.subscribe('zigbee2mqtt/#');
+    z2mSub.subscribe('zigbee2mqtt/#');
     await wait(50);
     expect(mockClient.subscribeAsync).toHaveBeenCalled();
-    await z2mSub.stop();
+    z2mSub.stop();
   });
 
   test('publish handles error path when client is connected', async () => {
     const z2mPub = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    await z2mPub.start();
+    z2mPub.start();
+    await wait(10);
     mockClient.publishAsync.mockRejectedValueOnce(new Error('pub-fail'));
-    await z2mPub.publish('zigbee2mqtt/test', JSON.stringify({ a: 1 }));
+    z2mPub.publish('zigbee2mqtt/test', JSON.stringify({ a: 1 }));
     await wait(50);
     expect(mockClient.publishAsync).toHaveBeenCalled();
-    await z2mPub.stop();
+    z2mPub.stop();
   });
 
   test('stop without start logs already stopped', async () => {
     const z2mNs = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    await z2mNs.stop();
+    z2mNs.stop();
     expect(z2mNs).toBeDefined();
   });
 
@@ -554,14 +557,14 @@ describe('TestZigbee2MQTT', () => {
 
   test('subscribe success emits mqtt_subscribed', async () => {
     const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    await z.start();
+    z.start();
     await wait(150);
     const subSpy = jest.fn();
     z.on('mqtt_subscribed', subSpy);
-    await z.subscribe('zigbee2mqtt/#');
+    z.subscribe('zigbee2mqtt/#');
     await wait(100);
     expect(subSpy).toHaveBeenCalled();
-    await z.stop();
+    z.stop();
     await wait(150);
   });
 
@@ -569,24 +572,24 @@ describe('TestZigbee2MQTT', () => {
     const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
     // @ts-expect-error private access for test
     z.mqttDataPath = HOMEDIR;
-    await z.start();
+    z.start();
     await wait(100);
     mockClient.publishAsync.mockClear();
-    await z.publish('zigbee2mqtt/dev2/set', JSON.stringify({ a: 1 }), true);
-    await z.publish('zigbee2mqtt/dev2/set', JSON.stringify({ b: 2 }), true);
+    z.publish('zigbee2mqtt/dev2/set', JSON.stringify({ a: 1 }), true);
+    z.publish('zigbee2mqtt/dev2/set', JSON.stringify({ b: 2 }), true);
     await wait(300);
     expect(mockClient.publishAsync.mock.calls.length).toBeGreaterThanOrEqual(2);
     // wait extra tick to allow stopInterval() to run
     await wait(120);
     // @ts-expect-error private access for test
     expect(z.mqttPublishQueueTimeout).toBeUndefined();
-    await z.stop();
+    z.stop();
     await wait(150);
   });
 
   test('unknown entity message is logged to file when in DEBUG', async () => {
     const z = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
-    await z.setDataPath(HOMEDIR);
+    z.setDataPath(HOMEDIR);
     z.setLogLevel(LogLevel.DEBUG);
     // @ts-expect-error private method access for test
     z.messageHandler('zigbee2mqtt/UnknownEntity', Buffer.from('{"x":1}'));
@@ -603,5 +606,216 @@ describe('TestZigbee2MQTT', () => {
     expect(zTlsErr).toBeInstanceOf(Zigbee2MQTT);
     // @ts-expect-error private access for test
     expect(zTlsErr.options.protocol).toBe(undefined);
+  });
+
+  test('constructor mqtt+unix:// branch is handled with and without ca/cert/key', () => {
+    const zUnix = new Zigbee2MQTT('mqtt+unix://localhost', 0, 'zigbee2mqtt', undefined, undefined, undefined, 5, 'ca.pem', undefined, 'cert.pem', 'key.pem');
+    expect(zUnix).toBeInstanceOf(Zigbee2MQTT);
+    const zUnixPlain = new Zigbee2MQTT('mqtt+unix://localhost', 0, 'zigbee2mqtt');
+    expect(zUnixPlain).toBeInstanceOf(Zigbee2MQTT);
+  });
+
+  test('constructor TLS with readable ca/cert/key files reads file buffers', () => {
+    const caPath = path.join(HOMEDIR, 'test-ca.pem');
+    const certPath = path.join(HOMEDIR, 'test-cert.pem');
+    const keyPath = path.join(HOMEDIR, 'test-key.pem');
+    fs.writeFileSync(caPath, 'CA');
+    fs.writeFileSync(certPath, 'CERT');
+    fs.writeFileSync(keyPath, 'KEY');
+    const zTls2 = new Zigbee2MQTT('mqtts://host', 8883, 'zigbee2mqtt', undefined, undefined, undefined, 5, caPath, true, certPath, keyPath);
+    // @ts-expect-error private access for test
+    expect(zTls2.options.ca).toBeDefined();
+    // @ts-expect-error private access for test
+    expect(zTls2.options.cert).toBeDefined();
+    // @ts-expect-error private access for test
+    expect(zTls2.options.key).toBeDefined();
+  });
+
+  test('setDataPath catches error when mkdir fails', () => {
+    const existingFile = path.join(HOMEDIR, 'roundtrip.json');
+    const badPath = path.join(existingFile, 'subdir');
+    const zErr = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    zErr.setDataPath(badPath); // mkdirSync fails: roundtrip.json is a file, not a dir
+    expect(zErr).toBeDefined();
+  });
+
+  test('MQTT client event handlers are fired correctly', async () => {
+    const z2mEv = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    const connectSpy = jest.fn();
+    const reconnectSpy = jest.fn();
+    const closeSpy = jest.fn();
+    const endSpy = jest.fn();
+    const offlineSpy = jest.fn();
+    const errorSpy = jest.fn();
+    const msgSpy = jest.fn();
+    z2mEv.on('mqtt_connect', connectSpy);
+    z2mEv.on('mqtt_reconnect', reconnectSpy);
+    z2mEv.on('mqtt_close', closeSpy);
+    z2mEv.on('mqtt_end', endSpy);
+    z2mEv.on('mqtt_offline', offlineSpy);
+    z2mEv.on('mqtt_error', errorSpy);
+    z2mEv.on('MESSAGE-TestDevice', msgSpy);
+    // @ts-expect-error private access for test
+    z2mEv.z2mDevices = [{ ieee_address: '0xTD', friendly_name: 'TestDevice' }];
+
+    mockClient.on.mockClear();
+    z2mEv.start();
+    await wait(50);
+
+    const getHandler = (event: string) => mockClient.on.mock.calls.find(([e]) => e === event)?.[1] as (...args: any[]) => void;
+
+    getHandler('connect')?.({});
+    expect(connectSpy).toHaveBeenCalled();
+
+    getHandler('reconnect')?.();
+    expect(reconnectSpy).toHaveBeenCalled();
+
+    getHandler('disconnect')?.({});
+
+    getHandler('close')?.();
+    expect(closeSpy).toHaveBeenCalled();
+
+    getHandler('end')?.();
+    expect(endSpy).toHaveBeenCalled();
+
+    getHandler('offline')?.();
+    expect(offlineSpy).toHaveBeenCalled();
+
+    getHandler('error')?.(new Error('test-err'));
+    expect(errorSpy).toHaveBeenCalled();
+
+    getHandler('message')?.('zigbee2mqtt/TestDevice', Buffer.from(JSON.stringify({ state: 'ON' })), {});
+    expect(msgSpy).toHaveBeenCalled();
+
+    z2mEv.stop();
+    await wait(50);
+  });
+
+  test('keepalive interval publishes heartbeat', async () => {
+    const zKA = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    // @ts-expect-error private access for test
+    zKA.options.keepalive = 0.001; // 1 ms interval
+    mockClient.publishAsync.mockClear();
+    zKA.start();
+    await wait(100);
+    expect(mockClient.publishAsync).toHaveBeenCalledWith(expect.stringContaining('heartbeat'), 'alive', { qos: 2 });
+    zKA.stop();
+    await wait(50);
+  });
+
+  test('stop error path is handled when endAsync rejects', async () => {
+    const zStopErr = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    zStopErr.start();
+    await wait(10);
+    mockClient.endAsync.mockRejectedValueOnce(new Error('end-fail'));
+    zStopErr.stop();
+    await wait(50);
+    expect(zStopErr).toBeDefined();
+  });
+
+  test('queue publish error path is handled when publishAsync rejects', async () => {
+    const zQErr = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    // @ts-expect-error private access for test
+    zQErr.mqttDataPath = HOMEDIR;
+    zQErr.start();
+    await wait(10);
+    mockClient.publishAsync.mockRejectedValueOnce(new Error('queue-pub-fail'));
+    zQErr.publish('zigbee2mqtt/dev/set', JSON.stringify({ state: 'ON' }), true);
+    await wait(200);
+    expect(zQErr).toBeDefined();
+    zQErr.stop();
+    await wait(50);
+  });
+
+  test('direct publish success logs payload file in DEBUG mode', async () => {
+    const zDbg = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    zDbg.setLogLevel(LogLevel.DEBUG);
+    zDbg.setDataPath(HOMEDIR);
+    zDbg.start();
+    await wait(10);
+    mockClient.publishAsync.mockClear();
+    zDbg.publish('zigbee2mqtt/test', JSON.stringify({ debug: true }));
+    await wait(100);
+    expect(mockClient.publishAsync).toHaveBeenCalled();
+    zDbg.stop();
+    await wait(50);
+  });
+
+  test('Coordinator availability with JSON payload logs online and offline', () => {
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/Coordinator/availability', Buffer.from(JSON.stringify({ state: 'online' })));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/Coordinator/availability', Buffer.from(JSON.stringify({ state: 'offline' })));
+    expect(z2m).toBeDefined();
+  });
+
+  test('empty payload is ignored for known device and group', () => {
+    // Restore a known device and group so handleDeviceMessage / handleGroupMessage are reached
+    z2m.z2mDevices = [{ ieee_address: '0xEP', friendly_name: 'EPDevice' } as any];
+    z2m.z2mGroups = [{ id: 99, friendly_name: 'EPGroup', members: [], scenes: [] } as any];
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/EPDevice', Buffer.from(''));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/EPGroup', Buffer.from(''));
+    expect(z2m).toBeDefined();
+  });
+
+  test('unsupported MQTT protocol logs a warning', () => {
+    const zUnsup = new Zigbee2MQTT('tcp://host', 1883, 'zigbee2mqtt');
+    expect(zUnsup).toBeInstanceOf(Zigbee2MQTT);
+  });
+
+  test('keepalive error is caught when publishAsync rejects during heartbeat', async () => {
+    const zKAErr = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    // @ts-expect-error private access for test
+    zKAErr.options.keepalive = 0.001; // 1 ms interval
+    zKAErr.start();
+    await wait(10); // let connect settle
+    // Reject the next publishAsync call so the keepalive .catch() fires
+    mockClient.publishAsync.mockRejectedValueOnce(new Error('heartbeat-fail'));
+    await wait(100); // allow interval to fire and rejection to propagate
+    expect(zKAErr).toBeDefined();
+    zKAErr.stop();
+    await wait(50);
+  });
+
+  test('networkmap raw covers lqi>200, relationship-sibling, unknown ieeeAddr, and old timestamps', async () => {
+    const now = Date.now();
+    const raw = {
+      data: {
+        type: 'raw',
+        value: {
+          nodes: [
+            { ieeeAddr: '0xA1', friendlyName: 'NodeA', networkAddress: 1, type: 'Router', lastSeen: now - 25 * 3600 * 1000 },
+            { ieeeAddr: '0xA2', friendlyName: 'NodeB', networkAddress: 2, type: 'EndDevice', lastSeen: now - 2 * 3600 * 1000 },
+            { ieeeAddr: '0xA3', friendlyName: 'NodeC', networkAddress: 3, type: 'Coordinator', lastSeen: now - 3 * 60 * 1000 },
+          ],
+          links: [
+            {
+              sourceIeeeAddr: '0xA1',
+              targetIeeeAddr: '0xA2',
+              source: { ieeeAddr: '0xA1', networkAddress: 1 },
+              target: { ieeeAddr: '0xA2', networkAddress: 2 },
+              lqi: 250,
+              depth: 1,
+              relationship: 2,
+            },
+            {
+              sourceIeeeAddr: '0xA2',
+              targetIeeeAddr: '0xFF',
+              source: { ieeeAddr: '0xA2', networkAddress: 2 },
+              target: { ieeeAddr: '0xFF', networkAddress: 255 },
+              lqi: 100,
+              depth: 0,
+              relationship: 0,
+            },
+          ],
+        },
+      },
+    };
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/bridge/response/networkmap', Buffer.from(JSON.stringify(raw)));
+    await wait(150);
+    expect(z2m).toBeDefined();
   });
 });
