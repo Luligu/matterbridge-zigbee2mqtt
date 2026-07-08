@@ -1,11 +1,11 @@
-# Matterbridge Claude Instructions (v.1.0.2)
+# Matterbridge Agents Instructions (v.1.0.2)
 
 ## Style And Formatting
 
 - Follow [STYLEGUIDE.md](./STYLEGUIDE.md) for code style, naming, JSDoc, validation, logging, and formatting expectations.
-- JSDoc requirements are enforced by the configured linter. Treat missing or incomplete JSDoc on required APIs as a real lint issue, not optional documentation.
-- Import and export ordering are enforced by the formatter. Preserve the existing grouped and sorted order unless a change requires updating it.
-- Formatting is enforced by oxfmt. Follow the existing formatting and do not fight the formatter.
+- JSDoc requirements are enforced by the linter. Treat missing or incomplete JSDoc on required APIs as a real lint issue, not optional documentation.
+- Import and export ordering are enforced by the linter or by the formatter. Preserve the existing grouped and sorted order unless a change requires updating it.
+- Follow the existing formatting and do not fight the formatter.
 
 ## Scope And Safety
 
@@ -16,19 +16,22 @@
 
 ## Project Architecture
 
-- This repository uses TypeScript and ESM. Follow existing project patterns for imports, exports, build configuration, and test setup.
+- This repository is a TypeScript ESM repo. Follow existing project patterns for imports, exports, build configuration, and test setup.
 
 ## Testing And Validation
 
-- Prefer the existing npm scripts in [package.json](./package.json) and the VS Code tasks in [tasks.json](./.vscode/tasks.json) for building, linting, and testing.
+- Prefer the existing npm scripts in [package.json](./package.json) and the VS Code tasks in [tasks.json](./.vscode/tasks.json) when validating changes.
 - Keep tests deterministic and simple. Prefer small data sets and straightforward setup.
 - Some tests are intentionally multi-step flows. State may persist across successive steps within a single test flow, but each test unit must remain isolated from other tests.
 - For validation, run the relevant full test file or the matching suite/task for the touched area rather than assuming arbitrary isolated single-test execution is reliable.
 
 ## Documentation
 
-- When behavior changes, update the relevant tests and documentation.
+- When behavior changes, update the relevant tests and documentation in the README.md files.
 
 ## Additional Agent Guidance
 
-- Use dedicated instruction files under [.claude/rules](.claude/rules/) when a rule applies only to specific file types or workflows.
+For task-specific guidance, read relevant files in [.agents](./.agents/):
+
+- `.agents/testing.md` for testing and validation expectations;
+- `.agents/matterbridge.md` for instruction about using matterbridge in a plugin.

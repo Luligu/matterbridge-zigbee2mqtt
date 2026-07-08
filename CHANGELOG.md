@@ -42,7 +42,8 @@ If you like this project and find it useful, please consider giving it a star on
 - [vitest]: Move the tests from `src` to `vitest` and migrate them from Jest and `matterbridge/jestutils` to Vitest and `matterbridge/vitest-utils`.
 - [vitest]: Update the test assertions for matterbridge v.3.9.x: endpoint names now use the device type name (i.e. `OnOffLightSwitch` instead of `MA-onoffswitch`) and `onOffLightSwitch` includes the `Binding` cluster.
 - [package]: Update dependencies.
-- [package]: Apply style.
+- [package]: Apply uniform style.
+- [package]: Upgrade package.
 - [package]: Bump `node-ansi-logger` to v.3.3.0.
 - [package]: Bump `node-persist-manager` to v.2.1.0.
 

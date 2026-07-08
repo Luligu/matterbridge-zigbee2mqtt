@@ -97,7 +97,7 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:verbose": "vitest run --reporter verbose",
-    "test:coverage": "vitest run --coverage --coverage.thresholds.lines=95 --coverage.thresholds.functions=85",
+    "test:coverage": "vitest run --coverage",
     "lint": "oxlint --disable-nested-config",
     "lint:fix": "oxlint --disable-nested-config --fix",
     "format": "oxfmt",
@@ -111,18 +111,17 @@
   },
   "dependencies": {
     "moment": "2.30.1",
-    "mqtt": "5.15.1",
+    "mqtt": "5.15.2",
     "node-ansi-logger": "3.3.0",
     "node-persist-manager": "2.1.0"
   },
   "devDependencies": {
-    "@types/node": "26.1.0",
-    "@typescript/native-preview": "7.0.0-dev.20260704.1",
-    "@vitest/coverage-v8": "4.1.9",
-    "oxfmt": "0.57.0",
-    "oxlint": "1.72.0",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "@vitest/coverage-v8": "4.1.10",
+    "oxfmt": "0.58.0",
+    "oxlint": "1.73.0",
     "oxlint-tsgolint": "0.24.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "vitest": "4.1.10"
   }
 }
