@@ -61,7 +61,7 @@ import {
   windowCovering,
 } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, dn, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
-import { type AtLeastOne, NumberTag, SwitchesTag } from 'matterbridge/matter';
+import { type AtLeastOne, CommonNumberTag, SwitchesTag } from 'matterbridge/matter';
 import {
   AirQuality,
   BooleanState,
@@ -1613,12 +1613,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
           }
         } else {
           const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
-          if (endpoint === 'l1') tagList.push({ mfgCode: null, namespaceId: NumberTag.One.namespaceId, tag: NumberTag.One.tag, label: 'endpoint ' + endpoint });
-          if (endpoint === 'l2') tagList.push({ mfgCode: null, namespaceId: NumberTag.Two.namespaceId, tag: NumberTag.Two.tag, label: 'endpoint ' + endpoint });
-          if (endpoint === 'l3') tagList.push({ mfgCode: null, namespaceId: NumberTag.Three.namespaceId, tag: NumberTag.Three.tag, label: 'endpoint ' + endpoint });
-          if (endpoint === 'l4') tagList.push({ mfgCode: null, namespaceId: NumberTag.Four.namespaceId, tag: NumberTag.Four.tag, label: 'endpoint ' + endpoint });
-          if (endpoint === 'l5') tagList.push({ mfgCode: null, namespaceId: NumberTag.Five.namespaceId, tag: NumberTag.Five.tag, label: 'endpoint ' + endpoint });
-          if (endpoint === 'l6') tagList.push({ mfgCode: null, namespaceId: NumberTag.Six.namespaceId, tag: NumberTag.Six.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l1') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.One.namespaceId, tag: CommonNumberTag.One.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l2') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Two.namespaceId, tag: CommonNumberTag.Two.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l3') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Three.namespaceId, tag: CommonNumberTag.Three.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l4') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Four.namespaceId, tag: CommonNumberTag.Four.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l5') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Five.namespaceId, tag: CommonNumberTag.Five.tag, label: 'endpoint ' + endpoint });
+          if (endpoint === 'l6') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Six.namespaceId, tag: CommonNumberTag.Six.tag, label: 'endpoint ' + endpoint });
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'endpoint ' + endpoint });
           /* prettier-ignore */
           if (zigbeeDevice.mutableDevice.has(endpoint)) {
