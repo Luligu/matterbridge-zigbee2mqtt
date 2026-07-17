@@ -30,6 +30,14 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
+## [3.2.1] - Dev branch
+
+### Breaking changes
+
+- [matterbridge]: Require matterbridge v.3.10.0 with matter v.1.6.0 and matter.js v.0.17.5.
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
 ## [3.2.0] - 2026-07-17
 
 ### Breaking changes
