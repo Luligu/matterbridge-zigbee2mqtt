@@ -760,7 +760,7 @@ export class Zigbee2MQTT extends EventEmitter {
    * @param {Buffer} payload - The message payload.
    */
   private handleDeviceMessage(device: BridgeDevice, entity: string, service: string, payload: Buffer): void {
-    if (payload.length === 0 || payload === null) {
+    if (!payload || payload.length === 0) {
       return;
     }
     const payloadString = payload.toString();
@@ -791,7 +791,7 @@ export class Zigbee2MQTT extends EventEmitter {
   }
 
   private handleGroupMessage(group: BridgeGroup, entity: string, service: string, payload: Buffer): void {
-    if (payload.length === 0 || payload === null) {
+    if (!payload || payload.length === 0) {
       return;
     }
     const payloadString = payload.toString();

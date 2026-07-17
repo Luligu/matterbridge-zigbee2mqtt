@@ -1425,7 +1425,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.bridgedDevice = new MatterbridgeEndpoint([doorLock, bridgedNode, powerSource], { id: device.friendly_name }, zigbeeDevice.log.logLevel === LogLevel.DEBUG);
       zigbeeDevice.addBridgedDeviceBasicInformation();
       zigbeeDevice.addPowerSource();
-      zigbeeDevice.bridgedDevice.addRequiredClusterServers();
+      zigbeeDevice.bridgedDevice.addRequiredClusters();
       await zigbeeDevice.bridgedDevice.addFixedLabel('type', 'lock');
       zigbeeDevice.verifyMutableDevice(zigbeeDevice.bridgedDevice);
 
