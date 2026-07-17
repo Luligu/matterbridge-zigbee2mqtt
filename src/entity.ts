@@ -1842,7 +1842,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Add the cluster ids to the main endpoint
     zigbeeDevice.bridgedDevice.addClusterServers(mainEndpoint.clusterServersIds);
-    zigbeeDevice.bridgedDevice.addRequiredClusterServers();
+    zigbeeDevice.bridgedDevice.addRequiredClusters();
 
     // Add the Fixed Label cluster to the main endpoint
     if (zigbeeDevice.composedType !== '') await zigbeeDevice.bridgedDevice.addFixedLabel('composed', zigbeeDevice.composedType);

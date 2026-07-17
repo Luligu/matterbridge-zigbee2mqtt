@@ -741,7 +741,7 @@ describe('Test Entity', () => {
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
       // prettier-ignore
-      expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "onOff", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement"]);
+      expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "onOff", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement", "binding"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
       vi.clearAllMocks();
