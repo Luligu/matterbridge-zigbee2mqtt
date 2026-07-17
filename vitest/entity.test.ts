@@ -1248,19 +1248,19 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "thermostat", "identify"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
-      // Matterbridge 3.7.10 is the last Matter 1.4.2 release
       expect(featuresFor(device, 'Thermostat')).toEqual(
-        matterbridge.matterbridgeVersion === '3.7.10'
+        matterbridge.matterbridgeVersion === '3.10.0'
           ? {
               autoMode: true,
               cooling: true,
+              events: false,
               heating: true,
               localTemperatureNotExposed: false,
               matterScheduleConfiguration: false,
               occupancy: false,
               presets: false,
-              scheduleConfiguration: false,
               setback: false,
+              thermostatSuggestions: false,
             }
           : {
               autoMode: true,
