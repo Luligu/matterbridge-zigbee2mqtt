@@ -1248,31 +1248,18 @@ describe('Test Entity', () => {
       // prettier-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "thermostat", "identify"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
-      expect(featuresFor(device, 'Thermostat')).toEqual(
-        matterbridge.matterbridgeVersion === '3.10.0'
-          ? {
-              autoMode: true,
-              cooling: true,
-              events: false,
-              heating: true,
-              localTemperatureNotExposed: false,
-              matterScheduleConfiguration: false,
-              occupancy: false,
-              presets: false,
-              setback: false,
-              thermostatSuggestions: false,
-            }
-          : {
-              autoMode: true,
-              cooling: true,
-              heating: true,
-              localTemperatureNotExposed: false,
-              matterScheduleConfiguration: false,
-              occupancy: false,
-              presets: false,
-              setback: false,
-            },
-      );
+      expect(featuresFor(device, 'Thermostat')).toEqual({
+        autoMode: true,
+        cooling: true,
+        events: false,
+        heating: true,
+        localTemperatureNotExposed: false,
+        matterScheduleConfiguration: false,
+        occupancy: false,
+        presets: false,
+        setback: false,
+        thermostatSuggestions: false,
+      });
       // await setDebug(false);
 
       vi.clearAllMocks();
