@@ -1824,6 +1824,7 @@ describe('Test Entity', () => {
       payload = { state: 'ON', brightness: 130, color_mode: 'hs', color: { hue: 150, saturation: 90 } };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
       await flushAsync(undefined, undefined, updateTimeout);
+      await flushAsync(undefined, undefined, updateTimeout); // Extra wait for the fire-and-forget setAttribute() to settle (flaky in CI)
       expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
       expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
       expect(device.getAttribute('ColorControl', 'currentHue')).toBe(Math.round((150 / 360) * 254));
