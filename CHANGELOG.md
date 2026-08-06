@@ -1,5 +1,3 @@
-<!-- eslint-disable markdown/no-missing-label-refs -->
-
 # <img src="https://matterbridge.io/assets/matterbridge.svg" alt="Matterbridge Logo" width="64px" height="64px">&nbsp;&nbsp;&nbsp;Matterbridge zigbee2mqtt plugin changelog
 
 [![npm version](https://img.shields.io/npm/v/matterbridge-zigbee2mqtt.svg)](https://www.npmjs.com/package/matterbridge-zigbee2mqtt)
@@ -42,8 +40,8 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Changed
 
-- [package]: Bump `oxfmt` to v.0.61.0.
-- [package]: Bump `oxlint` to v.1.76.0.
+- [package]: Bump `oxfmt` to v.0.62.0.
+- [package]: Bump `oxlint` to v.1.77.0.
 - [package]: Bump `oxlint-tsgolint` to v.7.0.2001.
 - [package]: Bump `@types/node` to v.26.1.2.
 - [package]: Update agents configs.
