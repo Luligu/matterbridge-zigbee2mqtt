@@ -165,7 +165,11 @@ export class ZigbeeEntity extends EventEmitter {
   protected thermostatTimeout: NodeJS.Timeout | undefined = undefined;
   protected thermostatTimeoutTime = 5000;
   protected coverReportTimeout: NodeJS.Timeout | undefined = undefined;
-  protected coverReportTimeoutTime = 5000;
+  protected coverReportTimeoutTime = 2000;
+  protected coverLastReportTime = 0;
+  protected coverCandidatePosition: number | undefined = undefined;
+  protected coverOutlierWindowTime = 5000;
+  protected coverOutlierMaxDelta = 2000;
 
   protected composedType = '';
   protected hasEndpoints = false;
@@ -456,6 +460,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.noUpdateTimeout = undefined;
     if (this.coverReportTimeout) clearTimeout(this.coverReportTimeout);
     this.coverReportTimeout = undefined;
+    this.coverCandidatePosition = undefined;
     this.device = undefined;
     this.group = undefined;
     this.bridgedDevice = undefined;
@@ -475,15 +480,17 @@ export class ZigbeeEntity extends EventEmitter {
    * the derived direction and is updated before the current position, so the controllers that infer the direction
    * from the target and current positions show the correct one. The cover report timeout finishes the movement when
    * the reports stop before the target is reached.
+   *
+   * Zigbee2MQTT echoes the commanded target as a position report when a movement starts (and sometimes mid movement).
+   * A report that jumps implausibly far from the last accepted position within a short time is therefore held back as
+   * a candidate: it is applied only when the following report corroborates it or the cover report timeout expires.
    */
   protected handleCoverPositionReport(current: number): void {
     if (this.bridgedDevice === undefined) return;
-    if (this.propertyMap.has('moving') || this.propertyMap.has('motor_state')) {
+    if (this.coverHasMovingProperty()) {
       this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
       return;
     }
-    clearTimeout(this.coverReportTimeout);
-    this.coverReportTimeout = undefined;
     const previous = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
     const target = this.bridgedDevice.getAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', this.log);
     const operationalStatus: WindowCovering.OperationalStatus | undefined = this.bridgedDevice.getAttribute(WindowCovering.id, 'operationalStatus', this.log);
@@ -491,6 +498,22 @@ export class ZigbeeEntity extends EventEmitter {
       this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
       return;
     }
+    const now = Date.now();
+    if (
+      now - this.coverLastReportTime < this.coverOutlierWindowTime &&
+      Math.abs(current - previous) > this.coverOutlierMaxDelta &&
+      (this.coverCandidatePosition === undefined || Math.abs(current - this.coverCandidatePosition) > this.coverOutlierMaxDelta)
+    ) {
+      // Implausible jump (i.e. the echoed commanded target): hold it back until a following report corroborates it
+      this.coverCandidatePosition = current;
+      this.log.debug(`Cover position report ${CYAN}${current}${db} differs too much from ${CYAN}${previous}${db}: waiting for confirmation`);
+      this.restartCoverReportTimeout();
+      return;
+    }
+    this.coverCandidatePosition = undefined;
+    this.coverLastReportTime = now;
+    clearTimeout(this.coverReportTimeout);
+    this.coverReportTimeout = undefined;
     if (target === current) {
       // The cover reached the target position: the movement is finished
       this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
@@ -522,13 +545,27 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   /**
+   * Checks if the cover device exposes the moving or motor_state property.
+   *
+   * @returns {boolean} True when the device reports moving or motor_state and the movement status is driven by those reports.
+   *
+   * @remarks
+   * The check is done on the device definition exposes: the propertyMap only contains the properties mapped to a
+   * Matter attribute, and moving and motor_state are not mapped.
+   */
+  protected coverHasMovingProperty(): boolean {
+    return this.device?.definition?.exposes.some((expose) => expose.property === 'moving' || expose.property === 'motor_state') === true;
+  }
+
+  /**
    * Starts or restarts the cover report timeout.
    *
    * @remarks
    * Used for covers that do not report moving or motor_state. If no position report arrives before the timeout
    * expires, the movement is considered finished: the target position is aligned to the current position and the
    * operational status is set to Stopped. This covers movements interrupted from outside (physical button) and
-   * covers that stop before reaching the exact requested position.
+   * covers that stop before reaching the exact requested position. A held back candidate position that was never
+   * corroborated is applied first: it was not an echo but the only (final) report of the movement.
    */
   protected restartCoverReportTimeout(): void {
     clearTimeout(this.coverReportTimeout);
@@ -536,7 +573,13 @@ export class ZigbeeEntity extends EventEmitter {
       clearTimeout(this.coverReportTimeout);
       this.coverReportTimeout = undefined;
       if (this.bridgedDevice === undefined) return;
-      const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
+      let position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
+      if (this.coverCandidatePosition !== undefined) {
+        // A candidate that was never corroborated: not an echo but the only (final) report of the movement
+        position = this.coverCandidatePosition;
+        this.coverCandidatePosition = undefined;
+        this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
+      }
       if (isValidNumber(position, 0, 10000)) this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
       const status = WindowCovering.MovementStatus.Stopped;
       this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
@@ -2023,8 +2066,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           // Position aware cover: the position reports from the device update currentPositionLiftPercent100ths and finish the movement
           const status = attributes.currentPositionLiftPercent100ths === 0 ? WindowCovering.MovementStatus.Stopped : WindowCovering.MovementStatus.Opening;
           attributes.operationalStatus = { global: status, lift: status, tilt: status };
-          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.propertyMap.has('moving') && !zigbeeDevice.propertyMap.has('motor_state'))
-            zigbeeDevice.restartCoverReportTimeout();
+          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.coverHasMovingProperty()) zigbeeDevice.restartCoverReportTimeout();
         } else {
           attributes.currentPositionLiftPercent100ths = 0;
           attributes.operationalStatus = {
@@ -2041,8 +2083,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           // Position aware cover: the position reports from the device update currentPositionLiftPercent100ths and finish the movement
           const status = attributes.currentPositionLiftPercent100ths === 10000 ? WindowCovering.MovementStatus.Stopped : WindowCovering.MovementStatus.Closing;
           attributes.operationalStatus = { global: status, lift: status, tilt: status };
-          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.propertyMap.has('moving') && !zigbeeDevice.propertyMap.has('motor_state'))
-            zigbeeDevice.restartCoverReportTimeout();
+          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.coverHasMovingProperty()) zigbeeDevice.restartCoverReportTimeout();
         } else {
           attributes.currentPositionLiftPercent100ths = 10000;
           attributes.operationalStatus = {
@@ -2057,6 +2098,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.log.debug(`Command stopMotion called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         clearTimeout(zigbeeDevice.coverReportTimeout);
         zigbeeDevice.coverReportTimeout = undefined;
+        zigbeeDevice.coverCandidatePosition = undefined;
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
@@ -2078,8 +2120,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             status = liftPercent100thsValue < current ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Closing;
           }
           attributes.operationalStatus = { global: status, lift: status, tilt: status };
-          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.propertyMap.has('moving') && !zigbeeDevice.propertyMap.has('motor_state'))
-            zigbeeDevice.restartCoverReportTimeout();
+          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.coverHasMovingProperty()) zigbeeDevice.restartCoverReportTimeout();
         } else {
           attributes.currentPositionLiftPercent100ths = liftPercent100thsValue;
           attributes.operationalStatus = {
