@@ -164,6 +164,8 @@ export class ZigbeeEntity extends EventEmitter {
   protected noUpdateTimeoutTime = 2000;
   protected thermostatTimeout: NodeJS.Timeout | undefined = undefined;
   protected thermostatTimeoutTime = 5000;
+  protected coverReportTimeout: NodeJS.Timeout | undefined = undefined;
+  protected coverReportTimeoutTime = 5000;
 
   protected composedType = '';
   protected hasEndpoints = false;
@@ -321,7 +323,28 @@ export class ZigbeeEntity extends EventEmitter {
         // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
         // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', 10000 - value * 100);
+          const current = 10000 - value * 100;
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
+          // Covers that do not report moving or motor_state: derive the movement status from the position reports
+          if (!this.propertyMap.has('moving') && !this.propertyMap.has('motor_state')) {
+            clearTimeout(this.coverReportTimeout);
+            this.coverReportTimeout = undefined;
+            const target = this.bridgedDevice.getAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', this.log);
+            const operationalStatus: WindowCovering.OperationalStatus | undefined = this.bridgedDevice.getAttribute(WindowCovering.id, 'operationalStatus', this.log);
+            if (isValidNumber(target, 0, 10000) && isValidObject(operationalStatus)) {
+              if (target === current) {
+                // The cover reached the target position: the movement is finished
+                const status = WindowCovering.MovementStatus.Stopped;
+                this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+              } else if (operationalStatus.global === WindowCovering.MovementStatus.Stopped) {
+                // The cover is moved from outside (physical button, zigbee2mqtt frontend): follow the reported position
+                this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', current);
+              } else {
+                // The cover is moving towards the target: consider the movement finished if no report arrives in time
+                this.restartCoverReportTimeout();
+              }
+            }
+          }
         }
         if (key === 'moving' && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
@@ -452,11 +475,35 @@ export class ZigbeeEntity extends EventEmitter {
     this.thermostatTimeout = undefined;
     if (this.noUpdateTimeout) clearTimeout(this.noUpdateTimeout);
     this.noUpdateTimeout = undefined;
+    if (this.coverReportTimeout) clearTimeout(this.coverReportTimeout);
+    this.coverReportTimeout = undefined;
     this.device = undefined;
     this.group = undefined;
     this.bridgedDevice = undefined;
     this.mutableDevice.clear();
     this.propertyMap.clear();
+  }
+
+  /**
+   * Starts or restarts the cover report timeout.
+   *
+   * @remarks
+   * Used for covers that do not report moving or motor_state. If no position report arrives before the timeout
+   * expires, the movement is considered finished: the target position is aligned to the current position and the
+   * operational status is set to Stopped. This covers movements interrupted from outside (physical button) and
+   * covers that stop before reaching the exact requested position.
+   */
+  protected restartCoverReportTimeout(): void {
+    clearTimeout(this.coverReportTimeout);
+    this.coverReportTimeout = setTimeout(() => {
+      clearTimeout(this.coverReportTimeout);
+      this.coverReportTimeout = undefined;
+      if (this.bridgedDevice === undefined) return;
+      const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
+      if (isValidNumber(position, 0, 10000)) this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
+      const status = WindowCovering.MovementStatus.Stopped;
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+    }, this.coverReportTimeoutTime).unref();
   }
 
   isValidDevice(entity: BridgeDevice | BridgeGroup): entity is BridgeDevice {
@@ -1935,58 +1982,75 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
       zigbeeDevice.bridgedDevice.addCommandHandler('upOrOpen', ({ attributes }) => {
         zigbeeDevice.log.debug(`Command upOrOpen called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        attributes.currentPositionLiftPercent100ths = 0;
-        attributes.operationalStatus = {
-          global: WindowCovering.MovementStatus.Stopped,
-          lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
-        };
-        /*
-        if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', 0, zigbeeDevice.log);
-        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(0);
-        */
+        if (zigbeeDevice.propertyMap.has('position')) {
+          // Position aware cover: the position reports from the device update currentPositionLiftPercent100ths and finish the movement
+          const status = attributes.currentPositionLiftPercent100ths === 0 ? WindowCovering.MovementStatus.Stopped : WindowCovering.MovementStatus.Opening;
+          attributes.operationalStatus = { global: status, lift: status, tilt: status };
+          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.propertyMap.has('moving') && !zigbeeDevice.propertyMap.has('motor_state'))
+            zigbeeDevice.restartCoverReportTimeout();
+        } else {
+          attributes.currentPositionLiftPercent100ths = 0;
+          attributes.operationalStatus = {
+            global: WindowCovering.MovementStatus.Stopped,
+            lift: WindowCovering.MovementStatus.Stopped,
+            tilt: WindowCovering.MovementStatus.Stopped,
+          };
+        }
         zigbeeDevice.publishCommand('upOrOpen', device.friendly_name, { state: 'OPEN' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('downOrClose', ({ attributes }) => {
         zigbeeDevice.log.debug(`Command downOrClose called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
-        attributes.currentPositionLiftPercent100ths = 10000;
-        attributes.operationalStatus = {
-          global: WindowCovering.MovementStatus.Stopped,
-          lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
-        };
-        /*
-        if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', 10000, zigbeeDevice.log);
-        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(10000);
-        */
+        if (zigbeeDevice.propertyMap.has('position')) {
+          // Position aware cover: the position reports from the device update currentPositionLiftPercent100ths and finish the movement
+          const status = attributes.currentPositionLiftPercent100ths === 10000 ? WindowCovering.MovementStatus.Stopped : WindowCovering.MovementStatus.Closing;
+          attributes.operationalStatus = { global: status, lift: status, tilt: status };
+          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.propertyMap.has('moving') && !zigbeeDevice.propertyMap.has('motor_state'))
+            zigbeeDevice.restartCoverReportTimeout();
+        } else {
+          attributes.currentPositionLiftPercent100ths = 10000;
+          attributes.operationalStatus = {
+            global: WindowCovering.MovementStatus.Stopped,
+            lift: WindowCovering.MovementStatus.Stopped,
+            tilt: WindowCovering.MovementStatus.Stopped,
+          };
+        }
         zigbeeDevice.publishCommand('downOrClose', device.friendly_name, { state: 'CLOSE' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('stopMotion', ({ attributes }) => {
         zigbeeDevice.log.debug(`Command stopMotion called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
+        clearTimeout(zigbeeDevice.coverReportTimeout);
+        zigbeeDevice.coverReportTimeout = undefined;
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
           tilt: WindowCovering.MovementStatus.Stopped,
         };
+        // Align the target so the controllers do not show a pending movement: the next position report syncs the real position
+        if (isValidNumber(attributes.currentPositionLiftPercent100ths, 0, 10000)) attributes.targetPositionLiftPercent100ths = attributes.currentPositionLiftPercent100ths;
         zigbeeDevice.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
       zigbeeDevice.bridgedDevice.addCommandHandler('goToLiftPercentage', ({ request: { liftPercent100thsValue }, attributes }) => {
         zigbeeDevice.log.debug(
           `Command goToLiftPercentage called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} request liftPercent100thsValue: ${liftPercent100thsValue}`,
         );
-        attributes.currentPositionLiftPercent100ths = liftPercent100thsValue;
-        attributes.operationalStatus = {
-          global: WindowCovering.MovementStatus.Stopped,
-          lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
-        };
-        /*
-        if (zigbeeDevice.propertyMap.has('position'))
-          await zigbeeDevice.bridgedDevice?.setAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', liftPercent100thsValue, zigbeeDevice.log);
-        else await zigbeeDevice.bridgedDevice?.setWindowCoveringTargetAndCurrentPosition(liftPercent100thsValue);
-        */
+        if (zigbeeDevice.propertyMap.has('position')) {
+          // Position aware cover: the position reports from the device update currentPositionLiftPercent100ths and finish the movement
+          const current = attributes.currentPositionLiftPercent100ths;
+          let status = WindowCovering.MovementStatus.Stopped;
+          if (isValidNumber(current, 0, 10000) && current !== liftPercent100thsValue) {
+            status = liftPercent100thsValue < current ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Closing;
+          }
+          attributes.operationalStatus = { global: status, lift: status, tilt: status };
+          if (status !== WindowCovering.MovementStatus.Stopped && !zigbeeDevice.propertyMap.has('moving') && !zigbeeDevice.propertyMap.has('motor_state'))
+            zigbeeDevice.restartCoverReportTimeout();
+        } else {
+          attributes.currentPositionLiftPercent100ths = liftPercent100thsValue;
+          attributes.operationalStatus = {
+            global: WindowCovering.MovementStatus.Stopped,
+            lift: WindowCovering.MovementStatus.Stopped,
+            tilt: WindowCovering.MovementStatus.Stopped,
+          };
+        }
         zigbeeDevice.publishCommand('goToLiftPercentage', device.friendly_name, { position: (10000 - liftPercent100thsValue) / 100 });
       });
     }

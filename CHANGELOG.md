@@ -48,6 +48,10 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `@types/node` to v.26.2.0.
 - [package]: Update agents configs.
 
+### Changed
+
+- [cover]: Report cover movement live to the controllers. The commands no longer snap the current position to the target: the position reports from Zigbee2MQTT drive `currentPositionLiftPercent100ths` while the cover is moving, and `operationalStatus` reports Opening, Closing and Stopped. Covers that do not expose `moving` or `motor_state` derive the movement status from the position reports, with a report timeout that finishes the movement when the cover stops before reaching the target.
+
 ### Fixed
 
 - [cover]: Fix inverted cover position reporting. Zigbee2MQTT covers use position 100 = fully open and 0 = fully closed, while Matter WindowCovering uses 0 = fully open and 10000 = fully closed: the missing conversion made a closed cover appear open (and vice versa) on the controllers.

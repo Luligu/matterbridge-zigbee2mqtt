@@ -1045,8 +1045,13 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'downOrClose');
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0); // Not snapped: the position reports update it
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Closing,
+        lift: WindowCovering.MovementStatus.Closing,
+        tilt: WindowCovering.MovementStatus.Closing,
+      });
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1059,8 +1064,13 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'goToLiftPercentage', { liftPercent100thsValue: 5000 });
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0); // Not snapped: the position reports update it
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Closing,
+        lift: WindowCovering.MovementStatus.Closing,
+        tilt: WindowCovering.MovementStatus.Closing,
+      });
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1078,8 +1088,8 @@ describe('Test Entity', () => {
         lift: WindowCovering.MovementStatus.Stopped,
         tilt: WindowCovering.MovementStatus.Stopped,
       });
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0); // Aligned to the current position on stop
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1172,6 +1182,150 @@ describe('Test Entity', () => {
       await flushAsync(undefined, undefined, updateTimeout);
       expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+
+      entity.destroy();
+    });
+
+    test('create a cover device without moving property', async () => {
+      // Simulate a cover like the IKEA FYRTUR that only exposes state and position: the movement status is derived from the position reports
+      const base = platform.z2mBridgeDevices?.find((device) => device.friendly_name === 'Window shutter');
+      expect(base).toBeDefined();
+      if (!base) throw new Error('Z2M Device not found');
+      const z2mDevice = structuredClone(base);
+      z2mDevice.friendly_name = 'Roller blind';
+      z2mDevice.ieee_address = '0x000d6ffffe2aaf3e';
+      if (!z2mDevice.definition) throw new Error('Z2M Device definition not found');
+      z2mDevice.definition.exposes = z2mDevice.definition.exposes.filter((expose) => expose.property !== 'moving');
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      expect(entity).toBeDefined();
+      expect(entity.entityName).toBe('Roller blind');
+      const device = entity.bridgedDevice;
+      expect(device).toBeDefined();
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect((entity as any).propertyMap.has('position')).toBe(true);
+      expect((entity as any).propertyMap.has('moving')).toBe(false);
+      (entity as any).coverReportTimeoutTime = 1000;
+
+      vi.clearAllMocks();
+      expect(await addDevice(aggregator, device)).toBe(true);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+
+      // The device reports fully closed while stopped: current and target follow the report
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 0, state: 'CLOSE' });
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+
+      // Open from the controller: the movement stays in progress until the device reports the target position
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'upOrOpen');
+      await flushAsync(undefined, undefined, commandTimeout);
+      expect(publishCommandSpy).toHaveBeenCalledWith('upOrOpen', z2mDevice.friendly_name, { state: 'OPEN' });
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000); // Not snapped: the position reports update it
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Opening,
+        lift: WindowCovering.MovementStatus.Opening,
+        tilt: WindowCovering.MovementStatus.Opening,
+      });
+
+      // Intermediate report: the position is live while the movement continues
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 50 });
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Opening,
+        lift: WindowCovering.MovementStatus.Opening,
+        tilt: WindowCovering.MovementStatus.Opening,
+      });
+
+      // Final report at the target position: the movement is finished
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 100, state: 'OPEN' });
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+
+      // Go to 50% from the controller: closing direction
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'goToLiftPercentage', { liftPercent100thsValue: 5000 });
+      await flushAsync(undefined, undefined, commandTimeout);
+      expect(publishCommandSpy).toHaveBeenCalledWith('goToLiftPercentage', z2mDevice.friendly_name, { position: 50 });
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Closing,
+        lift: WindowCovering.MovementStatus.Closing,
+        tilt: WindowCovering.MovementStatus.Closing,
+      });
+
+      // The movement is interrupted before reaching the target: the cover report timeout aligns the target
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 60 });
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(4000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Closing,
+        lift: WindowCovering.MovementStatus.Closing,
+        tilt: WindowCovering.MovementStatus.Closing,
+      });
+      await flushAsync(undefined, undefined, 1500); // Wait for the cover report timeout
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(4000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(4000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+
+      // Moved from outside while stopped: current and target follow the reports
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 80 });
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(2000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(2000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+
+      // stopMotion aligns the target to the current position
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'downOrClose');
+      await flushAsync(undefined, undefined, commandTimeout);
+      expect(publishCommandSpy).toHaveBeenCalledWith('downOrClose', z2mDevice.friendly_name, { state: 'CLOSE' });
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Closing,
+        lift: WindowCovering.MovementStatus.Closing,
+        tilt: WindowCovering.MovementStatus.Closing,
+      });
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'WindowCovering', 'stopMotion');
+      await flushAsync(undefined, undefined, commandTimeout);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopMotion', z2mDevice.friendly_name, { state: 'STOP' });
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(2000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(2000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
 
       entity.destroy();
     });
