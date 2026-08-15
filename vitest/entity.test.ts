@@ -1095,20 +1095,20 @@ describe('Test Entity', () => {
       (entity as any).noUpdate = false;
 
       vi.clearAllMocks();
-      payload = { position: 0 };
+      payload = { position: 0 }; // Zigbee2MQTT position 0 = fully closed => Matter 10000
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
       await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
         `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
       );
 
       vi.clearAllMocks();
-      payload = { position: 100 };
+      payload = { position: 100 }; // Zigbee2MQTT position 100 = fully open => Matter 0
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
       await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
         `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
@@ -1153,8 +1153,8 @@ describe('Test Entity', () => {
         lift: WindowCovering.MovementStatus.Stopped,
         tilt: WindowCovering.MovementStatus.Stopped,
       });
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
         `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,

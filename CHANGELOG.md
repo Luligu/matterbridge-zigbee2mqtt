@@ -48,6 +48,10 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `@types/node` to v.26.2.0.
 - [package]: Update agents configs.
 
+### Fixed
+
+- [cover]: Fix inverted cover position reporting. Zigbee2MQTT covers use position 100 = fully open and 0 = fully closed, while Matter WindowCovering uses 0 = fully open and 10000 = fully closed: the missing conversion made a closed cover appear open (and vice versa) on the controllers.
+
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [3.2.0] - 2026-07-17

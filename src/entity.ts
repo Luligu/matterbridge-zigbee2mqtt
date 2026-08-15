@@ -321,7 +321,7 @@ export class ZigbeeEntity extends EventEmitter {
         // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
         // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', value * 100);
+          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', 10000 - value * 100);
         }
         if (key === 'moving' && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
