@@ -1292,12 +1292,45 @@ describe('Test Entity', () => {
         tilt: WindowCovering.MovementStatus.Stopped,
       });
 
-      // Moved from outside while stopped: current and target follow the reports
+      // Moved from outside (remote or button) while stopped: the direction is derived and full travel is assumed
       vi.clearAllMocks();
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 80 });
       await flushAsync(undefined, undefined, updateTimeout);
       expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(2000);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0); // Predicted: full open
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Opening,
+        lift: WindowCovering.MovementStatus.Opening,
+        tilt: WindowCovering.MovementStatus.Opening,
+      });
+      await flushAsync(undefined, undefined, 1500); // No more reports: the movement is finished at the last position
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(2000);
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(2000);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+
+      // Moved from outside to the end of travel: the movement finishes with the report at the predicted target
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 100 });
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+        global: WindowCovering.MovementStatus.Stopped,
+        lift: WindowCovering.MovementStatus.Stopped,
+        tilt: WindowCovering.MovementStatus.Stopped,
+      });
+
+      // A report without a position change while stopped only aligns a desynced target
+      vi.clearAllMocks();
+      await device.setAttribute('WindowCovering', 'targetPositionLiftPercent100ths', 3000);
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { position: 100, battery: 50 });
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Stopped,
         lift: WindowCovering.MovementStatus.Stopped,
@@ -1319,8 +1352,8 @@ describe('Test Entity', () => {
       await invokeBehaviorCommand(device, 'WindowCovering', 'stopMotion');
       await flushAsync(undefined, undefined, commandTimeout);
       expect(publishCommandSpy).toHaveBeenCalledWith('stopMotion', z2mDevice.friendly_name, { state: 'STOP' });
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(2000);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(2000);
+      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Stopped,
         lift: WindowCovering.MovementStatus.Stopped,
@@ -1328,7 +1361,7 @@ describe('Test Entity', () => {
       });
 
       entity.destroy();
-    });
+    }, 30000);
 
     test('create a lock device', async () => {
       // await setDebug(true);

@@ -323,28 +323,7 @@ export class ZigbeeEntity extends EventEmitter {
         // Zigbee2MQTT cover: 0 = fully closed, 100 = fully open (with invert_cover = false)
         // Matter WindowCovering: 0 = fully opened, 10000 = fully closed
         if (key === 'position' && this.isDevice && isValidNumber(value, 0, 100)) {
-          const current = 10000 - value * 100;
-          this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
-          // Covers that do not report moving or motor_state: derive the movement status from the position reports
-          if (!this.propertyMap.has('moving') && !this.propertyMap.has('motor_state')) {
-            clearTimeout(this.coverReportTimeout);
-            this.coverReportTimeout = undefined;
-            const target = this.bridgedDevice.getAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', this.log);
-            const operationalStatus: WindowCovering.OperationalStatus | undefined = this.bridgedDevice.getAttribute(WindowCovering.id, 'operationalStatus', this.log);
-            if (isValidNumber(target, 0, 10000) && isValidObject(operationalStatus)) {
-              if (target === current) {
-                // The cover reached the target position: the movement is finished
-                const status = WindowCovering.MovementStatus.Stopped;
-                this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
-              } else if (operationalStatus.global === WindowCovering.MovementStatus.Stopped) {
-                // The cover is moved from outside (physical button, zigbee2mqtt frontend): follow the reported position
-                this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', current);
-              } else {
-                // The cover is moving towards the target: consider the movement finished if no report arrives in time
-                this.restartCoverReportTimeout();
-              }
-            }
-          }
+          this.handleCoverPositionReport(10000 - value * 100);
         }
         if (key === 'moving' && this.isDevice) {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
@@ -482,6 +461,64 @@ export class ZigbeeEntity extends EventEmitter {
     this.bridgedDevice = undefined;
     this.mutableDevice.clear();
     this.propertyMap.clear();
+  }
+
+  /**
+   * Handles a cover position report from Zigbee2MQTT.
+   *
+   * @param {number} current - The reported position converted to Matter (0 = fully open, 10000 = fully closed).
+   *
+   * @remarks
+   * Updates currentPositionLiftPercent100ths and, for covers that do not report moving or motor_state, derives the
+   * movement status from the position reports. Movements started from outside (remote or physical button) are
+   * detected from the position change while the cover is stopped: the target is assumed to be the end of travel in
+   * the derived direction and is updated before the current position, so the controllers that infer the direction
+   * from the target and current positions show the correct one. The cover report timeout finishes the movement when
+   * the reports stop before the target is reached.
+   */
+  protected handleCoverPositionReport(current: number): void {
+    if (this.bridgedDevice === undefined) return;
+    if (this.propertyMap.has('moving') || this.propertyMap.has('motor_state')) {
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
+      return;
+    }
+    clearTimeout(this.coverReportTimeout);
+    this.coverReportTimeout = undefined;
+    const previous = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
+    const target = this.bridgedDevice.getAttribute(WindowCovering.id, 'targetPositionLiftPercent100ths', this.log);
+    const operationalStatus: WindowCovering.OperationalStatus | undefined = this.bridgedDevice.getAttribute(WindowCovering.id, 'operationalStatus', this.log);
+    if (!isValidNumber(previous, 0, 10000) || !isValidNumber(target, 0, 10000) || !isValidObject(operationalStatus)) {
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
+      return;
+    }
+    if (target === current) {
+      // The cover reached the target position: the movement is finished
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
+      const status = WindowCovering.MovementStatus.Stopped;
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+    } else if (operationalStatus.global === WindowCovering.MovementStatus.Stopped && previous !== current) {
+      // The cover is moved from outside (remote or physical button): assume the movement continues to the end of travel.
+      // Update the target before the current position so the controllers derive the correct direction.
+      const opening = current < previous;
+      const predicted = opening ? 0 : 10000;
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', predicted);
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
+      if (predicted === current) {
+        const status = WindowCovering.MovementStatus.Stopped;
+        this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+      } else {
+        const status = opening ? WindowCovering.MovementStatus.Opening : WindowCovering.MovementStatus.Closing;
+        this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+        this.restartCoverReportTimeout();
+      }
+    } else if (operationalStatus.global === WindowCovering.MovementStatus.Stopped) {
+      // The target is desynced without a position change (i.e. after a restart): align the target to the current position
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', current);
+    } else {
+      // The cover is moving towards the target: consider the movement finished if no report arrives in time
+      this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', current);
+      this.restartCoverReportTimeout();
+    }
   }
 
   /**
