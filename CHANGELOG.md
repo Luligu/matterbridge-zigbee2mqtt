@@ -34,6 +34,8 @@ If you like this project and find it useful, please consider giving it a star on
 ### Breaking changes
 
 - [matterbridge]: Require matterbridge v.3.10.0 with matter v.1.6.0.
+- [cover]: The cover position reported to the controllers now follows the standard Zigbee2MQTT convention (position 100 = fully open, 0 = fully closed), matching what the Zigbee2MQTT frontend, Home Assistant and homebridge-z2m show. If you previously enabled the Zigbee2MQTT per device option `invert_cover` as a workaround for the mirrored open and closed state on the Matter controllers (see issues [#121](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/121), [#131](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/131), [#146](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/146) and [#148](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/148)), remove that option: the state is then correct on all platforms at once. Keep `invert_cover` only for devices whose converter reports an inverted position in the Zigbee2MQTT frontend itself.
+- [cover]: Some covers (i.e. the IKEA FYRTUR and TREDANSEN blinds) let Zigbee2MQTT publish the commanded target as a normal position report when a movement starts. The plugin now filters these echoes, so no configuration is needed; they can also be disabled at the source with the Zigbee2MQTT per device option `cover_position_tilt_disable_report`.
 
 ### Added
 
@@ -47,14 +49,6 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `oxlint-tsgolint` to v.7.0.2001.
 - [package]: Bump `@types/node` to v.26.2.0.
 - [package]: Update agents configs.
-
-### Breaking changes
-
-- [cover]: The cover position reported to the controllers now follows the standard Zigbee2MQTT convention (position 100 = fully open, 0 = fully closed), matching what the Zigbee2MQTT frontend, Home Assistant and homebridge-z2m show. If you previously enabled the Zigbee2MQTT per device option `invert_cover` as a workaround for the mirrored open and closed state on the Matter controllers (see issues [#121](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/121), [#131](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/131), [#146](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/146) and [#148](https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/148)), remove that option: the state is then correct on all platforms at once. Keep `invert_cover` only for devices whose converter reports an inverted position in the Zigbee2MQTT frontend itself.
-- [cover]: Some covers (i.e. the IKEA FYRTUR and TREDANSEN blinds) let Zigbee2MQTT publish the commanded target as a normal position report when a movement starts. The plugin now filters these echoes, so no configuration is needed; they can also be disabled at the source with the Zigbee2MQTT per device option `cover_position_tilt_disable_report`.
-
-### Changed
-
 - [cover]: Report cover movement live to the controllers. The commands no longer snap the current position to the target: the position reports from Zigbee2MQTT drive `currentPositionLiftPercent100ths` while the cover is moving, and `operationalStatus` reports Opening, Closing and Stopped. Covers that do not expose `moving` or `motor_state` derive the movement status from the position reports, with a report timeout that finishes the movement when the cover stops before reaching the target. Movements started from outside (bound remote or physical button) derive the direction from the position change and assume full travel, so the controllers show the correct opening or closing direction. Position reports that jump implausibly far from the last accepted position (like the commanded target echoed back by Zigbee2MQTT when a movement starts) are held back until a following report corroborates them, so an echo can neither finish a movement early nor flip the shown direction.
 
 ### Fixed
