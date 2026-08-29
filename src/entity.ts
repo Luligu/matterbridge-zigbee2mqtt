@@ -1061,14 +1061,10 @@ export class ZigbeeGroup extends ZigbeeEntity {
               if (expose.type === 'switch' || expose.type === 'light') {
                 if (expose.type === 'switch') isSwitch = true;
                 if (expose.type === 'light') isLight = true;
-                // oxlint-disable-next-line no-unneeded-ternary
-                useState = useState || feature.name === 'state' ? true : false;
-                // oxlint-disable-next-line no-unneeded-ternary
-                useBrightness = useBrightness || feature.name === 'brightness' ? true : false;
-                // oxlint-disable-next-line no-unneeded-ternary
-                useColor = useColor || feature.property === 'color' ? true : false;
-                // oxlint-disable-next-line no-unneeded-ternary
-                useColorTemperature = useColorTemperature || feature.name === 'color_temp' ? true : false;
+                useState ||= feature.name === 'state';
+                useBrightness ||= feature.name === 'brightness';
+                useColor ||= feature.property === 'color';
+                useColorTemperature ||= feature.name === 'color_temp';
                 if (feature.value_min) minColorTemperature = Math.min(minColorTemperature, feature.value_min);
                 if (feature.value_max) maxColorTemperature = Math.max(maxColorTemperature, feature.value_max);
               } else if (expose.type === 'cover') {
@@ -1083,8 +1079,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
           }
         });
         device.definition?.options.forEach((option) => {
-          // oxlint-disable-next-line no-unneeded-ternary
-          useTransition = useTransition || option.name === 'transition' ? true : false;
+          useTransition ||= option.name === 'transition';
         });
       });
       zigbeeGroup.log.debug(
