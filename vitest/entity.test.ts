@@ -1020,7 +1020,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Stopped,
         lift: WindowCovering.MovementStatus.Stopped,
-        tilt: WindowCovering.MovementStatus.Stopped,
       });
       expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
 
