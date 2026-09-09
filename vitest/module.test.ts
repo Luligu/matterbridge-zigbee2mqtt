@@ -95,6 +95,7 @@ describe('TestPlatform', () => {
     switchList: [],
     lightList: [],
     outletList: [],
+    valveList: [],
     featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
     deviceFeatureBlackList: {},
     scenesType: 'outlet',

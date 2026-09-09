@@ -58,6 +58,7 @@ import {
   temperatureSensor,
   thermostat,
   waterLeakDetector,
+  waterValve,
   windowCovering,
 } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, dn, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
@@ -88,6 +89,7 @@ import {
   TemperatureMeasurement,
   Thermostat,
   TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  ValveConfigurationAndControl,
   WindowCovering,
 } from 'matterbridge/matter/clusters';
 import { ClusterId, getClusterNameById, type Semtag, type VendorId } from 'matterbridge/matter/types';
@@ -288,14 +290,20 @@ export class ZigbeeEntity extends EventEmitter {
               return;
             }
             if (z2m.converter || z2m.valueLookup) {
-              this.updateAttributeIfChanged(
-                this.bridgedDevice,
-                propertyMap === undefined || propertyMap.endpoint === '' ? undefined : propertyMap.endpoint,
-                z2m.cluster,
-                z2m.attribute,
-                z2m.converter ? z2m.converter(value) : value,
-                z2m.valueLookup,
-              );
+              const endpointName = propertyMap === undefined || propertyMap.endpoint === '' ? undefined : propertyMap.endpoint;
+              this.updateAttributeIfChanged(this.bridgedDevice, endpointName, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
+              if (z2m.cluster === ValveConfigurationAndControl.id && z2m.attribute === 'currentState') {
+                const open = value === 'ON' || value === true;
+                this.updateAttributeIfChanged(
+                  this.bridgedDevice,
+                  endpointName,
+                  ValveConfigurationAndControl.id,
+                  'targetState',
+                  open ? ValveConfigurationAndControl.ValveState.Open : ValveConfigurationAndControl.ValveState.Closed,
+                );
+                this.updateAttributeIfChanged(this.bridgedDevice, endpointName, ValveConfigurationAndControl.id, 'currentLevel', open ? 100 : 0);
+                this.updateAttributeIfChanged(this.bridgedDevice, endpointName, ValveConfigurationAndControl.id, 'targetLevel', open ? 100 : 0);
+              }
               return;
             }
           } else this.log.debug(`*Payload entry ${CYAN}${key}${db} not found in zigbeeToMatter converter`);
@@ -611,6 +619,38 @@ export class ZigbeeEntity extends EventEmitter {
     } else {
       this.cachePublish('toggle', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
     }
+  }
+
+  /**
+   * Publishes zigbee2mqtt ON when Matter ValveConfigurationAndControl Open is received.
+   *
+   * @param {CommandHandlerData} data - Command handler data from the endpoint that received Open.
+   * @returns {void}
+   */
+  // prettier-ignore
+  protected openCommandHandler(data: CommandHandlerData): void {
+    this.saveCommands('open', data);
+    const entityName = this.isGroup ? this.group?.friendly_name : this.device?.friendly_name;
+    if (!entityName) return;
+    this.log.debug(`Command open called for ${this.ien}${entityName}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.publishCommand('open', entityName, { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'ON' });
+  }
+
+  /**
+   * Publishes zigbee2mqtt OFF when Matter ValveConfigurationAndControl Close is received.
+   *
+   * @param {CommandHandlerData} data - Command handler data from the endpoint that received Close.
+   * @returns {void}
+   */
+  // prettier-ignore
+  protected closeCommandHandler(data: CommandHandlerData): void {
+    this.saveCommands('close', data);
+    const entityName = this.isGroup ? this.group?.friendly_name : this.device?.friendly_name;
+    if (!entityName) return;
+    this.log.debug(`Command close called for ${this.ien}${entityName}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.publishCommand('close', entityName, { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
   }
 
   // prettier-ignore
@@ -1305,6 +1345,7 @@ interface ZigbeeToMatter {
 // prettier-ignore
 const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffLightSwitch, cluster: OnOff.id, attribute: 'onOff', converter: (value) => { return value === 'ON' } },
+  { type: 'valve', name: 'state', property: 'state', deviceType: waterValve, cluster: ValveConfigurationAndControl.id, attribute: 'currentState', converter: (value) => { return value === 'ON' || value === true ? ValveConfigurationAndControl.ValveState.Open : ValveConfigurationAndControl.ValveState.Closed } },
   { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmerSwitch, cluster: LevelControl.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
   { type: 'switch', name: 'color_hs', property: 'color_hs', deviceType: colorDimmerSwitch, cluster: ColorControl.id, attribute: 'colorMode' },
   { type: 'switch', name: 'color_xy', property: 'color_xy', deviceType: colorDimmerSwitch, cluster: ColorControl.id, attribute: 'colorMode' },
@@ -1541,6 +1582,11 @@ export class ZigbeeDevice extends ZigbeeEntity {
         types[index] = type === 'switch' || type === 'light' ? 'outlet' : type;
       });
     }
+    if (platform.valveList.includes(device.friendly_name)) {
+      types.forEach((type, index) => {
+        types[index] = type === 'switch' || type === 'light' || type === 'outlet' ? 'valve' : type;
+      });
+    }
 
     // Set the device entity select
     platform.setSelectEntity('last_seen', 'Last seen', 'hub');
@@ -1713,6 +1759,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
       if (deviceTypesMap.has(dimmableLight.code) && deviceTypesMap.has(colorTemperatureLight.code)) deviceTypesMap.delete(dimmableLight.code);
       if (deviceTypesMap.has(dimmableLight.code) && deviceTypesMap.has(extendedColorLight.code)) deviceTypesMap.delete(dimmableLight.code);
       if (deviceTypesMap.has(colorTemperatureLight.code) && deviceTypesMap.has(extendedColorLight.code)) deviceTypesMap.delete(colorTemperatureLight.code);
+      if (deviceTypesMap.has(waterValve.code) && deviceTypesMap.has(onOffLightSwitch.code)) deviceTypesMap.delete(onOffLightSwitch.code);
+      if (deviceTypesMap.has(waterValve.code) && deviceTypesMap.has(onOffLight.code)) deviceTypesMap.delete(onOffLight.code);
+      if (deviceTypesMap.has(waterValve.code) && deviceTypesMap.has(onOffPlugInUnit.code)) deviceTypesMap.delete(onOffPlugInUnit.code);
       deviceTypesMap.delete(bridgedNode.code);
       deviceTypesMap.delete(powerSource.code);
       device.deviceTypes = Array.from(deviceTypesMap.values()); /* .sort((a, b) => b.code - a.code);*/
@@ -1767,6 +1816,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
         `Device ${zigbeeDevice.ien}${zigbeeDevice.device?.friendly_name}${rs}${db} endpoint: ${ign}${endpoint === '' ? 'main' : endpoint}${rs}${db} => ` +
           `${nf}tagList: ${debugStringify(device.tagList)} deviceTypes: ${debugStringify(device.deviceTypes)} clusterServersIds: ${debugStringify(device.clusterServersIds)}`,
       );
+    }
+
+    // Configure ValveConfigurationAndControlCluster for water valves
+    if (mainEndpoint.deviceTypes.find((dt) => dt.code === waterValve.code) && mainEndpoint.clusterServersIds.includes(ValveConfigurationAndControl.id)) {
+      zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ValveConfigurationAndControlCluster cluster with`);
+      zigbeeDevice.bridgedDevice.createDefaultValveConfigurationAndControlClusterServer();
+      mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ValveConfigurationAndControl.id), 1);
     }
 
     // Configure BooleanStateCluster for water leak detector and rain sensor
@@ -2000,6 +2056,17 @@ export class ZigbeeDevice extends ZigbeeEntity {
         zigbeeDevice.log.debug(`Command unlockDoor called for ${zigbeeDevice.ien}${device.friendly_name}${rs}${db}`);
         zigbeeDevice.publishCommand('unlockDoor', device.friendly_name, { state: 'UNLOCK' });
       });
+    }
+
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ValveConfigurationAndControl.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('open', zigbeeDevice.openCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('close', zigbeeDevice.closeCommandHandler.bind(zigbeeDevice));
+    }
+    for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
+      if (child.hasClusterServer(ValveConfigurationAndControl.id)) {
+        child.addCommandHandler('open', zigbeeDevice.openCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('close', zigbeeDevice.closeCommandHandler.bind(zigbeeDevice));
+      }
     }
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(Thermostat.id)) {

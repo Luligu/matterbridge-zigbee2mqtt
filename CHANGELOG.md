@@ -31,6 +31,10 @@ If you like this project and find it useful, please consider giving it a star on
 
 ## [3.2.2] - Dev branch
 
+### Added
+
+- [waterValve]: Add `valveList` to expose zigbee2mqtt switches as Matter Water Valve devices with ValveConfigurationAndControl Open/Close.
+
 ### Changed
 
 - [test]: Update expectation to matterbridge 3.10.8.

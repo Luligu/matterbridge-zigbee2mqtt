@@ -117,6 +117,8 @@ If any device creates issues put it in the blackList.
 
 The switchList, lightList and outletList are used if you want to expose the z2m device like switch, light or outlet.
 
+The valveList is used if you want to expose the z2m device like a Matter Water Valve (Open/Close). Use it for irrigation and water valves that zigbee2mqtt exposes as switches.
+
 The featureBlackList allows to globally (for all devices) blacklist a z2m feature if you don't want to expose it (e.g. device_temperature).
 
 The deviceFeatureBlackList allows to blacklist a z2m feature for a single device if you don't want to expose it (e.g. temperature for a motion sensor).
@@ -152,6 +154,7 @@ These are the default vules:
   "switchList": [],
   "lightList": [],
   "outletList": [],
+  "valveList": [],
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
   "scenesType": "outlet",
