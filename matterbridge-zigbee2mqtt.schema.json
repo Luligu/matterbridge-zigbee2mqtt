@@ -135,6 +135,16 @@
       "uniqueItems": true,
       "selectFrom": "name"
     },
+    "valveList": {
+      "title": "Valve List",
+      "description": "The devices in the list will be exposed like Matter Water Valves. Use this for zigbee2mqtt irrigation valves and water valves that are otherwise exposed as switches.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "selectFrom": "name"
+    },
     "featureBlackList": {
       "title": "Feature Black List",
       "description": "The features in the list will not be exposed for all devices.",

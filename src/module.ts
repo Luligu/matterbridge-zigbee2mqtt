@@ -53,6 +53,7 @@ export type ZigbeePlatformConfig = BasePlatformConfig & {
   switchList: string[];
   lightList: string[];
   outletList: string[];
+  valveList: string[];
   featureBlackList: string[];
   deviceFeatureBlackList: DeviceFeatureBlackList;
   scenesType: 'light' | 'outlet' | 'switch' | 'mounted_switch';
@@ -95,6 +96,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public lightList: string[] = [];
   public outletList: string[] = [];
   public switchList: string[] = [];
+  public valveList: string[] = [];
   public featureBlackList: string[] = [];
   public deviceFeatureBlackList: DeviceFeatureBlackList = {};
   public postfix = '';
@@ -151,6 +153,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.switchList) this.switchList = config.switchList;
     if (config.lightList) this.lightList = config.lightList;
     if (config.outletList) this.outletList = config.outletList;
+    if (config.valveList) this.valveList = config.valveList;
     if (config.featureBlackList) this.featureBlackList = config.featureBlackList;
     if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList;
     if (config.postfix && typeof config.postfix === 'string') {

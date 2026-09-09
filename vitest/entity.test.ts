@@ -13,10 +13,10 @@ const MATTER_CREATE_ONLY = true;
 
 import path from 'node:path';
 
-import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, MatterbridgeEndpoint, type PlatformMatterbridge } from 'matterbridge';
+import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, MatterbridgeEndpoint, type PlatformMatterbridge, waterValve } from 'matterbridge';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
 import type { Endpoint, ServerNode } from 'matterbridge/matter';
-import { ColorControl, DoorLock, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { ColorControl, DoorLock, OnOff, PowerSource, Thermostat, ValveConfigurationAndControl, WindowCovering } from 'matterbridge/matter/clusters';
 import type { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { getMacAddress, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 import { flushAsync, log, loggerDebugSpy, loggerInfoSpy, loggerLogSpy, setDebug, setupTest } from 'matterbridge/vitest-utils';
@@ -96,6 +96,7 @@ describe('Test Entity', () => {
     switchList: [],
     lightList: [],
     outletList: [],
+    valveList: [],
     featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
     deviceFeatureBlackList: {},
     scenesType: 'outlet',
@@ -833,6 +834,73 @@ describe('Test Entity', () => {
       expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
 
+      entity.destroy();
+    });
+
+    test('should expose a switch on valveList as a water valve when listed', async () => {
+      const z2mDevice = waterValveDevice;
+      const friendlyName = z2mDevice.friendly_name;
+      platform.valveList = [friendlyName];
+      expect(z2mDevice).toBeDefined();
+      if (!z2mDevice) throw new Error('Z2M Device not found');
+      const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      expect(entity).toBeDefined();
+      expect(entity.entityName).toBe(friendlyName);
+      const device = entity.bridgedDevice;
+      expect(device).toBeDefined();
+      expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(device.deviceTypes.get(waterValve.code)).toBeDefined();
+      expect(device.hasClusterServer(ValveConfigurationAndControl.id)).toBe(true);
+      expect(device.hasClusterServer(OnOff.id)).toBe(false);
+      expect(device.getChildEndpoints()).toHaveLength(0);
+
+      vi.clearAllMocks();
+      expect(await addDevice(aggregator, device)).toBe(true);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentLevel')).toBe(0);
+      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', {});
+      await flushAsync(undefined, undefined, commandTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command open called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('open', friendlyName, { state: 'ON' });
+
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'close', {});
+      await flushAsync(undefined, undefined, commandTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command close called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('close', friendlyName, { state: 'OFF' });
+
+      let payload: Payload;
+      clearTimeout((entity as any).cachePublishTimeout);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      payload = { state: 'ON' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentLevel')).toBe(100);
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.INFO,
+        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+      );
+
+      vi.clearAllMocks();
+      payload = { state: 'OFF' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentLevel')).toBe(0);
+
+      platform.valveList = [];
       entity.destroy();
     });
 
@@ -3933,4 +4001,67 @@ const lock = {
   power_source: 'Mains (single phase)',
   supported: true,
   type: 'Router',
+};
+
+const waterValveDevice = {
+  date_code: '',
+  definition: {
+    description: 'Zigbee smart water valve',
+    exposes: [
+      {
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the valve',
+            label: 'State',
+            name: 'state',
+            property: 'state',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Remaining battery in %',
+        label: 'Battery',
+        name: 'battery',
+        property: 'battery',
+        type: 'numeric',
+        unit: '%',
+        value_max: 100,
+        value_min: 0,
+      },
+    ],
+    model: 'SWV',
+    options: [],
+    supports_ota: false,
+    vendor: 'SONOFF',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [],
+      clusters: {
+        input: ['genBasic', 'genIdentify', 'genOnOff'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Garden water valve',
+  ieee_address: '0x00124b002a1b2c3d',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: 'SONOFF',
+  model_id: 'SWV',
+  network_address: 21450,
+  power_source: 'Battery',
+  supported: true,
+  type: 'EndDevice',
 };
