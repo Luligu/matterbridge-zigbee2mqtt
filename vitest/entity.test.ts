@@ -1849,7 +1849,7 @@ describe('Test Entity', () => {
       );
 
       entity.destroy();
-    }, 10000);
+    });
 
     test('create a temperature, humidity and pressure sensor device', async () => {
       const friendlyName = climateSensor.friendly_name;
