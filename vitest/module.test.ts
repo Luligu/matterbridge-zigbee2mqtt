@@ -164,7 +164,7 @@ describe('TestPlatform', () => {
     platform.z2m.emit('mqtt_error');
     platform.z2m.emit('online');
     platform.z2m.emit('offline');
-    // prettier-ignore
+    // oxfmt-ignore
     platform.z2m.emit('bridge-info', { version: '1', zigbee_herdsman: { version: '1' }, zigbee_herdsman_converters: { version: '1' }, config: { advanced: { output: 'attribute', legacy_api: true, legacy_availability_payload: true } } });
     platform.shouldStart = true;
     platform.shouldConfigure = true;

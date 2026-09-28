@@ -377,7 +377,7 @@ export class ZigbeeEntity extends EventEmitter {
           );
         }
         // ColorControl currentHue, currentSaturation and colorMode
-        // prettier-ignore
+        // oxfmt-ignore
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'hs') {
           // oxlint-disable-next-line typescript/no-unsafe-type-assertion
           const { hue, saturation } = value as { hue: number; saturation: number };
@@ -388,7 +388,7 @@ export class ZigbeeEntity extends EventEmitter {
           }
         }
         // ColorControl currentX, currentY and colorMode
-        // prettier-ignore
+        // oxfmt-ignore
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
           // not supported by Apple Home so we convert xy to hue and saturation
           // oxlint-disable-next-line typescript/no-unsafe-type-assertion
@@ -575,7 +575,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  onCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('on', data);
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === true) {
@@ -588,7 +588,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('on', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'ON' });
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  offCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('off', data);
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false) {
@@ -600,7 +600,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('off', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  toggleCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('toggle', data);
     this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
@@ -613,7 +613,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToLevelCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevel']): void {
     this.saveCommands('moveToLevel', data);
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.id, 'currentLevel') === data.request.level) {
@@ -625,7 +625,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToLevel', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: data.request.level }, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToLevelWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevelWithOnOff']): void {
     this.saveCommands('moveToLevelWithOnOff', data);
     this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
@@ -647,7 +647,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColorTemperature']): void {
     this.saveCommands('moveToColorTemperature', data);
     delete this.cachePayload['color'];
@@ -666,7 +666,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToColorCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColor']): void {
     this.saveCommands('moveToColor', data);
     delete this.cachePayload['color_temp'];
@@ -679,7 +679,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToColor', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { x: Math.round(data.request.colorX / 65536 * 10000) / 10000, y: Math.round(data.request.colorY / 65536 * 10000) / 10000 } }, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToHueCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHue']): void {
     this.saveCommands('moveToHue', data);
     delete this.cachePayload['color_temp'];
@@ -692,7 +692,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControl.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToSaturation']): void {
     this.saveCommands('moveToSaturation', data);
     delete this.cachePayload['color_temp'];
@@ -705,7 +705,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControl.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToHueAndSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHueAndSaturation']): void {
     this.saveCommands('moveToHueAndSaturation', data);
     delete this.cachePayload['color_temp'];
@@ -1302,7 +1302,7 @@ interface ZigbeeToMatter {
   valueLookup?: string[];
 }
 
-// prettier-ignore
+// oxfmt-ignore
 const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffLightSwitch, cluster: OnOff.id, attribute: 'onOff', converter: (value) => { return value === 'ON' } },
   { type: 'switch', name: 'brightness', property: 'brightness', deviceType: dimmerSwitch, cluster: LevelControl.id, attribute: 'currentLevel', converter: (value) => { return Math.max(1, Math.min(254, value)) } },
@@ -1599,7 +1599,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         );
         zigbeeDevice.propertyMap.set(property, { name, type, endpoint, category, description, label, unit, value_min, value_max, values: value });
         if (endpoint === '') {
-          /* prettier-ignore */
+          /* oxfmt-ignore */
           if (zigbeeDevice.mutableDevice.has(endpoint)) {
             zigbeeDevice.mutableDevice.get(endpoint)?.deviceTypes.push(z2m.deviceType);
             zigbeeDevice.mutableDevice.get(endpoint)?.clusterServersIds.push(...z2m.deviceType.requiredServerClusters);
@@ -1615,7 +1615,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (endpoint === 'l5') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Five.namespaceId, tag: CommonNumberTag.Five.tag, label: 'endpoint ' + endpoint });
           if (endpoint === 'l6') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Six.namespaceId, tag: CommonNumberTag.Six.tag, label: 'endpoint ' + endpoint });
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'endpoint ' + endpoint });
-          /* prettier-ignore */
+          /* oxfmt-ignore */
           if (zigbeeDevice.mutableDevice.has(endpoint)) {
             zigbeeDevice.mutableDevice.get(endpoint)?.deviceTypes.push(z2m.deviceType);
             zigbeeDevice.mutableDevice.get(endpoint)?.clusterServersIds.push(...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster));
