@@ -56,6 +56,7 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `@vitest/coverage-v8` to v.5.0.2.
 - [package]: Bump `@types/node` to v.26.6.3.
 - [package]: Bump `typescript` to v.7.0.2.
+- [package]: Bump transitive `ip-address` to v.10.7.2 (mqtt → socks) to fix Dependabot alerts #40, #41, #42.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
