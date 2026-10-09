@@ -9,8 +9,8 @@ const NAME = 'Zigbee';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { HOMEDIR, setupTest } from 'matterbridge/test-utils/vitest';
 import { wait } from 'matterbridge/utils';
-import { HOMEDIR, setupTest } from 'matterbridge/vitest-utils';
 import { LogLevel } from 'node-ansi-logger';
 
 import type { Zigbee2MQTT as Zigbee2MQTTType } from '../src/zigbee2mqtt.js';

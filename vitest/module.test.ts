@@ -27,8 +27,7 @@ import {
 } from 'matterbridge';
 import { db, hk, idn, ign, LogLevel, or, rs, YELLOW } from 'matterbridge/logger';
 import { Thermostat } from 'matterbridge/matter/clusters';
-import { getMacAddress, wait } from 'matterbridge/utils';
-import { flushAsync, log, loggerLogSpy, setDebug, setupTest } from 'matterbridge/vitest-utils';
+import { flushAsync } from 'matterbridge/test-utils';
 import {
   addMatterbridge,
   createServerNode,
@@ -36,9 +35,14 @@ import {
   destroyTestEnvironment,
   flushServerNode,
   getMatterbridge,
+  log,
+  loggerLogSpy,
+  setDebug,
+  setupTest,
   startServerNode,
   stopServerNode,
-} from 'matterbridge/vitest-utils/matter';
+} from 'matterbridge/test-utils/vitest';
+import { getMacAddress, wait } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeGroup } from '../src/entity.js';
 import initializePlugin, { ZigbeePlatform, type ZigbeePlatformConfig } from '../src/module.js';

@@ -18,8 +18,7 @@ import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
 import type { Endpoint, ServerNode } from 'matterbridge/matter';
 import { ColorControl, DoorLock, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import type { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
-import { getMacAddress, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
-import { flushAsync, log, loggerDebugSpy, loggerInfoSpy, loggerLogSpy, setDebug, setupTest } from 'matterbridge/vitest-utils';
+import { flushAsync } from 'matterbridge/test-utils';
 import {
   addDevice,
   addMatterbridge,
@@ -29,9 +28,16 @@ import {
   destroyTestEnvironment,
   flushServerNode,
   getMatterbridge,
+  log,
+  loggerDebugSpy,
+  loggerInfoSpy,
+  loggerLogSpy,
+  setDebug,
+  setupTest,
   startServerNode,
   stopServerNode,
-} from 'matterbridge/vitest-utils/matter';
+} from 'matterbridge/test-utils/vitest';
+import { getMacAddress, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from '../src/entity.js';
 import { ZigbeePlatform, type ZigbeePlatformConfig } from '../src/module.js';
