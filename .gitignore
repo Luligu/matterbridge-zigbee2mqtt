@@ -26,5 +26,4 @@ tmp/
 !.env.example
 
 # Package specific directories and files that should be ignored (mb-run --upgrade merges the .localignore .gitlocalignore files from packages)
-
 TODO.md
