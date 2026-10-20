@@ -327,13 +327,13 @@ export class ZigbeeEntity extends EventEmitter {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           if (value === 'UP') {
             const status = WindowCovering.MovementStatus.Opening;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'DOWN') {
             const status = WindowCovering.MovementStatus.Closing;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'STOP') {
             const status = WindowCovering.MovementStatus.Stopped;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
             const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
@@ -343,13 +343,13 @@ export class ZigbeeEntity extends EventEmitter {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           if (value === 'opening') {
             const status = WindowCovering.MovementStatus.Opening;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'closing') {
             const status = WindowCovering.MovementStatus.Closing;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'stopped') {
             const status = WindowCovering.MovementStatus.Stopped;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
             const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
@@ -1192,7 +1192,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('upOrOpen', group.friendly_name, { state: 'OPEN' });
       });
@@ -1202,7 +1201,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('downOrClose', group.friendly_name, { state: 'CLOSE' });
       });
@@ -1211,7 +1209,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('stopMotion', group.friendly_name, { state: 'STOP' });
       });
@@ -1221,7 +1218,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('goToLiftPercentage', group.friendly_name, { position: 100 - liftPercent100thsValue / 100 });
       });
@@ -1939,7 +1935,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))
@@ -1954,7 +1949,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))
@@ -1968,7 +1962,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeDevice.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
@@ -1980,7 +1973,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))

@@ -113,7 +113,7 @@ describe('Test Entity', () => {
 
   beforeAll(async () => {
     // Create Matterbridge environment
-    await createTestEnvironment();
+    await createTestEnvironment('warn');
     await createServerNode(MATTER_PORT);
     if (!MATTER_CREATE_ONLY) await startServerNode();
     matterbridge = getMatterbridge();
@@ -1081,7 +1081,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Stopped,
         lift: WindowCovering.MovementStatus.Stopped,
-        tilt: WindowCovering.MovementStatus.Stopped,
       });
       expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
@@ -1126,7 +1125,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Opening,
         lift: WindowCovering.MovementStatus.Opening,
-        tilt: WindowCovering.MovementStatus.Opening,
       });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
@@ -1141,7 +1139,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Closing,
         lift: WindowCovering.MovementStatus.Closing,
-        tilt: WindowCovering.MovementStatus.Closing,
       });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
@@ -1156,7 +1153,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Stopped,
         lift: WindowCovering.MovementStatus.Stopped,
-        tilt: WindowCovering.MovementStatus.Stopped,
       });
       expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
