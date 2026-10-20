@@ -71,6 +71,10 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `@types/node` to v.26.6.5.
 - [package]: Bump transitive `ip-address` to v.10.7.2 (mqtt → socks) to fix Dependabot alerts #40, #41, #42.
 
+### Fixed
+
+- [cover]: Drop the `tilt` field from `operationalStatus` on lift-only covers: Matter 1.6.1 allows it only with the Tilt feature.
+
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [3.2.1] - 2026-08-29
