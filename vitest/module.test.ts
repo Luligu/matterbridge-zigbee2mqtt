@@ -110,7 +110,7 @@ describe('TestPlatform', () => {
 
   beforeAll(async () => {
     // Create Matterbridge environment
-    await createTestEnvironment('warn');
+    await createTestEnvironment();
     await createServerNode(MATTER_PORT);
     if (!MATTER_CREATE_ONLY) await startServerNode();
     matterbridge = getMatterbridge();
