@@ -859,12 +859,15 @@ describe('Test Entity', () => {
       expect(device.deviceTypes.get(waterValve.code)).toBeDefined();
       expect(device.hasClusterServer(ValveConfigurationAndControl.id)).toBe(true);
       expect(device.hasClusterServer(OnOff.id)).toBe(false);
-      expect(device.getChildEndpoints()).toHaveLength(0);
+      expect(device.getChildEndpoints()).toHaveLength(1);
+      expect(device.getChildEndpointById('l1')?.hasClusterServer(ValveConfigurationAndControl.id)).toBe(true);
 
       vi.clearAllMocks();
       expect(await addDevice(aggregator, device)).toBe(true);
       expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
-      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentLevel')).toBe(0);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+      expect(device.hasAttributeServer(ValveConfigurationAndControl.id, 'currentLevel')).toBe(false);
+      expect(device.hasAttributeServer(ValveConfigurationAndControl.id, 'targetLevel')).toBe(false);
       expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
 
       vi.clearAllMocks();
@@ -893,7 +896,7 @@ describe('Test Entity', () => {
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
       await flushAsync(undefined, undefined, updateTimeout);
       expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
-      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentLevel')).toBe(100);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
         `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
@@ -904,7 +907,56 @@ describe('Test Entity', () => {
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
       await flushAsync(undefined, undefined, updateTimeout);
       expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
-      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentLevel')).toBe(0);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+
+      vi.clearAllMocks();
+      await expect(device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', { targetLevel: 50 })).rejects.toThrow(/targetLevel 50/);
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'close', {});
+      await flushAsync(undefined, undefined, commandTimeout);
+      expect(publishCommandSpy).toHaveBeenCalledWith('close', friendlyName, { state: 'OFF' });
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+
+      vi.clearAllMocks();
+      payload = { state: 'ON' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', {});
+      await flushAsync(undefined, undefined, commandTimeout);
+      expect(publishCommandSpy).toHaveBeenCalledWith('open', friendlyName, { state: 'ON' });
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+
+      vi.useFakeTimers();
+      try {
+        vi.clearAllMocks();
+        await device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', { openDuration: 1 });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(publishCommandSpy).toHaveBeenCalledWith('open', friendlyName, { state: 'ON' });
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'remainingDuration')).toBe(1);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(publishCommandSpy).toHaveBeenCalledWith('close', friendlyName, { state: 'OFF' });
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'remainingDuration')).toBeNull();
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Transitioning);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+      } finally {
+        vi.useRealTimers();
+      }
+
+      vi.clearAllMocks();
+      payload = { state: 'OFF' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await flushAsync(undefined, undefined, updateTimeout);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
 
       platform.valveList = [];
       entity.destroy();
@@ -4018,6 +4070,23 @@ const waterValveDevice = {
             label: 'State',
             name: 'state',
             property: 'state',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        endpoint: 'l1',
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the second valve',
+            label: 'State',
+            name: 'state',
+            property: 'state_l1',
             type: 'binary',
             value_off: 'OFF',
             value_on: 'ON',

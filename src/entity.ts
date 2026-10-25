@@ -61,6 +61,7 @@ import {
   waterValve,
   windowCovering,
 } from 'matterbridge';
+import { MatterbridgeValveConfigurationAndControlServer } from 'matterbridge/behaviors';
 import { AnsiLogger, CYAN, db, debugStringify, dn, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
 import { type AtLeastOne, CommonNumberTag, SwitchesTag } from 'matterbridge/matter';
 import {
@@ -293,16 +294,8 @@ export class ZigbeeEntity extends EventEmitter {
               const endpointName = propertyMap === undefined || propertyMap.endpoint === '' ? undefined : propertyMap.endpoint;
               this.updateAttributeIfChanged(this.bridgedDevice, endpointName, z2m.cluster, z2m.attribute, z2m.converter ? z2m.converter(value) : value, z2m.valueLookup);
               if (z2m.cluster === ValveConfigurationAndControl.id && z2m.attribute === 'currentState') {
-                const open = value === 'ON' || value === true;
-                this.updateAttributeIfChanged(
-                  this.bridgedDevice,
-                  endpointName,
-                  ValveConfigurationAndControl.id,
-                  'targetState',
-                  open ? ValveConfigurationAndControl.ValveState.Open : ValveConfigurationAndControl.ValveState.Closed,
-                );
-                this.updateAttributeIfChanged(this.bridgedDevice, endpointName, ValveConfigurationAndControl.id, 'currentLevel', open ? 100 : 0);
-                this.updateAttributeIfChanged(this.bridgedDevice, endpointName, ValveConfigurationAndControl.id, 'targetLevel', open ? 100 : 0);
+                const endpoint = endpointName === undefined ? this.bridgedDevice : (this.bridgedDevice.getChildEndpointById(endpointName) ?? this.bridgedDevice);
+                fireAndForget(endpoint.setAttribute(ValveConfigurationAndControl.id, 'targetState', null), this.log, 'Error clearing valve targetState');
               }
               return;
             }
@@ -624,21 +617,36 @@ export class ZigbeeEntity extends EventEmitter {
   /**
    * Publishes zigbee2mqtt ON when Matter ValveConfigurationAndControl Open is received.
    *
+   * A listed valve is binary. targetLevel is rejected. openDuration is counted down by the cluster
+   * server, which then calls Close. A repeated Open of an already-ON valve is settled locally because
+   * an unchanged zigbee2mqtt report is not applied again.
+   *
    * @param {CommandHandlerData} data - Command handler data from the endpoint that received Open.
    * @returns {void}
+   * @throws {Error} When Open includes targetLevel.
    */
   // oxfmt-ignore
   protected openCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('open', data);
+    const targetLevel = 'targetLevel' in data.request ? data.request.targetLevel : undefined;
+    if (typeof targetLevel === 'number') {
+      const entityName = this.isGroup ? this.group?.friendly_name : this.device?.friendly_name;
+      this.log.debug(`Command open rejected for ${this.ien}${entityName}${rs}${db} targetLevel ${targetLevel} is not supported on a binary valve`);
+      throw new Error(`Open targetLevel ${targetLevel} is not supported on a binary valve`);
+    }
     const entityName = this.isGroup ? this.group?.friendly_name : this.device?.friendly_name;
     if (!entityName) return;
     this.log.debug(`Command open called for ${this.ien}${entityName}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.publishCommand('open', entityName, { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'ON' });
+    const stateKey = 'state' + (isChildEndpoint ? '_' + data.endpoint.id : '');
+    this.publishCommand('open', entityName, { [stateKey]: 'ON' });
+    if (this.lastPayload[stateKey] === 'ON' || this.lastPayload[stateKey] === true) this.settleUnchangedValve(data.endpoint, ValveConfigurationAndControl.ValveState.Open);
   }
 
   /**
    * Publishes zigbee2mqtt OFF when Matter ValveConfigurationAndControl Close is received.
+   *
+   * A repeated Close of an already-OFF valve is settled locally because an unchanged zigbee2mqtt report is not applied again.
    *
    * @param {CommandHandlerData} data - Command handler data from the endpoint that received Close.
    * @returns {void}
@@ -650,7 +658,23 @@ export class ZigbeeEntity extends EventEmitter {
     if (!entityName) return;
     this.log.debug(`Command close called for ${this.ien}${entityName}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.publishCommand('close', entityName, { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
+    const stateKey = 'state' + (isChildEndpoint ? '_' + data.endpoint.id : '');
+    this.publishCommand('close', entityName, { [stateKey]: 'OFF' });
+    if (this.lastPayload[stateKey] === 'OFF' || this.lastPayload[stateKey] === false) this.settleUnchangedValve(data.endpoint, ValveConfigurationAndControl.ValveState.Closed);
+  }
+
+  /**
+   * Restores a binary valve after a repeated Open or Close that does not change the zigbee state.
+   *
+   * @param {MatterbridgeEndpoint} endpoint - Endpoint that received the command.
+   * @param {ValveConfigurationAndControl.ValveState} state - Settled current state.
+   * @returns {void}
+   */
+  private settleUnchangedValve(endpoint: MatterbridgeEndpoint, state: ValveConfigurationAndControl.ValveState): void {
+    setTimeout(() => {
+      fireAndForget(endpoint.setAttribute(ValveConfigurationAndControl.id, 'currentState', state), this.log, 'Error settling valve currentState');
+      fireAndForget(endpoint.setAttribute(ValveConfigurationAndControl.id, 'targetState', null), this.log, 'Error clearing valve targetState');
+    }, 0).unref();
   }
 
   // oxfmt-ignore
@@ -1817,7 +1841,16 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Configure ValveConfigurationAndControlCluster for water valves
     if (mainEndpoint.deviceTypes.find((dt) => dt.code === waterValve.code) && mainEndpoint.clusterServersIds.includes(ValveConfigurationAndControl.id)) {
       zigbeeDevice.log.debug(`Configuring device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} ValveConfigurationAndControlCluster cluster with`);
-      zigbeeDevice.bridgedDevice.createDefaultValveConfigurationAndControlClusterServer();
+      zigbeeDevice.bridgedDevice.behaviors.require(MatterbridgeValveConfigurationAndControlServer.with(), {
+        currentState: ValveConfigurationAndControl.ValveState.Closed,
+        targetState: null,
+        openDuration: null,
+        defaultOpenDuration: null,
+        remainingDuration: null,
+        valveFault: { generalFault: false, blocked: false, leaking: false, notConnected: false, shortCircuit: false, currentExceeded: false },
+        movementDuration: 0,
+        autoClose: true,
+      });
       mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(ValveConfigurationAndControl.id), 1);
     }
 
