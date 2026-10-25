@@ -335,13 +335,13 @@ export class ZigbeeEntity extends EventEmitter {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           if (value === 'UP') {
             const status = WindowCovering.MovementStatus.Opening;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'DOWN') {
             const status = WindowCovering.MovementStatus.Closing;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'STOP') {
             const status = WindowCovering.MovementStatus.Stopped;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
             const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
@@ -351,13 +351,13 @@ export class ZigbeeEntity extends EventEmitter {
           // Removed code for reversed covers cause it was not working properly with some covers. Furthermore, zigbee2mqtt already handles reversed covers with its invert_cover configuration.
           if (value === 'opening') {
             const status = WindowCovering.MovementStatus.Opening;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'closing') {
             const status = WindowCovering.MovementStatus.Closing;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
           } else if (value === 'stopped') {
             const status = WindowCovering.MovementStatus.Stopped;
-            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status, tilt: status });
+            this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'operationalStatus', { global: status, lift: status });
             const position = this.bridgedDevice.getAttribute(WindowCovering.id, 'currentPositionLiftPercent100ths', this.log);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'currentPositionLiftPercent100ths', position);
             this.updateAttributeIfChanged(this.bridgedDevice, undefined, WindowCovering.id, 'targetPositionLiftPercent100ths', position);
@@ -385,7 +385,7 @@ export class ZigbeeEntity extends EventEmitter {
           );
         }
         // ColorControl currentHue, currentSaturation and colorMode
-        // prettier-ignore
+        // oxfmt-ignore
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'hs') {
           // oxlint-disable-next-line typescript/no-unsafe-type-assertion
           const { hue, saturation } = value as { hue: number; saturation: number };
@@ -396,7 +396,7 @@ export class ZigbeeEntity extends EventEmitter {
           }
         }
         // ColorControl currentX, currentY and colorMode
-        // prettier-ignore
+        // oxfmt-ignore
         if (key === 'color' && 'color_mode' in payload && payload['color_mode'] === 'xy') {
           // not supported by Apple Home so we convert xy to hue and saturation
           // oxlint-disable-next-line typescript/no-unsafe-type-assertion
@@ -583,7 +583,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  onCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('on', data);
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === true) {
@@ -596,7 +596,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('on', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'ON' });
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  offCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('off', data);
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false) {
@@ -608,7 +608,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('off', { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  toggleCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('toggle', data);
     this.log.debug(`Command toggle called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
@@ -627,7 +627,7 @@ export class ZigbeeEntity extends EventEmitter {
    * @param {CommandHandlerData} data - Command handler data from the endpoint that received Open.
    * @returns {void}
    */
-  // prettier-ignore
+  // oxfmt-ignore
   protected openCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('open', data);
     const entityName = this.isGroup ? this.group?.friendly_name : this.device?.friendly_name;
@@ -643,7 +643,7 @@ export class ZigbeeEntity extends EventEmitter {
    * @param {CommandHandlerData} data - Command handler data from the endpoint that received Close.
    * @returns {void}
    */
-  // prettier-ignore
+  // oxfmt-ignore
   protected closeCommandHandler(data: CommandHandlerData): void {
     this.saveCommands('close', data);
     const entityName = this.isGroup ? this.group?.friendly_name : this.device?.friendly_name;
@@ -653,7 +653,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.publishCommand('close', entityName, { ['state' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: 'OFF' });
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToLevelCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevel']): void {
     this.saveCommands('moveToLevel', data);
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.endpoint.getAttribute(LevelControl.id, 'currentLevel') === data.request.level) {
@@ -665,7 +665,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToLevel', { ['brightness' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: data.request.level }, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToLevelWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.moveToLevelWithOnOff']): void {
     this.saveCommands('moveToLevelWithOnOff', data);
     this.log.debug(`Command moveToLevelWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.level} transition: ${data.request.transitionTime}`);
@@ -687,7 +687,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColorTemperature']): void {
     this.saveCommands('moveToColorTemperature', data);
     delete this.cachePayload['color'];
@@ -706,7 +706,7 @@ export class ZigbeeEntity extends EventEmitter {
     }
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToColorCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToColor']): void {
     this.saveCommands('moveToColor', data);
     delete this.cachePayload['color_temp'];
@@ -719,7 +719,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToColor', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { x: Math.round(data.request.colorX / 65536 * 10000) / 10000, y: Math.round(data.request.colorY / 65536 * 10000) / 10000 } }, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToHueCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHue']): void {
     this.saveCommands('moveToHue', data);
     delete this.cachePayload['color_temp'];
@@ -732,7 +732,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToHue', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.endpoint.getAttribute(ColorControl.id, 'currentSaturation') / 254 * 100) }}, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToSaturation']): void {
     this.saveCommands('moveToSaturation', data);
     delete this.cachePayload['color_temp'];
@@ -745,7 +745,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.cachePublish('moveToSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.endpoint.getAttribute(ColorControl.id, 'currentHue') / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
   }
 
-  // prettier-ignore
+  // oxfmt-ignore
   protected  moveToHueAndSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveToHueAndSaturation']): void {
     this.saveCommands('moveToHueAndSaturation', data);
     delete this.cachePayload['color_temp'];
@@ -1232,7 +1232,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('upOrOpen', group.friendly_name, { state: 'OPEN' });
       });
@@ -1242,7 +1241,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('downOrClose', group.friendly_name, { state: 'CLOSE' });
       });
@@ -1251,7 +1249,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('stopMotion', group.friendly_name, { state: 'STOP' });
       });
@@ -1261,7 +1258,6 @@ export class ZigbeeGroup extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeGroup.publishCommand('goToLiftPercentage', group.friendly_name, { position: 100 - liftPercent100thsValue / 100 });
       });
@@ -1342,7 +1338,7 @@ interface ZigbeeToMatter {
   valueLookup?: string[];
 }
 
-// prettier-ignore
+// oxfmt-ignore
 const z2ms: ZigbeeToMatter[] = [
   { type: 'switch', name: 'state', property: 'state', deviceType: onOffLightSwitch, cluster: OnOff.id, attribute: 'onOff', converter: (value) => { return value === 'ON' } },
   { type: 'valve', name: 'state', property: 'state', deviceType: waterValve, cluster: ValveConfigurationAndControl.id, attribute: 'currentState', converter: (value) => { return value === 'ON' || value === true ? ValveConfigurationAndControl.ValveState.Open : ValveConfigurationAndControl.ValveState.Closed } },
@@ -1645,7 +1641,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
         );
         zigbeeDevice.propertyMap.set(property, { name, type, endpoint, category, description, label, unit, value_min, value_max, values: value });
         if (endpoint === '') {
-          /* prettier-ignore */
+          /* oxfmt-ignore */
           if (zigbeeDevice.mutableDevice.has(endpoint)) {
             zigbeeDevice.mutableDevice.get(endpoint)?.deviceTypes.push(z2m.deviceType);
             zigbeeDevice.mutableDevice.get(endpoint)?.clusterServersIds.push(...z2m.deviceType.requiredServerClusters);
@@ -1661,7 +1657,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           if (endpoint === 'l5') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Five.namespaceId, tag: CommonNumberTag.Five.tag, label: 'endpoint ' + endpoint });
           if (endpoint === 'l6') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Six.namespaceId, tag: CommonNumberTag.Six.tag, label: 'endpoint ' + endpoint });
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'endpoint ' + endpoint });
-          /* prettier-ignore */
+          /* oxfmt-ignore */
           if (zigbeeDevice.mutableDevice.has(endpoint)) {
             zigbeeDevice.mutableDevice.get(endpoint)?.deviceTypes.push(z2m.deviceType);
             zigbeeDevice.mutableDevice.get(endpoint)?.clusterServersIds.push(...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster));
@@ -1995,7 +1991,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))
@@ -2010,7 +2005,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))
@@ -2024,7 +2018,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         zigbeeDevice.publishCommand('stopMotion', device.friendly_name, { state: 'STOP' });
       });
@@ -2036,7 +2029,6 @@ export class ZigbeeDevice extends ZigbeeEntity {
         attributes.operationalStatus = {
           global: WindowCovering.MovementStatus.Stopped,
           lift: WindowCovering.MovementStatus.Stopped,
-          tilt: WindowCovering.MovementStatus.Stopped,
         };
         /*
         if (zigbeeDevice.propertyMap.has('position'))

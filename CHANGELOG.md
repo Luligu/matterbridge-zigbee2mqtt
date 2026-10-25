@@ -29,7 +29,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="120"></a>
 
-## [3.2.2] - Dev branch
+## [3.3.1] - Dev branch
 
 ### Added
 
@@ -37,7 +37,57 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Changed
 
-- [test]: Update expectation to matterbridge 3.10.8.
+- [package]: Bump transitive `ip-address` to v.10.7.4 (mqtt → socks) to fix advisory GHSA-rxp7-6hxx-x8q5.
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
+## [3.3.0] - 2026-10-23
+
+### Breaking changes
+
+- [matterbridge]: Require matterbridge v.3.11.0 with matter v.1.6.1.
+- [node]: Drop Node.js 20 support, matching matterbridge v.3.11.0. Supported versions are Node.js 22.13, 24 and 26.
+
+### Added
+
+- [devcontainer]: Add [`Dev Container`](.devcontainer/README.md) v.2.2.0 with dual Node and Bun runtime support.
+- [agents]: Add a [`shared setup`](.agents/README.md) for all agents: OpenAI Codex, Claude Code, GitHub Copilot and Google Gemini / Antigravity.
+- [agents]: Add [`commit message instructions`](.github/commit-message-instructions.md) v.1.0.0 for the VS Code Copilot "Generate Commit Message" button (Conventional Commits).
+- [agents]: Add the Copilot `Matterbridge` custom agent (`.github/agents/matterbridge.agent.md`) that works without subagents.
+
+### Changed
+
+- [test]: Migrate tests from `matterbridge/vitest-utils` to the unified `matterbridge/test-utils`.
+- [styleguide]: Update [`STYLEGUIDE.md`](STYLEGUIDE.md) to v.1.1.0: align it with the lint and format config and add the Commit Messages and Changelog sections.
+- [agents]: Update the shared agent setup: `AGENTS.md`, `CLAUDE.md` and `.github/copilot-instructions.md` to v.1.0.7, `GEMINI.md` to v.1.0.1 and `.agents/README.md` to v.1.0.4.
+- [agents]: Update the `testing` rules to v.1.0.7, the `matterbridge` rules to v.1.0.3 and the `verify-agent-context` skill to v.1.0.5.
+- [agents]: Update `.claude/settings.json` to v.1.0.9, `.antigravity/settings.json` to v.1.0.6 (allow read-only Git commands) and `.codex/rules/default.rules` to v.1.0.7.
+- [vscode]: Update `.vscode/settings.json` to v.1.0.16: configure commit message instructions, exclude templates from Vitest discovery and refine terminal command approvals.
+- [vscode]: Add Bundle, Minify, Obfuscate, Pack and Docker install tasks to `.vscode/tasks.json`.
+- [gitignore]: Update `.gitignore` to v.1.0.5: ignore `tmp/`, `.DS_Store` and Windows `Zone.Identifier` files.
+- [lint]: Update `.oxlintrc.json` and `.oxfmtrc.json` to v.1.2.0: align shared ignore patterns.
+- [vitest]: Replace `vite.config.ts` with `vitest.config.ts` v.2.0.9 and update test and coverage exclusions.
+- [scripts]: Update `scripts/clean.mjs` and `scripts/deep-clean.mjs` to v.2.0.0: log removed paths, add dry-run support and expose importable entry points.
+- [scripts]: Update release, download, Git status, Git sync, prepublish, pruning, workflow cleanup and version helpers to v.2.0.0 with CLI previews and importable entry points.
+- [scripts]: Update `scripts/deep-clean.mjs` and `scripts/prepublish-clean.mjs` to v.2.1.0: also remove `tmp/` and `bun.lock`.
+- [package]: Remove the `softReset:bun` script.
+- [package]: Run `checkDependencies` and `updateDependencies` with `npx npm-check-updates@latest`.
+- [package]: Upgrade package.
+- [package]: Bump `node-ansi-logger` to v.3.3.1.
+- [package]: Bump `node-persist-manager` to v.2.1.1.
+- [package]: Bump `moment` to v.2.31.0.
+- [package]: Bump `mqtt` to v.5.16.1.
+- [package]: Bump `oxfmt` to v.0.74.0.
+- [package]: Bump `oxlint` to v.1.89.0.
+- [package]: Bump `oxlint-tsgolint` to v.7.0.2004.
+- [package]: Bump `vitest` to v.5.0.5.
+- [package]: Bump `@vitest/coverage-v8` to v.5.0.5.
+- [package]: Bump `@types/node` to v.26.6.5.
+- [package]: Bump transitive `ip-address` to v.10.7.2 (mqtt → socks) to fix Dependabot alerts #40, #41, #42.
+
+### Fixed
+
+- [cover]: Drop the `tilt` field from `operationalStatus` on lift-only covers: Matter 1.6.1 allows it only with the Tilt feature.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

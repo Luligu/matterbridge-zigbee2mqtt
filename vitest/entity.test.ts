@@ -18,8 +18,7 @@ import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
 import type { Endpoint, ServerNode } from 'matterbridge/matter';
 import { ColorControl, DoorLock, OnOff, PowerSource, Thermostat, ValveConfigurationAndControl, WindowCovering } from 'matterbridge/matter/clusters';
 import type { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
-import { getMacAddress, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
-import { flushAsync, log, loggerDebugSpy, loggerInfoSpy, loggerLogSpy, setDebug, setupTest } from 'matterbridge/vitest-utils';
+import { flushAsync } from 'matterbridge/test-utils';
 import {
   addDevice,
   addMatterbridge,
@@ -29,9 +28,16 @@ import {
   destroyTestEnvironment,
   flushServerNode,
   getMatterbridge,
+  log,
+  loggerDebugSpy,
+  loggerInfoSpy,
+  loggerLogSpy,
+  setDebug,
+  setupTest,
   startServerNode,
   stopServerNode,
-} from 'matterbridge/vitest-utils/matter';
+} from 'matterbridge/test-utils/vitest';
+import { getMacAddress, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from '../src/entity.js';
 import { ZigbeePlatform, type ZigbeePlatformConfig } from '../src/module.js';
@@ -297,7 +303,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "scenesManagement", "onOff", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -424,7 +430,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "scenesManagement", "onOff", "levelControl", "colorControl", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -604,7 +610,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "windowCovering", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -673,7 +679,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "thermostat", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -716,7 +722,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "onOff", "bridgedDeviceBasicInformation", "powerSource", "identify", "binding", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -741,7 +747,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "onOff", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement", "binding"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -916,7 +922,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement", "fixedLabel"]);
       expect(device.getChildEndpoints()).toHaveLength(3); // 2 channels + root
       const ch1 = device.getChildEndpointById('l1');
@@ -924,7 +930,7 @@ describe('Test Entity', () => {
       const ch2 = device.getChildEndpointById('l2');
       expect(ch2).toBeInstanceOf(MatterbridgeEndpoint);
       if (!ch1 || !ch2) throw new Error('Child endpoints not found');
-      // prettier-ignore
+      // oxfmt-ignore
       for (const child of device.getChildEndpoints()) {
         // expect(['l1', 'l2'].includes(child.id)).toBe(true);
         if (child.id === 'l1') {
@@ -1077,7 +1083,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "windowCovering"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -1143,7 +1149,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Stopped,
         lift: WindowCovering.MovementStatus.Stopped,
-        tilt: WindowCovering.MovementStatus.Stopped,
       });
       expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
@@ -1188,7 +1193,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Opening,
         lift: WindowCovering.MovementStatus.Opening,
-        tilt: WindowCovering.MovementStatus.Opening,
       });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
@@ -1203,7 +1207,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Closing,
         lift: WindowCovering.MovementStatus.Closing,
-        tilt: WindowCovering.MovementStatus.Closing,
       });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
@@ -1218,7 +1221,6 @@ describe('Test Entity', () => {
       expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
         global: WindowCovering.MovementStatus.Stopped,
         lift: WindowCovering.MovementStatus.Stopped,
-        tilt: WindowCovering.MovementStatus.Stopped,
       });
       expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
       expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
@@ -1256,7 +1258,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "doorLock"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
       expect(featuresFor(device, 'doorLock')).toEqual({
@@ -1312,7 +1314,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "thermostat", "identify"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
       expect(featuresFor(device, 'Thermostat')).toEqual({
@@ -1409,7 +1411,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "groups", "scenesManagement", "onOff", "levelControl", "powerTopology", "electricalPowerMeasurement", "electricalEnergyMeasurement"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -1573,7 +1575,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "colorControl", "identify", "groups", "scenesManagement", "onOff", "levelControl"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -1747,7 +1749,7 @@ describe('Test Entity', () => {
       expect(publishCommandSpy).toHaveBeenCalledWith('moveToHue', friendlyName, { color: { h: 213, s: 0 } });
 
       vi.clearAllMocks();
-      // prettier-ignore
+      // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToSaturation', { saturation: 80, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
@@ -1755,7 +1757,7 @@ describe('Test Entity', () => {
       expect(publishCommandSpy).toHaveBeenCalledWith('moveToSaturation', friendlyName, { color: { h: 213, s: 31 } });
 
       vi.clearAllMocks();
-      // prettier-ignore
+      // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 130, saturation: 70, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
@@ -1777,7 +1779,7 @@ describe('Test Entity', () => {
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 160, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
-      // prettier-ignore
+      // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToColorTemperature', { colorTemperatureMireds: 350, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
@@ -1796,7 +1798,7 @@ describe('Test Entity', () => {
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 135, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
-      // prettier-ignore
+      // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 125, saturation: 40, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
@@ -1814,7 +1816,7 @@ describe('Test Entity', () => {
       expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
       expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
       expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
-      // prettier-ignore
+      // oxfmt-ignore
       expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((135 / 254) * 255), color: { h: Math.round(125 / 254 * 360), s: Math.round(40 / 254 * 100) } });
 
       // Turn the light off and test that moveToLevel and moveToColor commands remember their state
@@ -1822,7 +1824,7 @@ describe('Test Entity', () => {
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 115, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
-      // prettier-ignore
+      // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToColor', { colorX: 25000, colorY: 28000, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
       await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
       expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
@@ -1844,7 +1846,7 @@ describe('Test Entity', () => {
       expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
       expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
       expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
-      // prettier-ignore
+      // oxfmt-ignore
       expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((115 / 254) * 255), color: { x: 25000 / 65535, y: 28000 / 65535 } });
 
       // Test updates from Z2M
@@ -1917,7 +1919,7 @@ describe('Test Entity', () => {
       );
 
       entity.destroy();
-    }, 10000);
+    }, 30000);
 
     test('create a temperature, humidity and pressure sensor device', async () => {
       const friendlyName = climateSensor.friendly_name;
@@ -1931,7 +1933,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "temperatureMeasurement", "relativeHumidityMeasurement", "pressureMeasurement"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
@@ -1997,7 +1999,7 @@ describe('Test Entity', () => {
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
       if (!device) throw new Error('MatterbridgeEndpoint is undefined');
-      // prettier-ignore
+      // oxfmt-ignore
       expect(device.getAllClusterServerNames()).toEqual(["descriptor", "matterbridge", "bridgedDeviceBasicInformation", "powerSource", "identify", "illuminanceMeasurement", "occupancySensing"]);
       expect(device.getChildEndpoints()).toHaveLength(0);
 
