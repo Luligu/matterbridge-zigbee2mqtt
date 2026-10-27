@@ -1352,7 +1352,7 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'pm1', property: 'pm1', deviceType: airQualitySensor, cluster: Pm1ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
   { type: '', name: 'pm25', property: 'pm25', deviceType: airQualitySensor, cluster: Pm25ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
   { type: '', name: 'pm10', property: 'pm10', deviceType: airQualitySensor, cluster: Pm10ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'cpu_temperature', property: 'temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
+  { type: '', name: 'cpu_temperature', property: 'cpu_temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
   { type: '', name: 'device_temperature', property: 'device_temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
   { type: '', name: '', property: 'battery', deviceType: powerSource, cluster: PowerSource.id, attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
   { type: '', name: '', property: 'battery_low', deviceType: powerSource, cluster: PowerSource.id, attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
@@ -1730,6 +1730,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Add PowerSource cluster
     zigbeeDevice.addPowerSource();
+    // Defensive: PowerSource is added by addPowerSource() and the z2ms battery entries have no name, so they never add it
+    /* v8 ignore next 3 */
     if (mainEndpoint.clusterServersIds.includes(PowerSource.id)) {
       mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(PowerSource.id), 1);
     }

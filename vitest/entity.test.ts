@@ -2238,6 +2238,13 @@ describe('Test Entity', () => {
         ],
       },
       {
+        title: 'cpu temperature sensor',
+        device: makeDevice('Test cpu sensor', '0x00000000000000a7', [generic('cpu_temperature')]),
+        clusters: ['temperatureMeasurement'],
+        payload: { cpu_temperature: 45.678 },
+        expected: [['TemperatureMeasurement', 'measuredValue', 4568]],
+      },
+      {
         title: 'soil moisture sensor',
         device: makeDevice('Test soil sensor', '0x00000000000000a6', [generic('soil_moisture')]),
         clusters: ['relativeHumidityMeasurement'],
