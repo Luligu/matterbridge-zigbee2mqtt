@@ -26,7 +26,7 @@ import {
   windowCovering,
 } from 'matterbridge';
 import { db, hk, idn, ign, LogLevel, or, rs, YELLOW } from 'matterbridge/logger';
-import { Thermostat } from 'matterbridge/matter/clusters';
+import { ColorControl, Thermostat } from 'matterbridge/matter/clusters';
 import { flushAsync } from 'matterbridge/test-utils';
 import {
   addMatterbridge,
@@ -299,7 +299,7 @@ describe('TestPlatform', () => {
 
   it('should have configured', async () => {
     expect(platform).toBeDefined();
-    (platform as any).availabilityTimeout = 1;
+    (platform as any).availabilityTimeoutMs = 1;
     await platform.onConfigure();
     await flushAsync();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Setting availability for/));
@@ -521,6 +521,54 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Removing device: ${entity}`));
   });
 
+  it.each([false, true])('should skip unregistering when the entity has no bridged device (entity exists: %s)', async (entityExists) => {
+    const friendlyName = 'Unregistered entity';
+    const entity = { entityName: friendlyName, bridgedDevice: undefined, destroy: vi.fn() } as unknown as ZigbeeDevice;
+    const originalEntities = platform.zigbeeEntities;
+    const originalDevices = [...platform.bridgedDevices];
+    const unregisterSpy = vi.spyOn(platform, 'unregisterDevice');
+    platform.zigbeeEntities = entityExists ? [...originalEntities, entity] : [...originalEntities];
+    const expectedEntities = [...platform.zigbeeEntities];
+
+    try {
+      // @ts-expect-error accessing private method for testing
+      await platform.unregisterZigbeeEntity(friendlyName);
+
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `Entity with friendly name ${friendlyName} not found`);
+      expect(unregisterSpy).not.toHaveBeenCalled();
+      expect(entity.destroy).not.toHaveBeenCalled();
+      expect(platform.zigbeeEntities).toEqual(expectedEntities);
+      expect(platform.bridgedDevices).toEqual(originalDevices);
+    } finally {
+      platform.zigbeeEntities = originalEntities;
+      unregisterSpy.mockRestore();
+    }
+  });
+
+  it('should log an error and preserve the entity when unregistering fails', async () => {
+    const entity = platform.zigbeeEntities.find((entity) => entity.bridgedDevice);
+    expect(entity).toBeDefined();
+    if (!entity) throw new Error('Expected a registered entity');
+    const originalEntities = [...platform.zigbeeEntities];
+    const originalDevices = [...platform.bridgedDevices];
+    const unregisterSpy = vi.spyOn(platform, 'unregisterDevice').mockRejectedValueOnce(new Error('unregister failed'));
+    const destroySpy = vi.spyOn(entity, 'destroy');
+
+    try {
+      // @ts-expect-error accessing private method for testing
+      await expect(platform.unregisterZigbeeEntity(entity.entityName)).resolves.toBeUndefined();
+
+      expect(unregisterSpy).toHaveBeenCalledWith(entity.bridgedDevice);
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.ERROR, `Error removing device ${entity.entityName}: unregister failed`);
+      expect(destroySpy).not.toHaveBeenCalled();
+      expect(platform.zigbeeEntities).toEqual(originalEntities);
+      expect(platform.bridgedDevices).toEqual(originalDevices);
+    } finally {
+      unregisterSpy.mockRestore();
+      destroySpy.mockRestore();
+    }
+  });
+
   it('should rename Sleeping', async () => {
     const entity = 'Sleeping';
     const payload = { data: { from: entity, to: 'Is dark' }, status: 'ok', transaction: '8j6s7-10' };
@@ -620,7 +668,13 @@ describe('TestPlatform', () => {
       {} as any,
       device,
     );
-    await device.executeCommandHandler('moveToHue', { hue: 200, direction: 0, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToHue',
+      { hue: 200, direction: ColorControl.Direction.Shortest, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
     await device.executeCommandHandler('moveToSaturation', { saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
     await device.executeCommandHandler(
       'moveToHueAndSaturation',
@@ -783,7 +837,13 @@ describe('TestPlatform', () => {
       {} as any,
       device,
     );
-    await device.executeCommandHandler('moveToHue', { hue: 200, direction: 0, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToHue',
+      { hue: 200, direction: ColorControl.Direction.Shortest, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
     await device.executeCommandHandler('moveToSaturation', { saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
     await device.executeCommandHandler(
       'moveToHueAndSaturation',
@@ -811,23 +871,47 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Setting availability for/));
   });
 
-  it('should replay retained payloads during onConfigure', async () => {
+  it('should replay online and offline availability and retained payloads during onConfigure', async () => {
+    const onlineSpy = vi.fn();
+    const offlineSpy = vi.fn();
     const retainedSpy = vi.fn();
+    // @ts-expect-error accessing private property for testing
+    const availability = platform.z2mEntityAvailability;
+    // @ts-expect-error accessing private property for testing
+    const payloads = platform.z2mEntityPayload;
+    // @ts-expect-error accessing private property for testing
+    const originalTimeoutMs = platform.availabilityTimeoutMs;
+    platform.z2m.on('ONLINE-OnlineReplayDevice', onlineSpy);
+    platform.z2m.on('OFFLINE-OfflineReplayDevice', offlineSpy);
     platform.z2m.on('MESSAGE-RetainedDevice', retainedSpy);
-    (platform as any).z2mEntityPayload.set('RetainedDevice', { state: 'ON' });
-    (platform as any).availabilityTimeout = 1;
+    availability.set('OnlineReplayDevice', true);
+    availability.set('OfflineReplayDevice', false);
+    payloads.set('RetainedDevice', { state: 'ON' });
+    // @ts-expect-error accessing private property for testing
+    platform.availabilityTimeoutMs = 1;
 
-    await platform.onConfigure();
-    await wait(20);
-
-    expect(retainedSpy).toHaveBeenCalledWith({ state: 'ON' });
-    platform.z2m.off('MESSAGE-RetainedDevice', retainedSpy);
-    (platform as any).z2mEntityPayload.delete('RetainedDevice');
+    try {
+      await platform.onConfigure();
+      await vi.waitFor(() => {
+        expect(onlineSpy).toHaveBeenCalledExactlyOnceWith();
+        expect(offlineSpy).toHaveBeenCalledExactlyOnceWith();
+        expect(retainedSpy).toHaveBeenCalledExactlyOnceWith({ state: 'ON' });
+      });
+    } finally {
+      platform.z2m.off('ONLINE-OnlineReplayDevice', onlineSpy);
+      platform.z2m.off('OFFLINE-OfflineReplayDevice', offlineSpy);
+      platform.z2m.off('MESSAGE-RetainedDevice', retainedSpy);
+      availability.delete('OnlineReplayDevice');
+      availability.delete('OfflineReplayDevice');
+      payloads.delete('RetainedDevice');
+      // @ts-expect-error accessing private property for testing
+      platform.availabilityTimeoutMs = originalTimeoutMs;
+    }
   });
 
   it('should call onConfigure permit_join = false', async () => {
     (platform as any).z2mBridgeInfo.permit_join = false;
-    (platform as any).availabilityTimeout = 1;
+    (platform as any).availabilityTimeoutMs = 1;
     await platform.onConfigure();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
   });
@@ -836,6 +920,42 @@ describe('TestPlatform', () => {
     (platform as any).z2mBridgeInfo.permit_join = true;
     await platform.onConfigure();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
+  });
+
+  it.each([
+    ['zigbee2mqtt-frontend', 'http://localhost:8080/#/device/0x1234/info', 'http://localhost:8080/#/group/42'],
+    ['zigbee2mqtt-windfront', 'http://localhost:8080/#/device/0/0x1234/info', 'http://localhost:8080/#/group/0/42'],
+  ] as const)('should set device and group config URLs when using %s', async (frontend, deviceUrl, groupUrl) => {
+    const originalInfo = platform.z2mBridgeInfo;
+    if (!originalInfo) throw new Error('Expected bridge info');
+    const originalEntities = [...platform.zigbeeEntities];
+    const originalDevices = [...platform.bridgedDevices];
+    const device = { bridgedDevice: { configUrl: undefined } } as unknown as ZigbeeDevice;
+    const group = { bridgedDevice: { configUrl: undefined } } as unknown as ZigbeeGroup;
+    const deviceCreateSpy = vi.spyOn(ZigbeeDevice, 'create').mockResolvedValueOnce(device);
+    const groupCreateSpy = vi.spyOn(ZigbeeGroup, 'create').mockResolvedValueOnce(group);
+    const registerSpy = vi.spyOn(platform, 'registerDevice').mockImplementation(async () => {});
+    platform.z2mBridgeInfo = { ...originalInfo, config: { ...originalInfo.config, frontend: { package: frontend } } };
+
+    try {
+      // @ts-expect-error accessing private method for testing
+      const registeredDevice = await platform.registerZigbeeDevice({ ieee_address: '0x1234', friendly_name: 'Frontend device' } as BridgeDevice);
+      const registeredGroup = await platform.registerZigbeeGroup({ id: 42, friendly_name: 'Frontend group', description: '', members: [], scenes: [] });
+
+      expect(registeredDevice).toBe(device);
+      expect(registeredGroup).toBe(group);
+      expect(device.bridgedDevice?.configUrl).toBe(deviceUrl);
+      expect(group.bridgedDevice?.configUrl).toBe(groupUrl);
+      expect(registerSpy).toHaveBeenCalledWith(device.bridgedDevice);
+      expect(registerSpy).toHaveBeenCalledWith(group.bridgedDevice);
+    } finally {
+      platform.z2mBridgeInfo = originalInfo;
+      platform.zigbeeEntities = originalEntities;
+      platform.bridgedDevices = originalDevices;
+      deviceCreateSpy.mockRestore();
+      groupCreateSpy.mockRestore();
+      registerSpy.mockRestore();
+    }
   });
 
   it('should return undefined when device registration is not valid', async () => {

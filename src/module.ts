@@ -81,7 +81,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   public zigbeeEntities: ZigbeeEntity[] = [];
   private connectTimeout = 90000; // 90 seconds
-  private availabilityTimeout = 10000; // 10 seconds
+  /** Timeout handle for replaying entity availability and retained state after configuration. */
+  private availabilityTimeout: NodeJS.Timeout | undefined;
+  /** Delay in milliseconds before replaying entity availability and retained state. Defaults to 10 seconds. */
+  private availabilityTimeoutMs = 10000;
 
   // debug
   private injectTimer: NodeJS.Timeout | undefined;
@@ -111,7 +114,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public z2mBridgeGroups: BridgeGroup[] | undefined;
   private z2mEntityAvailability = new Map<string, boolean>();
   private z2mEntityPayload = new Map<string, Payload>();
-  private availabilityTimer: NodeJS.Timeout | undefined;
 
   constructor(
     matterbridge: PlatformMatterbridge,
@@ -167,18 +169,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.username = this.mqttUsername ?? '';
     config.password = this.mqttPassword ?? '';
     config.postfix = this.postfix;
-    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
-    // @ts-expect-error is a precaution for old versions of the config, we can remove it in the future
-    if (config.postfixHostname !== undefined) delete config.postfixHostname;
-    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
-    // @ts-expect-error is a precaution for old versions of the config, we can remove it in the future
-    if (config.deviceScenes !== undefined) delete config.deviceScenes;
-    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
-    // @ts-expect-error is a precaution for old versions of the config, we can remove it in the future
-    if (config.groupScenes !== undefined) delete config.groupScenes;
-    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
     config.scenesType ??= 'outlet';
-    // v8 ignore next -- is a precaution for old versions of the config, we can remove it in the future
     config.scenesPrefix ??= true;
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
@@ -331,8 +322,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
     this.z2m.on('availability', (device: string, available: boolean) => {
       this.z2mEntityAvailability.set(device, available);
-      if (available) this.log.info(`zigbee2MQTT entity ${device} is ${available ? 'online' : 'offline'}`);
-      else this.log.warn(`zigbee2MQTT entity ${device} is ${available ? 'online' : 'offline'}`);
+      if (available) this.log.info(`zigbee2MQTT entity ${device} is online`);
+      else this.log.warn(`zigbee2MQTT entity ${device} is offline`);
     });
 
     this.z2m.on('message', (device: string, payload: Payload) => {
@@ -573,6 +564,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
         this.log.info(`Configuring router ${bridgedEntity.bridgedDevice.deviceName}.`);
         if (this.z2mBridgeInfo?.permit_join) {
           await bridgedEntity.bridgedDevice.setAttribute(DoorLock, 'lockState', DoorLock.LockState.Unlocked, this.log);
+          // v8 ignore else
           if (bridgedEntity.bridgedDevice.maybeNumber)
             await bridgedEntity.bridgedDevice.triggerEvent(
               DoorLock,
@@ -582,6 +574,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
             );
         } else {
           await bridgedEntity.bridgedDevice.setAttribute(DoorLock, 'lockState', DoorLock.LockState.Locked, this.log);
+          // v8 ignore else
           if (bridgedEntity.bridgedDevice.maybeNumber)
             await bridgedEntity.bridgedDevice.triggerEvent(
               DoorLock,
@@ -596,7 +589,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       if (bridgedEntity.isGroup && bridgedEntity.group) this.requestGroupUpdate(bridgedEntity.group);
     }
 
-    this.availabilityTimer = setTimeout(() => {
+    this.availabilityTimeout = setTimeout(() => {
       // Send availability if z2m has availability enabled
       this.log.info(`Setting availability for ${this.z2mEntityAvailability.size} entities`);
       for (const [entity, available] of this.z2mEntityAvailability) {
@@ -608,7 +601,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       for (const [entity, payload] of this.z2mEntityPayload) {
         this.z2m.emit('MESSAGE-' + entity, payload);
       }
-    }, this.availabilityTimeout).unref();
+    }, this.availabilityTimeoutMs).unref();
 
     /*
     if (this.config.injectPayloads && typeof this.config.injectPayloads === 'string') {
@@ -650,8 +643,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     }
     if (this.injectTimer) clearInterval(this.injectTimer);
     this.injectTimer = undefined;
-    if (this.availabilityTimer) clearInterval(this.availabilityTimer);
-    this.availabilityTimer = undefined;
+    if (this.availabilityTimeout) clearInterval(this.availabilityTimeout);
+    this.availabilityTimeout = undefined;
     if (this.config.unregisterOnShutdown) await this.unregisterAllDevices();
     this.bridgedDevices = [];
     this.zigbeeEntities = [];
@@ -749,12 +742,18 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
 
   private async unregisterZigbeeEntity(friendly_name: string): Promise<void> {
     const entity = this.zigbeeEntities.find((entity) => entity.entityName === friendly_name);
-    if (entity?.bridgedDevice) {
+    if (!entity?.bridgedDevice) {
+      this.log.warn(`Entity with friendly name ${friendly_name} not found`);
+      return;
+    }
+    try {
       this.log.info(`Removing device: ${friendly_name}`);
       await this.unregisterDevice(entity.bridgedDevice);
       entity.destroy();
       this.zigbeeEntities = this.zigbeeEntities.filter((entity) => entity.entityName !== friendly_name);
       this.bridgedDevices = this.bridgedDevices.filter((device) => device.deviceName !== friendly_name);
+    } catch (error) {
+      this.log.error(`Error removing device ${friendly_name}: ${getErrorMessage(error)}`);
     }
   }
 
