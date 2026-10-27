@@ -2271,6 +2271,24 @@ describe('Test Entity', () => {
       },
     );
 
+    test('create a cpu temperature sensor device on an endpoint', async () => {
+      // Some devices expose cpu_temperature with property temperature on an endpoint (e.g. msh, xyzroe)
+      const z2mDevice = makeDevice('Test cpu endpoint sensor', '0x00000000000000aa', [{ ...generic('cpu_temperature'), property: 'temperature_l3', endpoint: 'l3' }]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      const child = device.getChildEndpointById('l3');
+      if (!child) throw new Error('Child endpoint l3 is undefined');
+      expect(child.getAllClusterServerNames()).toEqual(expect.arrayContaining(['temperatureMeasurement']));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { temperature_l3: 45.678 });
+      await vi.waitFor(() => expect(child.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(4568), waitOptions);
+
+      entity.destroy();
+    });
+
     test('handle duplicate, null, out of lookup and unknown action payloads', async () => {
       const z2mDevice = makeDevice('Test guard sensor', '0x00000000000000a8', [
         generic('air_quality', 'enum', { values: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] }),
