@@ -148,6 +148,31 @@ describe('TestPlatform', () => {
     expect(() => new ZigbeePlatform({ ...matterbridge, matterbridgeVersion: '1.0.0' }, log, mockConfig)).toThrow();
   });
 
+  it.each([
+    { host: '', port: 0, topic: '', username: '', password: '', expectedHost: 'mqtt://localhost', expectedPort: 1883, expectedTopic: 'zigbee2mqtt' },
+    { host: 42 as unknown as string, port: 1883, topic: 'custom', username: '', password: '', expectedHost: 'mqtt://localhost', expectedPort: 1883, expectedTopic: 'custom' },
+    { host: 'broker', port: 1884, topic: 'custom', username: 'user', password: 'pass', expectedHost: 'mqtt://broker', expectedPort: 1884, expectedTopic: 'custom' },
+    { host: 'wss://broker', port: 8883, topic: 'custom', username: 'user', password: 'pass', expectedHost: 'wss://broker', expectedPort: 8883, expectedTopic: 'custom' },
+  ])('should preserve MQTT config sanitization for host $host and port $port', async ({ host, port, topic, username, password, expectedHost, expectedPort, expectedTopic }) => {
+    const config = { ...mockConfig, host, port, topic, username, password };
+    const platform = new ZigbeePlatform(matterbridge, log, config);
+
+    try {
+      expect(config.host).toBe(expectedHost);
+      expect(config.port).toBe(expectedPort);
+      expect(config.topic).toBe(expectedTopic);
+      expect(config.username).toBe(username);
+      expect(config.password).toBe(password);
+      expect(platform.z2m.mqttHost).toBe(expectedHost);
+      expect(platform.z2m.mqttPort).toBe(expectedPort);
+      expect(platform.z2m.mqttTopic).toBe(expectedTopic);
+      expect(platform.z2m.mqttUsername).toBe(username || undefined);
+      expect(platform.z2m.mqttPassword).toBe(password || undefined);
+    } finally {
+      await platform.onShutdown();
+    }
+  });
+
   it('should initialize platform with default values', async () => {
     const config = Object.assign({}, mockConfig);
     config.host = 'localhost';
@@ -247,13 +272,13 @@ describe('TestPlatform', () => {
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     await platform.onShutdown();
-    expect((platform as any).mqttHost).toBe('mqtt://localhost');
-    expect((platform as any).mqttPort).toBe(-1883);
+    expect(platform.config.host).toBe('mqtt://localhost');
+    expect(platform.config.port).toBe(-1883);
     expect(platform.config.protocolVersion).toBe(5);
     expect(platform.config.clientId).toBe('');
-    expect((platform as any).mqttTopic).toBe('zigbee2mqtt');
-    expect((platform as any).mqttUsername).toBe('user');
-    expect((platform as any).mqttPassword).toBe('password');
+    expect(platform.config.topic).toBe('zigbee2mqtt');
+    expect(platform.config.username).toBe('user');
+    expect(platform.config.password).toBe('password');
   });
 
   it('should initialize platform with config name', () => {

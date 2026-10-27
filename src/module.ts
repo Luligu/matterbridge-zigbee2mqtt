@@ -88,13 +88,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   /** Delay in milliseconds before replaying entity availability and retained state. Defaults to 10 seconds. */
   private availabilityTimeoutMs = 10000;
 
-  // z2m
-  private mqttHost = 'mqtt://localhost';
-  private mqttPort = 1883;
-  private mqttTopic = 'zigbee2mqtt';
-  private mqttUsername: string | undefined = undefined;
-  private mqttPassword: string | undefined = undefined;
-
   // zigbee2Mqtt
   public shouldStart: boolean;
   public shouldConfigure: boolean;
@@ -127,21 +120,19 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.shouldConfigure = false;
 
     // Default values and validation
-    if (config.host && typeof config.host === 'string') {
-      this.mqttHost = config.host;
-      this.mqttHost =
-        !this.mqttHost.startsWith('mqtt://') &&
-        !this.mqttHost.startsWith('mqtts://') &&
-        !this.mqttHost.startsWith('ws://') &&
-        !this.mqttHost.startsWith('wss://') &&
-        !this.mqttHost.startsWith('mqtt+unix://')
-          ? 'mqtt://' + this.mqttHost
-          : this.mqttHost;
-    }
-    if (config.port) this.mqttPort = config.port;
-    if (config.topic) this.mqttTopic = config.topic;
-    if (config.username) this.mqttUsername = config.username;
-    if (config.password) this.mqttPassword = config.password;
+    config.host = config.host && typeof config.host === 'string' ? config.host : 'mqtt://localhost';
+    config.host =
+      !config.host.startsWith('mqtt://') &&
+      !config.host.startsWith('mqtts://') &&
+      !config.host.startsWith('ws://') &&
+      !config.host.startsWith('wss://') &&
+      !config.host.startsWith('mqtt+unix://')
+        ? 'mqtt://' + config.host
+        : config.host;
+    config.port ||= 1883;
+    config.topic ||= 'zigbee2mqtt';
+    config.username ||= '';
+    config.password ||= '';
     if (!isValidNumber(config.protocolVersion, 3, 5)) config.protocolVersion = 5;
     config.switchList ??= [];
     config.lightList ??= [];
@@ -150,44 +141,37 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.deviceFeatureBlackList ??= {};
     config.postfix ??= '';
     config.postfix = config.postfix.trim().slice(0, 3);
-    config.debug ??= false;
-    config.unregisterOnShutdown ??= false;
-
-    // Save back to create a default plugin config.json
-    config.host = this.mqttHost;
-    config.port = this.mqttPort;
-    config.topic = this.mqttTopic;
-    config.username = this.mqttUsername ?? '';
-    config.password = this.mqttPassword ?? '';
     config.scenesType ??= 'outlet';
     config.scenesPrefix ??= true;
+    config.debug ??= false;
+    config.unregisterOnShutdown ??= false;
 
     this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
     this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
     // this.log.debug(`Config:\n${rs}${JSON.stringify(config, null, 2)}${rs}`);
 
     this.z2m = new Zigbee2MQTT(
-      this.mqttHost,
-      this.mqttPort,
-      this.mqttTopic,
-      this.mqttUsername,
-      this.mqttPassword,
-      this.config.clientId,
-      this.config.protocolVersion,
-      this.config.ca,
-      this.config.rejectUnauthorized,
-      this.config.cert,
-      this.config.key,
+      config.host,
+      config.port,
+      config.topic,
+      config.username || undefined,
+      config.password || undefined,
+      config.clientId,
+      config.protocolVersion,
+      config.ca,
+      config.rejectUnauthorized,
+      config.cert,
+      config.key,
       config.debug,
     );
     this.z2m.setLogDebug(config.debug);
     this.z2m.setDataPath(path.join(matterbridge.matterbridgePluginDirectory, 'matterbridge-zigbee2mqtt'));
 
-    if (isValidString(this.mqttHost) && isValidNumber(this.mqttPort, 1, 65535)) {
+    if (isValidString(config.host) && isValidNumber(config.port, 1, 65535)) {
       this.log.info(`Connecting to MQTT broker: ${this.z2m.getUrl()}`);
       this.z2m.start();
     } else {
-      this.log.error(`Invalid MQTT broker host: ${this.mqttHost} or port: ${this.mqttPort}`);
+      this.log.error(`Invalid MQTT broker host: ${config.host} or port: ${config.port}`);
     }
 
     this.z2m.on('mqtt_connect', () => {
