@@ -77,7 +77,6 @@ export default function initializePlugin(matterbridge: PlatformMatterbridge, log
 }
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
-  // platform
   /** Registered MatterbridgeEndpoint endpoints for bridged Zigbee devices and groups. */
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   /** Registered Zigbee device and group entities managed by this platform. */
@@ -88,9 +87,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private availabilityTimeout: NodeJS.Timeout | undefined;
   /** Delay in milliseconds before replaying entity availability and retained state. Defaults to 10 seconds. */
   private availabilityTimeoutMs = 10000;
-
-  // debug
-  private injectTimer: NodeJS.Timeout | undefined;
 
   // z2m
   private mqttHost = 'mqtt://localhost';
@@ -597,17 +593,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     }, this.availabilityTimeoutMs).unref();
 
-    /*
-    if (this.config.injectPayloads && typeof this.config.injectPayloads === 'string') {
-      this.injectTimer = setInterval(() => {
-        const data = this.z2m.readConfig(path.join(this.matterbridge.matterbridgeDirectory, this.config.injectPayloads as string));
-        this.log.warn(`***Injecting ${data.payloads.length} payloads from ${this.config.injectPayloads}`);
-        for (const payload of data.payloads) {
-          this.z2m.emitPayload(payload.topic, payload.payload);
-        }
-      }, 60 * 1000).unref();
-    }
-    */
     this.log.info(`Configured zigbee2mqtt dynamic platform v${this.version}`);
   }
 
@@ -635,8 +620,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     for (const entity of this.zigbeeEntities) {
       entity.destroy();
     }
-    if (this.injectTimer) clearInterval(this.injectTimer);
-    this.injectTimer = undefined;
     if (this.availabilityTimeout) clearInterval(this.availabilityTimeout);
     this.availabilityTimeout = undefined;
     if (this.config.unregisterOnShutdown) await this.unregisterAllDevices();
