@@ -169,6 +169,7 @@ export class ZigbeeEntity extends EventEmitter {
   protected hasEndpoints = false;
   public isRouter = false;
   protected noUpdate = false;
+  protected noUpdateKeys: string[] | undefined = undefined;
 
   protected readonly thermostatSystemModeLookup = ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'];
 
@@ -235,8 +236,18 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
       if (this.noUpdate) {
-        this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
-        return;
+        // Only skip the keys we just published (if known) so other features (e.g. power) are still updated
+        if (this.noUpdateKeys) {
+          for (const key of this.noUpdateKeys) {
+            // oxlint-disable-next-line typescript/no-dynamic-delete
+            delete payload[key];
+          }
+        }
+        if (!this.noUpdateKeys || Object.keys(payload).length === 0) {
+          this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
+          return;
+        }
+        this.log.debug(`Skipping (no update) keys ${CYAN}${this.noUpdateKeys.join(', ')}${db} for accessory ${this.entityName}`);
       }
       // Skip updates of all color attributes if state === OFF
       if ('state' in payload && payload.state === 'OFF') {
@@ -490,6 +501,7 @@ export class ZigbeeEntity extends EventEmitter {
       this.cachePublishTimeout = undefined;
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion typescript/non-nullable-type-assertion-style
       if (isValidObject(this.cachePayload, 1)) this.publishCommand(command, (this.isGroup ? this.group?.friendly_name : this.device?.friendly_name) as string, this.cachePayload);
+      this.noUpdateKeys = [...new Set([...(this.noUpdateKeys ?? []), ...Object.keys(this.cachePayload)])];
       this.cachePayload = {};
       this.noUpdate = true;
       this.log.debug(
@@ -501,6 +513,7 @@ export class ZigbeeEntity extends EventEmitter {
         this.noUpdateTimeout = undefined;
         this.log.debug(`No update is now reset for the device ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db}`);
         this.noUpdate = false;
+        this.noUpdateKeys = undefined;
       }, this.noUpdateTimeoutTime).unref();
     }, this.cachePublishTimeoutTime).unref();
   }

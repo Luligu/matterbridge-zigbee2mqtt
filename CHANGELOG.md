@@ -53,6 +53,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [devices]: Catch and log errors when unregistering Zigbee entities.
 - [devices]: Fix `cpu_temperature` updates never reaching the TemperatureMeasurement cluster.
+- [devices]: Fix other features (e.g. `power`) being ignored for 2 seconds after a command: only the published keys are now skipped. Thanks Rodrigo Batista de Moraes (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/140).
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

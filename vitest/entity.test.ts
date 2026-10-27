@@ -197,6 +197,42 @@ describe('Test Entity', () => {
     entity.destroy();
   });
 
+  test('MESSAGE update skips only the published keys when noUpdateKeys is set', () => {
+    const entity = new ZigbeeEntity(platform, { id: 9005, friendly_name: 'No update keys entity', description: '', members: [], scenes: [] });
+    entity.bridgedDevice = {} as MatterbridgeEndpoint;
+    (entity as any).noUpdate = true;
+    (entity as any).noUpdateKeys = ['state'];
+
+    platform.z2m.emit('MESSAGE-No update keys entity', { state: 'OFF', power: 0 });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Skipping (no update) keys ${CYAN}state${db} for accessory No update keys entity`));
+    expect(loggerDebugSpy).not.toHaveBeenCalledWith(expect.stringContaining('Skipping (no update) MQTT message for accessory No update keys entity'));
+    expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining(`payload: ${debugStringify({ power: 0 })}`));
+
+    vi.clearAllMocks();
+    platform.z2m.emit('MESSAGE-No update keys entity', { state: 'ON' });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('Skipping (no update) MQTT message for accessory No update keys entity'));
+    entity.destroy();
+  });
+
+  test('cachePublish sets and resets noUpdateKeys', async () => {
+    const entity = new ZigbeeEntity(platform, { id: 9006, friendly_name: 'Cache publish keys', description: '', members: [], scenes: [] });
+    (entity as any).cachePublishTimeoutTime = 1;
+    (entity as any).noUpdateTimeoutTime = 50;
+
+    (entity as any).cachePublish('on', { state: 'ON' });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state']), waitOptions);
+    expect((entity as any).noUpdate).toBe(true);
+
+    (entity as any).cachePublish('moveToLevel', { brightness: 100 });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state', 'brightness']), waitOptions);
+
+    await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+    expect((entity as any).noUpdateKeys).toBeUndefined();
+    entity.destroy();
+  });
+
   test('add cluster helpers throw when bridged device is missing', () => {
     const entity = new ZigbeeEntity(platform, { id: 9003, friendly_name: 'No helper endpoint', description: '', members: [], scenes: [] });
 
