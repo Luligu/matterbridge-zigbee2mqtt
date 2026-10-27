@@ -78,9 +78,12 @@ export default function initializePlugin(matterbridge: PlatformMatterbridge, log
 
 export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   // platform
+  /** Registered MatterbridgeEndpoint endpoints for bridged Zigbee devices and groups. */
   public bridgedDevices: MatterbridgeEndpoint[] = [];
+  /** Registered Zigbee device and group entities managed by this platform. */
   public zigbeeEntities: ZigbeeEntity[] = [];
-  private connectTimeout = 90000; // 90 seconds
+  /** Maximum wait in milliseconds for Zigbee2MQTT bridge data during startup. Defaults to 90 seconds. */
+  private connectTimeoutMs = 90000;
   /** Timeout handle for replaying entity availability and retained state after configuration. */
   private availabilityTimeout: NodeJS.Timeout | undefined;
   /** Delay in milliseconds before replaying entity availability and retained state. Defaults to 10 seconds. */
@@ -95,11 +98,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   private mqttTopic = 'zigbee2mqtt';
   private mqttUsername: string | undefined = undefined;
   private mqttPassword: string | undefined = undefined;
-  public lightList: string[] = [];
-  public outletList: string[] = [];
-  public switchList: string[] = [];
-  public featureBlackList: string[] = [];
-  public deviceFeatureBlackList: DeviceFeatureBlackList = {};
 
   // zigbee2Mqtt
   public shouldStart: boolean;
@@ -149,15 +147,15 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.username) this.mqttUsername = config.username;
     if (config.password) this.mqttPassword = config.password;
     if (!isValidNumber(config.protocolVersion, 3, 5)) config.protocolVersion = 5;
-    if (config.switchList) this.switchList = config.switchList;
-    if (config.lightList) this.lightList = config.lightList;
-    if (config.outletList) this.outletList = config.outletList;
-    if (config.featureBlackList) this.featureBlackList = config.featureBlackList;
-    if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList;
+    config.switchList ??= [];
+    config.lightList ??= [];
+    config.outletList ??= [];
+    config.featureBlackList ??= [];
+    config.deviceFeatureBlackList ??= {};
     config.postfix ??= '';
     config.postfix = config.postfix.trim().slice(0, 3);
-    this.config.debug ??= false;
-    this.config.unregisterOnShutdown ??= false;
+    config.debug ??= false;
+    config.unregisterOnShutdown ??= false;
 
     // Save back to create a default plugin config.json
     config.host = this.mqttHost;
@@ -515,7 +513,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       'zigbee2mqtt',
       () => this.z2mBridgeDevices !== undefined && this.z2mBridgeGroups !== undefined && (this.z2mBridgeOnline !== undefined || this.z2mBridgeInfo !== undefined),
       false,
-      this.connectTimeout,
+      this.connectTimeoutMs,
       1000,
       true,
     );

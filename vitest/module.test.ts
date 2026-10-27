@@ -202,7 +202,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = undefined;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).rejects.toThrow(
       'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
     );
@@ -211,7 +211,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = undefined;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).rejects.toThrow(
       'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
     );
@@ -220,7 +220,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).rejects.toThrow(
       'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
     );
@@ -229,21 +229,21 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = [] as BridgeDevice[];
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     platform.z2mBridgeOnline = true;
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = [] as BridgeGroup[];
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     platform.z2mBridgeOnline = true;
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = [] as BridgeDevice[];
     platform.z2mBridgeGroups = [] as BridgeGroup[];
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     await platform.onShutdown();

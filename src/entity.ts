@@ -1091,9 +1091,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
       let deviceType: DeviceTypeDefinition | undefined;
       if (useState) {
         deviceType = onOffLight;
-        if (platform.switchList.includes(group.friendly_name)) deviceType = onOffLightSwitch;
-        else if (platform.lightList.includes(group.friendly_name)) deviceType = onOffLight;
-        else if (platform.outletList.includes(group.friendly_name)) deviceType = onOffPlugInUnit;
+        if (platform.config.switchList.includes(group.friendly_name)) deviceType = onOffLightSwitch;
+        else if (platform.config.lightList.includes(group.friendly_name)) deviceType = onOffLight;
+        else if (platform.config.outletList.includes(group.friendly_name)) deviceType = onOffPlugInUnit;
         zigbeeGroup.propertyMap.set('state', { name: 'state', type: isLight ? 'light' : 'switch', endpoint: '' });
       }
       if (useBrightness) {
@@ -1130,7 +1130,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       if (deviceType.code === onOffLightSwitch.code) zigbeeGroup.bridgedDevice.createDefaultOnOffClusterServer();
     }
 
-    if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
+    if (!platform.config.featureBlackList?.includes('scenes') && !platform.config.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
       for (const scene of group.scenes) {
         zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
         platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
@@ -1438,7 +1438,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       return zigbeeDevice;
     }
 
-    if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[device.friendly_name]?.includes('scenes')) {
+    if (!platform.config.featureBlackList?.includes('scenes') && !platform.config.deviceFeatureBlackList[device.friendly_name]?.includes('scenes')) {
       for (const [key, endpoint] of Object.entries(device.endpoints)) {
         for (const scene of Object.values(endpoint.scenes)) {
           zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
@@ -1522,17 +1522,17 @@ export class ZigbeeDevice extends ZigbeeEntity {
       value_maxs.push(option.value_max ?? Number.NaN);
       values.push(option.values ? option.values.join('|') : '');
     });
-    if (platform.switchList.includes(device.friendly_name)) {
+    if (platform.config.switchList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'light' ? 'switch' : type;
       });
     }
-    if (platform.lightList.includes(device.friendly_name)) {
+    if (platform.config.lightList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'switch' ? 'light' : type;
       });
     }
-    if (platform.outletList.includes(device.friendly_name)) {
+    if (platform.config.outletList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'switch' || type === 'light' ? 'outlet' : type;
       });
@@ -1550,9 +1550,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     // Set the global and device based feature blacklist
-    if (platform.featureBlackList) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.featureBlackList];
-    if (platform.deviceFeatureBlackList[device.friendly_name])
-      zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.deviceFeatureBlackList[device.friendly_name]];
+    if (platform.config.featureBlackList) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.config.featureBlackList];
+    if (platform.config.deviceFeatureBlackList[device.friendly_name])
+      zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.config.deviceFeatureBlackList[device.friendly_name]];
 
     /*
     zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
@@ -1566,11 +1566,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
     */
 
     for (const [index, name] of names.entries()) {
-      if (platform.featureBlackList.includes(name) || platform.featureBlackList.includes(properties[index])) {
+      if (platform.config.featureBlackList.includes(name) || platform.config.featureBlackList.includes(properties[index])) {
         zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} property ${properties[index]} is globally blacklisted`);
         continue;
       }
-      if (platform.deviceFeatureBlackList[device.friendly_name]?.includes(name) || platform.deviceFeatureBlackList[device.friendly_name]?.includes(properties[index])) {
+      if (
+        platform.config.deviceFeatureBlackList[device.friendly_name]?.includes(name) ||
+        platform.config.deviceFeatureBlackList[device.friendly_name]?.includes(properties[index])
+      ) {
         zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} property ${properties[index]} is blacklisted`);
         continue;
       }
