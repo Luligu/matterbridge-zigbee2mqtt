@@ -13,9 +13,23 @@ const MATTER_CREATE_ONLY = true;
 
 import path from 'node:path';
 
-import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, MatterbridgeEndpoint, type PlatformMatterbridge } from 'matterbridge';
+import {
+  colorDimmerSwitch,
+  dimmableLight,
+  dimmablePlugInUnit,
+  dimmerSwitch,
+  extendedColorLight,
+  featuresFor,
+  invokeBehaviorCommand,
+  invokeSubscribeHandler,
+  MatterbridgeEndpoint,
+  onOffLight,
+  onOffLightSwitch,
+  onOffPlugInUnit,
+  type PlatformMatterbridge,
+} from 'matterbridge';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import { ColorControl, DoorLock, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { AirQuality, ColorControl, DoorLock, PowerSource, SmokeCoAlarm, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
 import { flushAsync } from 'matterbridge/test-utils';
 import {
   addDevice,
@@ -1318,6 +1332,26 @@ describe('Test Entity', () => {
       (entity as any).noUpdate = false;
       expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command unlockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('unlockDoor', friendlyName, { state: 'UNLOCK' });
+
+      // Test updates from Z2M
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { state: 'LOCK' });
+      await vi.waitFor(() => {
+        expect(device.getAttribute('doorLock', 'lockState')).toBe(DoorLock.LockState.Locked);
+      }, waitOptions);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { state: 'UNLOCK' });
+      await vi.waitFor(() => {
+        expect(device.getAttribute('doorLock', 'lockState')).toBe(DoorLock.LockState.Unlocked);
+      }, waitOptions);
+
+      // Configure triggers the lockOperation event for the unlocked state
+      vi.clearAllMocks();
+      await entity.configure();
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining('DoorLock cluster'));
+
+      entity.destroy();
     });
 
     test('create a thermostat device', async () => {
@@ -2141,6 +2175,328 @@ describe('Test Entity', () => {
         expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
         expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
       }, waitOptions);
+
+      entity.destroy();
+    });
+
+    test.each([
+      {
+        title: 'water leak sensor',
+        device: makeDevice('Test leak sensor', '0x00000000000000a1', [generic('water_leak', 'binary'), generic('battery_low', 'binary'), generic('battery')], 'Battery'),
+        clusters: ['booleanState'],
+        payload: { water_leak: true, battery_low: true },
+        expected: [
+          ['BooleanState', 'stateValue', true],
+          ['PowerSource', 'batChargeLevel', PowerSource.BatChargeLevel.Critical],
+        ],
+      },
+      {
+        title: 'rain sensor',
+        device: makeDevice('Test rain sensor', '0x00000000000000a2', [generic('rain', 'binary')]),
+        clusters: ['booleanState'],
+        payload: { rain: true },
+        expected: [['BooleanState', 'stateValue', true]],
+      },
+      {
+        title: 'smoke sensor',
+        device: makeDevice('Test smoke sensor', '0x00000000000000a3', [generic('smoke', 'binary')]),
+        clusters: ['smokeCoAlarm'],
+        payload: { smoke: true },
+        expected: [['SmokeCoAlarm', 'smokeState', SmokeCoAlarm.AlarmState.Critical]],
+      },
+      {
+        title: 'carbon monoxide sensor',
+        device: makeDevice('Test co sensor', '0x00000000000000a4', [generic('carbon_monoxide', 'binary'), generic('co')]),
+        clusters: ['booleanState', 'carbonMonoxideConcentrationMeasurement'],
+        payload: { carbon_monoxide: true, co: 12.4 },
+        expected: [
+          ['BooleanState', 'stateValue', false],
+          ['CarbonMonoxideConcentrationMeasurement', 'measuredValue', 12],
+        ],
+      },
+      {
+        title: 'air quality sensor',
+        device: makeDevice('Test air quality sensor', '0x00000000000000a5', [
+          generic('air_quality', 'enum', { values: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] }),
+          generic('voc'),
+          generic('co2'),
+          generic('formaldehyd'),
+          generic('pm1'),
+          generic('pm25'),
+          generic('pm10'),
+        ]),
+        clusters: ['airQuality', 'totalVolatileOrganicCompoundsConcentrationMeasurement', 'pm25ConcentrationMeasurement'],
+        payload: { air_quality: 'good', voc: 300, co2: 812.6, formaldehyd: 0.4, pm1: 5.4, pm25: 9.6, pm10: 20 },
+        expected: [
+          ['AirQuality', 'airQuality', AirQuality.AirQualityEnum.Fair],
+          ['TotalVolatileOrganicCompoundsConcentrationMeasurement', 'measuredValue', 300],
+          ['CarbonDioxideConcentrationMeasurement', 'measuredValue', 813],
+          ['FormaldehydeConcentrationMeasurement', 'measuredValue', 0],
+          ['Pm1ConcentrationMeasurement', 'measuredValue', 5],
+          ['Pm25ConcentrationMeasurement', 'measuredValue', 10],
+          ['Pm10ConcentrationMeasurement', 'measuredValue', 20],
+        ],
+      },
+      {
+        title: 'soil moisture sensor',
+        device: makeDevice('Test soil sensor', '0x00000000000000a6', [generic('soil_moisture')]),
+        clusters: ['relativeHumidityMeasurement'],
+        payload: { soil_moisture: 41.25 },
+        expected: [['RelativeHumidityMeasurement', 'measuredValue', 4125]],
+      },
+    ] as { title: string; device: BridgeDevice; clusters: string[]; payload: Payload; expected: [string, string, unknown][] }[])(
+      'create a $title device',
+      async ({ device: z2mDevice, clusters, payload, expected }) => {
+        const entity = await ZigbeeDevice.create(platform, z2mDevice);
+        (entity as any).cachePublishTimeoutTime = 1;
+        const device = entity.bridgedDevice;
+        if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+        expect(device.getAllClusterServerNames()).toEqual(expect.arrayContaining(clusters));
+        expect(await addDevice(aggregator, device)).toBe(true);
+
+        vi.clearAllMocks();
+        platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+        await vi.waitFor(() => {
+          for (const [cluster, attribute, value] of expected) expect(device.getAttribute(cluster, attribute)).toBe(value);
+        }, waitOptions);
+
+        entity.destroy();
+      },
+    );
+
+    test('handle duplicate, null, out of lookup and unknown action payloads', async () => {
+      const z2mDevice = makeDevice('Test guard sensor', '0x00000000000000a8', [
+        generic('air_quality', 'enum', { values: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] }),
+        generic('action', 'enum', { values: ['single'] }),
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: 'good' });
+      await vi.waitFor(() => expect(device.getAttribute('AirQuality', 'airQuality')).toBe(AirQuality.AirQualityEnum.Fair), waitOptions);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: 'good' });
+      expect(loggerLogSpy).not.toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining('MQTT message for device'));
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: null, linkquality: 100 });
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: 'bogus' });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('not found in propertyMap values'));
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { action: 'double' });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('not found in propertyMap'));
+      expect(device.getAttribute('AirQuality', 'airQuality')).toBe(AirQuality.AirQualityEnum.Fair);
+
+      entity.destroy();
+    });
+
+    test('create a device with device_temperature and a device feature blacklist', async () => {
+      const z2mDevice = makeDevice('Test device temperature', '0x00000000000000a9', [generic('device_temperature'), generic('battery')], 'Battery');
+      const featureBlackList = platform.config.featureBlackList;
+      platform.config.featureBlackList = [];
+      platform.config.deviceFeatureBlackList = { [z2mDevice.friendly_name]: ['battery'] };
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      platform.config.featureBlackList = featureBlackList;
+      platform.config.deviceFeatureBlackList = {};
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('feature battery property battery is blacklisted'));
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { device_temperature: 31.5 });
+      await vi.waitFor(() => expect(device.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(3150), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('create devices with switchList, lightList and outletList overrides', async () => {
+      const findDevice = (name: string): BridgeDevice => {
+        const z2mDevice = platform.z2mBridgeDevices?.find((device) => device.friendly_name === name);
+        if (!z2mDevice) throw new Error(`Z2M Device ${name} not found`);
+        return structuredClone(z2mDevice);
+      };
+
+      // Dimmable light as outlet
+      platform.config.outletList = ['Gledopto GL-SD-001'];
+      const outlet = await ZigbeeDevice.create(platform, findDevice('Gledopto GL-SD-001'));
+      platform.config.outletList = [];
+      (outlet as any).cachePublishTimeoutTime = 1;
+      const outletDevice = outlet.bridgedDevice;
+      if (!outletDevice) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(outletDevice.deviceTypes.has(dimmablePlugInUnit.code)).toBe(true);
+      expect(outletDevice.deviceTypes.has(onOffPlugInUnit.code)).toBe(false);
+      expect(await addDevice(aggregator, outletDevice)).toBe(true);
+      platform.z2m.emit(`MESSAGE-${outlet.entityName}`, { state: 'ON', brightness: 100 });
+      await vi.waitFor(() => {
+        expect(outletDevice.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(outletDevice.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+      }, waitOptions);
+      // Destroy with a pending cache publish
+      (outlet as any).cachePublishTimeoutTime = 1000;
+      await invokeBehaviorCommand(outletDevice, 'OnOff', 'off');
+      expect((outlet as any).cachePublishTimeout).toBeDefined();
+      outlet.destroy();
+      expect((outlet as any).cachePublishTimeout).toBeUndefined();
+
+      // Color light as switch
+      platform.config.switchList = ['Moes RGBCCT light bulb'];
+      const colorSwitch = await ZigbeeDevice.create(platform, findDevice('Moes RGBCCT light bulb'));
+      platform.config.switchList = [];
+      const colorSwitchDevice = colorSwitch.bridgedDevice;
+      if (!colorSwitchDevice) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(colorSwitchDevice.deviceTypes.has(colorDimmerSwitch.code)).toBe(true);
+      expect(colorSwitchDevice.deviceTypes.has(dimmerSwitch.code)).toBe(false);
+      expect(colorSwitchDevice.deviceTypes.has(onOffLightSwitch.code)).toBe(false);
+      expect(await addDevice(aggregator, colorSwitchDevice)).toBe(true);
+      platform.z2m.emit(`MESSAGE-${colorSwitch.entityName}`, { brightness: 300 });
+      await vi.waitFor(() => expect(colorSwitchDevice.getAttribute('LevelControl', 'currentLevel')).toBe(254), waitOptions);
+      colorSwitch.destroy();
+
+      // Switch as light
+      platform.config.lightList = ['Aqara switch no neutral'];
+      const light = await ZigbeeDevice.create(platform, findDevice('Aqara switch no neutral'));
+      platform.config.lightList = [];
+      expect(light.bridgedDevice?.deviceTypes.has(onOffLight.code)).toBe(true);
+      light.destroy();
+    });
+
+    test('create groups with switchList, lightList and outletList overrides', async () => {
+      const switches = platform.z2mBridgeGroups?.find((group) => group.friendly_name === 'Switches');
+      if (!switches) throw new Error('Z2M Group not found');
+      const z2mGroup = { ...switches, scenes: [] }; // The group scenes are already registered as virtual devices
+      for (const [list, deviceType] of [
+        ['switchList', onOffLightSwitch],
+        ['lightList', onOffLight],
+        ['outletList', onOffPlugInUnit],
+      ] as const) {
+        platform.config[list] = [z2mGroup.friendly_name];
+        const entity = await ZigbeeGroup.create(platform, z2mGroup);
+        platform.config[list] = [];
+        expect(entity.bridgedDevice?.deviceTypes.has(deviceType.code)).toBe(true);
+        entity.destroy();
+      }
+    });
+
+    test('create a group with an unknown member', async () => {
+      const entity = await ZigbeeGroup.create(platform, {
+        id: 9002,
+        friendly_name: 'Unknown members',
+        description: '',
+        members: [{ ieee_address: '0xffffffffffffffff', endpoint: 1 }],
+        scenes: [],
+      });
+      expect(entity.bridgedDevice).toBeUndefined();
+      entity.destroy();
+    });
+
+    test('create a heating only thermostat device', async () => {
+      const z2mDevice = makeDevice('Test heating thermostat', '0x00000000000000b1', [
+        {
+          type: 'climate',
+          features: [
+            generic('local_temperature'),
+            generic('occupied_heating_setpoint', 'numeric', { value_min: 5, value_max: 30 }),
+            generic('unoccupied_heating_setpoint', 'numeric', { value_min: 5, value_max: 30 }),
+            generic('system_mode', 'enum', { values: ['off', 'heat'] }),
+          ],
+        },
+        generic('min_heat_setpoint_limit'),
+        generic('max_heat_setpoint_limit'),
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).thermostatTimeoutTime = 1;
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(featuresFor(device, 'thermostat')).toEqual(expect.objectContaining({ heating: true, cooling: false }));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { occupied_heating_setpoint: 21, min_heat_setpoint_limit: 6, max_heat_setpoint_limit: 29 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedHeatingSetpoint')).toBe(2100), waitOptions);
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { unoccupied_heating_setpoint: 17 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedHeatingSetpoint')).toBe(1700), waitOptions);
+
+      vi.clearAllMocks();
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2200, 1700);
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedHeatingSetpoint', z2mDevice.friendly_name, { occupied_heating_setpoint: 22 });
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('create a cooling only thermostat device', async () => {
+      const z2mDevice = makeDevice('Test cooling thermostat', '0x00000000000000b2', [
+        {
+          type: 'climate',
+          features: [
+            generic('local_temperature'),
+            generic('occupied_cooling_setpoint', 'numeric', { value_min: 16, value_max: 32 }),
+            generic('unoccupied_cooling_setpoint', 'numeric', { value_min: 16, value_max: 32 }),
+            generic('system_mode', 'enum', { values: ['off', 'cool'] }),
+          ],
+        },
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).thermostatTimeoutTime = 1;
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(featuresFor(device, 'thermostat')).toEqual(expect.objectContaining({ heating: false, cooling: true }));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { occupied_cooling_setpoint: 25 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedCoolingSetpoint')).toBe(2500), waitOptions);
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { unoccupied_cooling_setpoint: 28 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedCoolingSetpoint')).toBe(2800), waitOptions);
+
+      vi.clearAllMocks();
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2400, 2800);
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedCoolingSetpoint', z2mDevice.friendly_name, { occupied_cooling_setpoint: 24 });
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('create a six channel device with color child endpoints and scenes', async () => {
+      const lightFeatures = (endpoint: string, colors: string[]): object => ({
+        type: 'light',
+        endpoint,
+        features: [
+          { ...generic('state', 'binary'), property: `state_${endpoint}` },
+          { ...generic('brightness'), property: `brightness_${endpoint}` },
+          ...colors.map((color) => ({
+            ...generic(color, color === 'color_temp' ? 'numeric' : 'composite'),
+            property: color === 'color_temp' ? `color_temp_${endpoint}` : `color_${endpoint}`,
+          })),
+        ],
+      });
+      const switchFeatures = (endpoint: string): object => ({ type: 'switch', endpoint, features: [{ ...generic('state', 'binary'), property: `state_${endpoint}` }] });
+      const z2mDevice = makeDevice('Test six channel', '0x00000000000000c1', [
+        lightFeatures('l1', ['color_temp', 'color_xy', 'color_hs']),
+        lightFeatures('l2', ['color_xy']),
+        switchFeatures('l3'),
+        switchFeatures('l4'),
+        switchFeatures('l5'),
+        switchFeatures('l6'),
+      ]);
+      if (z2mDevice.endpoints['1']) z2mDevice.endpoints['1'].scenes = [{ id: 1, name: 'Movie' }];
+      const registerVirtualDeviceSpy = vi.spyOn(platform, 'registerVirtualDevice').mockImplementation(async (_name, _type, callback) => {
+        await callback();
+        return true;
+      });
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      registerVirtualDeviceSpy.mockRestore();
+      expect(publishCommandSpy).toHaveBeenCalledWith('scene_recall', z2mDevice.friendly_name, { scene_recall: 1 });
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(device.getChildEndpoints()).toHaveLength(6);
+      const l2 = device.getChildEndpointById('l2');
+      expect(l2?.deviceTypes.has(extendedColorLight.code)).toBe(true);
+      expect(l2?.deviceTypes.has(dimmableLight.code)).toBe(false);
 
       entity.destroy();
     });
@@ -4109,3 +4465,33 @@ const lock = {
   supported: true,
   type: 'Router',
 };
+
+/**
+ * Create a generic expose for the synthetic test devices.
+ *
+ * @param {string} name The expose name and property
+ * @param {string} type The expose type
+ * @param {object} extra Additional expose fields
+ * @returns {object} The expose
+ */
+function generic(name: string, type = 'numeric', extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return { access: 1, name, property: name, type, label: name, description: name, ...extra };
+}
+
+/**
+ * Create a synthetic test device from the lock fixture with the given exposes.
+ *
+ * @param {string} friendly_name The device friendly name
+ * @param {string} ieee_address The device ieee address
+ * @param {object[]} exposes The device exposes
+ * @param {string} power_source The device power source
+ * @returns {BridgeDevice} The device
+ */
+function makeDevice(friendly_name: string, ieee_address: string, exposes: object[], power_source = 'Mains (single phase)'): BridgeDevice {
+  const device = structuredClone(lock) as unknown as BridgeDevice;
+  device.friendly_name = friendly_name;
+  device.ieee_address = ieee_address;
+  device.power_source = power_source;
+  if (device.definition) device.definition.exposes = exposes as NonNullable<BridgeDevice['definition']>['exposes'];
+  return device;
+}
