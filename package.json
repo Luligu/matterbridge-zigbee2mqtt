@@ -75,10 +75,10 @@
     "version": false,
     "publish": false,
     "coverage": {
-      "lines": 95,
-      "functions": 85,
-      "branches": 80,
-      "statements": 90
+      "lines": 100,
+      "functions": 100,
+      "branches": 90,
+      "statements": 95
     },
     "ignore": {
       "git": [
@@ -108,7 +108,7 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:verbose": "vitest run --reporter verbose",
-    "test:coverage": "vitest run --coverage --coverage.thresholds.statements=90 --coverage.thresholds.branches=80 --coverage.thresholds.lines=95 --coverage.thresholds.functions=85",
+    "test:coverage": "vitest run --coverage --coverage.thresholds.statements=95 --coverage.thresholds.branches=90 --coverage.thresholds.lines=100 --coverage.thresholds.functions=100",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
@@ -118,7 +118,7 @@
     "checkDependencies": "npx --yes --package npm-check-updates@latest ncu",
     "updateDependencies": "npx --yes --package npm-check-updates@latest ncu -u && npm run softReset",
     "runMeBeforePublish": "npm run cleanBuild && npm run format && npm run lint && npm run build && npm run typecheck && npm run test:coverage",
-    "prepublishOnly": "npm run cleanBuildProduction && npm pkg delete devDependencies scripts automator && node scripts/prepublish-clean.mjs && npm install --no-fund --no-audit --omit=dev && npm shrinkwrap --omit=dev"
+    "prepublishOnly": "npm run cleanBuildProduction && node scripts/prepublish-clean.mjs && npm install --no-fund --no-audit --omit=dev && npm shrinkwrap --omit=dev"
   },
   "dependencies": {
     "moment": "2.31.0",
@@ -129,9 +129,9 @@
   "devDependencies": {
     "@types/node": "26.6.5",
     "@vitest/coverage-v8": "5.0.5",
-    "oxfmt": "0.74.0",
-    "oxlint": "1.89.0",
-    "oxlint-tsgolint": "7.0.2004",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0",
+    "oxlint-tsgolint": "7.0.2005",
     "typescript": "7.0.2",
     "vitest": "5.0.5"
   }
