@@ -15,9 +15,7 @@ import path from 'node:path';
 
 import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, MatterbridgeEndpoint, type PlatformMatterbridge } from 'matterbridge';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import type { Endpoint, ServerNode } from 'matterbridge/matter';
 import { ColorControl, DoorLock, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import type { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
 import { flushAsync } from 'matterbridge/test-utils';
 import {
   addDevice,
@@ -37,7 +35,7 @@ import {
   startServerNode,
   stopServerNode,
 } from 'matterbridge/test-utils/vitest';
-import { getMacAddress, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
+import { kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from '../src/entity.js';
 import { ZigbeePlatform, type ZigbeePlatformConfig } from '../src/module.js';
@@ -78,8 +76,8 @@ describe('Test Entity', () => {
   let platform: ZigbeePlatform;
   const executeTrue = { executeIfOff: true };
 
-  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
-  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
+  const commandTimeout = 25;
+  const updateTimeout = 50;
 
   const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
@@ -295,6 +293,7 @@ describe('Test Entity', () => {
       if (!z2mGroup) throw new Error('Z2M Group not found');
       // await setDebug(true);
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       // await setDebug(false);
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
@@ -421,6 +420,7 @@ describe('Test Entity', () => {
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       // @ts-expect-error accessing private property for test
@@ -603,6 +603,7 @@ describe('Test Entity', () => {
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -671,6 +672,7 @@ describe('Test Entity', () => {
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       // expect(entity.platform.config.postfix).toBe('');
@@ -714,6 +716,7 @@ describe('Test Entity', () => {
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       // expect(entity.platform.config.postfix).toBe('');
@@ -740,6 +743,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -848,6 +852,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1009,6 +1014,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1184,6 +1190,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1240,6 +1247,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1337,6 +1345,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1501,6 +1510,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1859,6 +1869,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1925,6 +1936,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
