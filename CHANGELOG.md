@@ -31,12 +31,13 @@ If you like this project and find it useful, please consider giving it a star on
 
 ## [3.3.1] - Dev branch
 
-### Fixed
+### Added
 
-- [devices]: Catch and log errors when unregistering Zigbee entities.
+- [test]: Add module tests to reach 100% statement, branch, function and line coverage.
 
 ### Changed
 
+- [module]: Refactor `src/module.ts` and bump it to v.3.2.0: use config directly, clarify timeout names and document platform state.
 - [agents]: Update the plugin frontend rules to v.1.0.2: document base paths and trailing slashes for Home Assistant Ingress.
 - [agents]: Update `.codex/config.toml` to v.1.0.6: clarify the default workspace permissions and opt-in profiles.
 - [scripts]: Update `scripts/git-sync-dev.mjs` to v.2.1.0: guard against overwriting remote dev commits.
@@ -45,6 +46,10 @@ If you like this project and find it useful, please consider giving it a star on
 - [package]: Bump `oxlint` to v.1.90.0.
 - [package]: Bump `oxlint-tsgolint` to v.7.0.2005.
 - [package]: Bump transitive `ip-address` to v.10.7.4 (mqtt → socks) to fix advisory GHSA-rxp7-6hxx-x8q5.
+
+### Fixed
+
+- [devices]: Catch and log errors when unregistering Zigbee entities.
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 

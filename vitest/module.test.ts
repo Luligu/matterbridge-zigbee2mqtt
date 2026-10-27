@@ -983,6 +983,114 @@ describe('TestPlatform', () => {
     }
   });
 
+  describe('bridge event coverage', () => {
+    let eventPlatform: ZigbeePlatform;
+    const device = { ieee_address: '0x1234', friendly_name: 'Event device' } as BridgeDevice;
+    const group: BridgeGroup = { id: 42, friendly_name: 'Event group', description: '', members: [], scenes: [] };
+    const registerDevice = vi.fn<() => Promise<undefined>>();
+    const registerGroup = vi.fn<() => Promise<undefined>>();
+    const unregister = vi.fn<() => Promise<void>>();
+
+    beforeEach(() => {
+      eventPlatform = new ZigbeePlatform(matterbridge, log, { ...mockConfig });
+      eventPlatform.z2mBridgeDevices = [device];
+      eventPlatform.z2mBridgeGroups = [group];
+      vi.spyOn(eventPlatform, 'registerZigbeeDevice').mockImplementation(registerDevice);
+      vi.spyOn(eventPlatform, 'registerZigbeeGroup').mockImplementation(registerGroup);
+      vi.spyOn(eventPlatform, 'unregisterZigbeeEntity').mockImplementation(unregister);
+      vi.spyOn(eventPlatform, 'validateDevice').mockReturnValue(true);
+    });
+
+    afterEach(async () => {
+      await eventPlatform.onShutdown();
+    });
+
+    it.each([
+      ['device_interview', [device.friendly_name, device.ieee_address, 'successful', true], true, false],
+      ['device_rename', [device.ieee_address, 'Old device', device.friendly_name], true, true],
+      ['group_add', [group.friendly_name, group.id, 'ok'], false, false],
+      ['group_rename', ['Old group', group.friendly_name, 'ok'], false, true],
+      ['group_add_member', [group.friendly_name, device.ieee_address, 'ok'], false, true],
+      ['group_remove_member', [group.friendly_name, device.friendly_name, 'ok'], false, true],
+    ] as const)('should register the matching entity on %s', async (event, args, isDevice, removesPrevious) => {
+      eventPlatform.z2m.emit(event, ...args);
+      await flushAsync();
+
+      expect(isDevice ? registerDevice : registerGroup).toHaveBeenCalledExactlyOnceWith(isDevice ? device : group);
+      expect(isDevice ? registerGroup : registerDevice).not.toHaveBeenCalled();
+      expect(unregister).toHaveBeenCalledTimes(removesPrevious ? 1 : 0);
+    });
+
+    it.each([
+      ['device_remove', [device.friendly_name, 'error', false, false]],
+      ['device_interview', [device.friendly_name, device.ieee_address, 'failed', true]],
+      ['device_interview', [device.friendly_name, device.ieee_address, 'successful', false]],
+      ['group_rename', [group.friendly_name, 'New group', 'error']],
+      ['group_add_member', [group.friendly_name, device.ieee_address, 'error']],
+      ['group_remove_member', [group.friendly_name, device.friendly_name, 'error']],
+    ] as const)('should leave entities unchanged on unsuccessful %s', async (event, args) => {
+      eventPlatform.z2m.emit(event, ...args);
+      await flushAsync();
+
+      expect(registerDevice).not.toHaveBeenCalled();
+      expect(registerGroup).not.toHaveBeenCalled();
+      expect(unregister).not.toHaveBeenCalled();
+    });
+
+    it.each(['device_interview', 'group_add'])('should skip registration when validation rejects %s', async (event) => {
+      vi.spyOn(eventPlatform, 'validateDevice').mockReturnValue(false);
+      if (event === 'device_interview') eventPlatform.z2m.emit(event, device.friendly_name, device.ieee_address, 'successful', true);
+      else eventPlatform.z2m.emit(event, group.friendly_name, group.id, 'ok');
+      await flushAsync();
+
+      expect(registerDevice).not.toHaveBeenCalled();
+      expect(registerGroup).not.toHaveBeenCalled();
+    });
+
+    it('should configure mixed entities and skip duplicate registration on repeated bridge lists', async () => {
+      const configureDevice = vi.fn();
+      const configureGroup = vi.fn();
+      eventPlatform.zigbeeEntities = [
+        { isDevice: true, device, configure: configureDevice, destroy: vi.fn() },
+        { isGroup: true, group, configure: configureGroup, destroy: vi.fn() },
+      ] as unknown as ZigbeeDevice[];
+      const deviceUpdate = vi.spyOn(eventPlatform, 'requestDeviceUpdate').mockImplementation(() => {});
+      const groupUpdate = vi.spyOn(eventPlatform, 'requestGroupUpdate').mockImplementation(() => {});
+      eventPlatform.shouldStart = true;
+      eventPlatform.shouldConfigure = true;
+
+      for (let i = 0; i < 2; i++) {
+        eventPlatform.z2m.emit('bridge-devices', [device]);
+        eventPlatform.z2m.emit('bridge-groups', [group]);
+        await flushAsync();
+      }
+
+      expect(registerDevice).toHaveBeenCalledExactlyOnceWith(device);
+      expect(registerGroup).toHaveBeenCalledExactlyOnceWith(group);
+      expect(eventPlatform.z2mDevicesRegistered).toBe(true);
+      expect(eventPlatform.z2mGroupsRegistered).toBe(true);
+      expect(deviceUpdate).toHaveBeenCalledTimes(2);
+      expect(deviceUpdate).toHaveBeenCalledWith(device);
+      expect(groupUpdate).toHaveBeenCalledTimes(2);
+      expect(groupUpdate).toHaveBeenCalledWith(group);
+      expect(configureDevice).toHaveBeenCalledTimes(4);
+      expect(configureGroup).toHaveBeenCalledTimes(4);
+    });
+
+    it('should reject startup when bridge info arrives without bridge state', async () => {
+      eventPlatform.z2mBridgeInfo = {} as BridgeInfo;
+      eventPlatform.z2mBridgeOnline = undefined;
+
+      await expect(eventPlatform.onStart()).rejects.toThrow('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups.');
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.ERROR,
+        'The plugin did not receive zigbee2mqtt bridge state. Check if zigbee2mqtt is running and connected to the MQTT broker.',
+      );
+      expect(registerDevice).not.toHaveBeenCalled();
+      expect(registerGroup).not.toHaveBeenCalled();
+    });
+  });
+
   it('should return undefined when device registration is not valid', async () => {
     vi.spyOn(platform as any, 'validateDevice').mockReturnValueOnce(false);
 

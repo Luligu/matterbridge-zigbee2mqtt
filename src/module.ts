@@ -3,7 +3,7 @@
  * @description This file contains the class ZigbeePlatform.
  * @author Luca Liguori
  * @created 2023-12-29
- * @version 3.1.0
+ * @version 3.2.0
  * @license Apache-2.0
  *
  * Copyright 2023, 2024, 2025, 2026, 2027 Luca Liguori.
@@ -88,17 +88,28 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   /** Delay in milliseconds before replaying entity availability and retained state. Defaults to 10 seconds. */
   private availabilityTimeoutMs = 10000;
 
-  // zigbee2Mqtt
-  public shouldStart: boolean;
-  public shouldConfigure: boolean;
+  /** Instance of the Zigbee2MQTT client used for communication with the MQTT broker. */
   public z2m: Zigbee2MQTT;
+
+  /** Whether devices and groups may be registered when bridge data arrives. */
+  public shouldStart: boolean;
+  /** Whether entities may be configured when bridge data arrives. */
+  public shouldConfigure: boolean;
+  /** Whether the initial Zigbee2MQTT device list has been processed for registration. */
   public z2mDevicesRegistered = false;
+  /** Whether the initial Zigbee2MQTT group list has been processed for registration. */
   public z2mGroupsRegistered = false;
+  /** Latest Zigbee2MQTT bridge availability, or undefined before any bridge state is received. */
   public z2mBridgeOnline: boolean | undefined;
+  /** Latest Zigbee2MQTT bridge information, or undefined before it is received. */
   public z2mBridgeInfo: BridgeInfo | undefined;
+  /** Latest Zigbee2MQTT device list, or undefined before it is received. */
   public z2mBridgeDevices: BridgeDevice[] | undefined;
+  /** Latest Zigbee2MQTT group list, or undefined before it is received. */
   public z2mBridgeGroups: BridgeGroup[] | undefined;
+  /** Latest availability by entity name, cached for replay after configuration. */
   private z2mEntityAvailability = new Map<string, boolean>();
+  /** Latest payload by entity name, cached for replay after configuration. */
   private z2mEntityPayload = new Map<string, Payload>();
 
   constructor(
@@ -119,7 +130,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.shouldStart = false;
     this.shouldConfigure = false;
 
-    // Default values and validation
+    // Default values and validation for old setups that didn't take the default configuration into account
     config.host = config.host && typeof config.host === 'string' ? config.host : 'mqtt://localhost';
     config.host =
       !config.host.startsWith('mqtt://') &&
