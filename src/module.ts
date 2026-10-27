@@ -100,7 +100,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public switchList: string[] = [];
   public featureBlackList: string[] = [];
   public deviceFeatureBlackList: DeviceFeatureBlackList = {};
-  public postfix = '';
 
   // zigbee2Mqtt
   public shouldStart: boolean;
@@ -155,10 +154,8 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (config.outletList) this.outletList = config.outletList;
     if (config.featureBlackList) this.featureBlackList = config.featureBlackList;
     if (config.deviceFeatureBlackList) this.deviceFeatureBlackList = config.deviceFeatureBlackList;
-    if (config.postfix && typeof config.postfix === 'string') {
-      this.postfix = config.postfix;
-    }
-    this.postfix = this.postfix.trim().slice(0, 3);
+    config.postfix ??= '';
+    config.postfix = config.postfix.trim().slice(0, 3);
     this.config.debug ??= false;
     this.config.unregisterOnShutdown ??= false;
 
@@ -168,7 +165,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.topic = this.mqttTopic;
     config.username = this.mqttUsername ?? '';
     config.password = this.mqttPassword ?? '';
-    config.postfix = this.postfix;
     config.scenesType ??= 'outlet';
     config.scenesPrefix ??= true;
 

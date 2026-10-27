@@ -1014,10 +1014,10 @@ export class ZigbeeGroup extends ZigbeeEntity {
   static async create(platform: ZigbeePlatform, group: BridgeGroup): Promise<ZigbeeGroup> {
     const zigbeeGroup = new ZigbeeGroup(platform, group);
 
-    if (zigbeeGroup.platform.postfix === '') {
+    if (zigbeeGroup.platform.config.postfix === '') {
       zigbeeGroup.serial = `group-${group.id}`.slice(0, 32);
     } else {
-      zigbeeGroup.serial = `group-${group.id}-${zigbeeGroup.platform.postfix}`.slice(0, 32);
+      zigbeeGroup.serial = `group-${group.id}-${zigbeeGroup.platform.config.postfix}`.slice(0, 32);
     }
 
     // Set the device entity select
@@ -1398,8 +1398,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
     const zigbeeDevice = new ZigbeeDevice(platform, device);
 
     zigbeeDevice.serial = device.ieee_address;
-    if (zigbeeDevice.platform.postfix !== '') {
-      zigbeeDevice.serial = `${zigbeeDevice.serial}-${zigbeeDevice.platform.postfix}`.slice(0, 32);
+    if (zigbeeDevice.platform.config.postfix !== '') {
+      zigbeeDevice.serial = `${zigbeeDevice.serial}-${zigbeeDevice.platform.config.postfix}`.slice(0, 32);
     }
 
     // Set Coordinator and dedicated routers

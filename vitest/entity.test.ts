@@ -665,7 +665,7 @@ describe('Test Entity', () => {
     });
 
     test('create a thermostat group', async () => {
-      platform.postfix = '';
+      platform.config.postfix = '';
       const friendlyName = 'Thermostats';
       const z2mGroup = platform.z2mBridgeGroups?.find((group) => group.friendly_name === friendlyName);
       expect(z2mGroup).toBeDefined();
@@ -673,7 +673,7 @@ describe('Test Entity', () => {
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
-      // expect(entity.platform.postfix).toBe('');
+      // expect(entity.platform.config.postfix).toBe('');
       const device = entity.bridgedDevice;
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
@@ -716,7 +716,7 @@ describe('Test Entity', () => {
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
-      // expect(entity.platform.postfix).toBe('');
+      // expect(entity.platform.config.postfix).toBe('');
       const device = entity.bridgedDevice;
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
