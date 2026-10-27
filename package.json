@@ -108,7 +108,7 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:verbose": "vitest run --reporter verbose",
-    "test:coverage": "vitest run --coverage --coverage.thresholds.statements=95 --coverage.thresholds.branches=85 --coverage.thresholds.lines=95 --coverage.thresholds.functions=85",
+    "test:coverage": "vitest run --coverage --coverage.thresholds.statements=95 --coverage.thresholds.branches=90 --coverage.thresholds.lines=100 --coverage.thresholds.functions=100",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
