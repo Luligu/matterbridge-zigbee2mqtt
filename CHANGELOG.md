@@ -34,12 +34,14 @@ If you like this project and find it useful, please consider giving it a star on
 ### Added
 
 - [test]: Add module tests to reach 100% statement, branch, function and line coverage.
+- [test]: Add Zigbee2MQTT tests to reach 100% statement, branch, function and line coverage.
 
 ### Changed
 
 - [module]: Refactor `src/module.ts` and bump it to v.3.2.0: use config directly, clarify timeout names and document platform state.
 - [agents]: Update the plugin frontend rules to v.1.0.2: document base paths and trailing slashes for Home Assistant Ingress.
 - [agents]: Update `.codex/config.toml` to v.1.0.6: clarify the default workspace permissions and opt-in profiles.
+- [scripts]: Update `scripts/downloads.mjs` to v.2.1.0: query an explicit date range for the last 30 days and today, marking unpublished counts as pending.
 - [scripts]: Update `scripts/git-sync-dev.mjs` to v.2.1.0: guard against overwriting remote dev commits.
 - [scripts]: Update `scripts/prepublish-clean.mjs` to v.2.2.0: remove development fields from `package.json`, preserving indentation and line endings.
 - [package]: Bump `oxfmt` to v.0.75.0.
