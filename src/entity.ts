@@ -1742,23 +1742,32 @@ export class ZigbeeDevice extends ZigbeeEntity {
         deviceClusterServersIdMap.set(clusterServer, clusterServer);
       });
       const deviceClusterServersObjMap = new Map<ClusterId, BehaviorOptions>();
+      // Unimplemented: clusterServersOptions is never populated
+      /* v8 ignore start */
       device.clusterServersOptions.forEach((clusterServer) => {
         deviceClusterServersIdMap.delete(clusterServer.clusterId);
         deviceClusterServersObjMap.set(clusterServer.clusterId, clusterServer);
       });
+      /* v8 ignore stop */
       device.clusterServersIds = Array.from(deviceClusterServersIdMap.values());
       device.clusterServersOptions = Array.from(deviceClusterServersObjMap.values());
 
       // Filter out duplicate client clusters and client clusters objects. Remove the cluster client id when a cluster client object is present.
       const deviceClusterClientsIdMap = new Map<ClusterId, ClusterId>();
+      // Unimplemented: clusterClientsIds is never populated
+      /* v8 ignore start */
       device.clusterClientsIds.forEach((clusterClient) => {
         deviceClusterClientsIdMap.set(clusterClient, clusterClient);
       });
+      /* v8 ignore stop */
       const deviceClusterClientsObjMap = new Map<ClusterId, BehaviorOptions>();
+      // Unimplemented: clusterClientsOptions is never populated
+      /* v8 ignore start */
       device.clusterClientsOptions.forEach((clusterClient) => {
         deviceClusterClientsIdMap.delete(clusterClient.clusterId);
         deviceClusterClientsObjMap.set(clusterClient.clusterId, clusterClient);
       });
+      /* v8 ignore stop */
       device.clusterClientsIds = Array.from(deviceClusterClientsIdMap.values());
       device.clusterClientsOptions = Array.from(deviceClusterClientsObjMap.values());
 

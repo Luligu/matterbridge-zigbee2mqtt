@@ -2461,6 +2461,37 @@ describe('Test Entity', () => {
       entity.destroy();
     });
 
+    test('create an auto thermostat device with current_heating_setpoint', async () => {
+      const z2mDevice = makeDevice('Test current setpoint thermostat', '0x00000000000000b3', [
+        {
+          type: 'climate',
+          features: [
+            generic('local_temperature'),
+            generic('current_heating_setpoint', 'numeric', { value_min: 5, value_max: 35 }),
+            generic('occupied_heating_setpoint', 'numeric', { value_min: 5, value_max: 35 }),
+            generic('occupied_cooling_setpoint', 'numeric', { value_min: 5, value_max: 35 }),
+            generic('system_mode', 'enum', { values: ['off', 'auto', 'heat', 'cool'] }),
+          ],
+        },
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).thermostatTimeoutTime = 1;
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(featuresFor(device, 'thermostat')).toEqual(expect.objectContaining({ heating: true, cooling: true }));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      // The device uses current_heating_setpoint for both heating and cooling (see issue #89)
+      vi.clearAllMocks();
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2100, 2000);
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2600, 2500);
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedHeatingSetpoint', z2mDevice.friendly_name, { current_heating_setpoint: 21 });
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedCoolingSetpoint', z2mDevice.friendly_name, { current_heating_setpoint: 26 });
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+
+      entity.destroy();
+    });
+
     test('create a six channel device with color child endpoints and scenes', async () => {
       const lightFeatures = (endpoint: string, colors: string[]): object => ({
         type: 'light',
