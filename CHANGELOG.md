@@ -34,10 +34,27 @@ If you like this project and find it useful, please consider giving it a star on
 ### Added
 
 - [waterValve]: Add `valveList` to expose zigbee2mqtt switches as Matter Water Valve devices with ValveConfigurationAndControl Open/Close.
+- [test]: Add module tests to reach 100% statement, branch, function and line coverage.
+- [test]: Add Zigbee2MQTT tests to reach 100% statement, branch, function and line coverage.
 
 ### Changed
 
+- [module]: Refactor `src/module.ts` and bump it to v.3.2.0: use config directly, clarify timeout names and document platform state.
+- [agents]: Update the plugin frontend rules to v.1.0.2: document base paths and trailing slashes for Home Assistant Ingress.
+- [agents]: Update `.codex/config.toml` to v.1.0.6: clarify the default workspace permissions and opt-in profiles.
+- [scripts]: Update `scripts/downloads.mjs` to v.2.1.0: query an explicit date range for the last 30 days and today, marking unpublished counts as pending.
+- [scripts]: Update `scripts/git-sync-dev.mjs` to v.2.1.0: guard against overwriting remote dev commits.
+- [scripts]: Update `scripts/prepublish-clean.mjs` to v.2.2.0: remove development fields from `package.json`, preserving indentation and line endings.
+- [package]: Bump `oxfmt` to v.0.75.0.
+- [package]: Bump `oxlint` to v.1.90.0.
+- [package]: Bump `oxlint-tsgolint` to v.7.0.2005.
 - [package]: Bump transitive `ip-address` to v.10.7.4 (mqtt → socks) to fix advisory GHSA-rxp7-6hxx-x8q5.
+
+### Fixed
+
+- [devices]: Catch and log errors when unregistering Zigbee entities.
+- [devices]: Fix `cpu_temperature` updates never reaching the TemperatureMeasurement cluster.
+- [devices]: Fix other features (e.g. `power`) being ignored for 2 seconds after a command: only the published keys are now skipped. Thanks Rodrigo Batista de Moraes (https://github.com/Luligu/matterbridge-zigbee2mqtt/issues/140).
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
