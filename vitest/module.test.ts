@@ -285,8 +285,7 @@ describe('TestPlatform', () => {
     expect(platform).toBeDefined();
     // Add the platform to the Matterbridge environment
     addMatterbridge(platform);
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Initializing platform:/));
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Loaded zigbee2mqtt parameters/));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Initializing platform /));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Connecting to MQTT broker/));
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringMatching(/^Created zigbee2mqtt dynamic platform/));
   });
@@ -305,7 +304,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeGroups = groups as BridgeGroup[];
 
     await platform.onStart('Jest Test');
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Started zigbee2mqtt dynamic platform/));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Platform .* started successfully/));
     await flushAsync();
   }, 60000);
 
@@ -924,13 +923,13 @@ describe('TestPlatform', () => {
     (platform as any).z2mBridgeInfo.permit_join = false;
     (platform as any).availabilityTimeoutMs = 1;
     await platform.onConfigure();
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Platform .* configured successfully/));
   });
 
   it('should call onConfigure permit_join = true', async () => {
     (platform as any).z2mBridgeInfo.permit_join = true;
     await platform.onConfigure();
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Platform .* configured successfully/));
   });
 
   it.each([
@@ -1123,7 +1122,7 @@ describe('TestPlatform', () => {
 
   it('should call onChangeLoggerLevel', async () => {
     await platform.onChangeLoggerLevel(LogLevel.DEBUG);
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringMatching(/^Changed logger level to/));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Platform .* logger level changed successfully to/));
   });
 
   it('should call publish', async () => {
@@ -1138,6 +1137,6 @@ describe('TestPlatform', () => {
     await platform.onShutdown('Jest Test');
     platform.config.unregisterOnShutdown = false;
     await platform.onShutdown('Jest Test');
-    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Shutdown zigbee2mqtt dynamic platform/));
+    expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Platform .* shut down successfully/));
   });
 });

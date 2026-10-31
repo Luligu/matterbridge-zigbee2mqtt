@@ -42,6 +42,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Changed
 
+- [platform]: Uniform the constructor, onStart, onConfigure, onShutdown and onChangeLoggerLevel log messages.
 - [module]: Refactor `src/module.ts` and bump it to v.3.2.0: use config directly, clarify timeout names and document platform state.
 - [agents]: Update the plugin frontend rules to v.1.0.2: document base paths and trailing slashes for Home Assistant Ingress.
 - [agents]: Update `.codex/config.toml` to v.1.0.6: clarify the default workspace permissions and opt-in profiles.
