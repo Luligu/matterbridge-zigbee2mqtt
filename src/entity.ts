@@ -90,7 +90,7 @@ import {
   TotalVolatileOrganicCompoundsConcentrationMeasurement,
   WindowCovering,
 } from 'matterbridge/matter/clusters';
-import { ClusterId, getClusterNameById, type Semtag, type VendorId } from 'matterbridge/matter/types';
+import { ClusterId, getClusterNameById, type Semtag } from 'matterbridge/matter/types';
 import { deepCopy, deepEqual, fireAndForget, isValidArray, isValidNumber, isValidObject, kelvinToRGB, miredToKelvin, xyColorToRgbColor, xyToHsl } from 'matterbridge/utils';
 
 import type { ZigbeePlatform } from './module.js';
@@ -158,6 +158,7 @@ export class ZigbeeEntity extends EventEmitter {
 
   // Cache the commands
   protected cachePayload: Payload = {};
+  protected colorMoveKeys = new Map<string, string>(); // Active zigbee2mqtt color move property (e.g. hue_move) for each endpoint postfix, used by stopMoveStep
   protected cachePublishTimeout: NodeJS.Timeout | undefined = undefined;
   protected cachePublishTimeoutTime = 100;
   protected noUpdateTimeout: NodeJS.Timeout | undefined = undefined;
@@ -169,6 +170,7 @@ export class ZigbeeEntity extends EventEmitter {
   protected hasEndpoints = false;
   public isRouter = false;
   protected noUpdate = false;
+  protected noUpdateKeys: string[] | undefined = undefined;
 
   protected readonly thermostatSystemModeLookup = ['off', 'auto', '', 'cool', 'heat', '', '', 'fan_only'];
 
@@ -235,8 +237,18 @@ export class ZigbeeEntity extends EventEmitter {
         return;
       }
       if (this.noUpdate) {
-        this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
-        return;
+        // Only skip the keys we just published (if known) so other features (e.g. power) are still updated
+        if (this.noUpdateKeys) {
+          for (const key of this.noUpdateKeys) {
+            // oxlint-disable-next-line typescript/no-dynamic-delete
+            delete payload[key];
+          }
+        }
+        if (!this.noUpdateKeys || Object.keys(payload).length === 0) {
+          this.log.debug(`Skipping (no update) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
+          return;
+        }
+        this.log.debug(`Skipping (no update) keys ${CYAN}${this.noUpdateKeys.join(', ')}${db} for accessory ${this.entityName}`);
       }
       // Skip updates of all color attributes if state === OFF
       if ('state' in payload && payload.state === 'OFF') {
@@ -457,6 +469,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.bridgedDevice = undefined;
     this.mutableDevice.clear();
     this.propertyMap.clear();
+    this.colorMoveKeys.clear();
   }
 
   isValidDevice(entity: BridgeDevice | BridgeGroup): entity is BridgeDevice {
@@ -475,9 +488,18 @@ export class ZigbeeEntity extends EventEmitter {
    * @param {number} transitionTime - The optional transition time to add to the cached publish payload
    */
   protected cachePublish(command: string = 'unknown', payload?: Payload, transitionTime?: number | null): void {
-    if (command === 'moveToColorTemperature') {
+    if (command === 'moveToColorTemperature' || command === 'stepColorTemperature' || command === 'moveColorTemperature') {
       delete this.cachePayload['color'];
-    } else if (command === 'moveToColor' || command === 'moveToHueSaturation' || command === 'moveToHue' || command === 'moveToSaturation') {
+    } else if (
+      command === 'moveToColor' ||
+      command === 'moveToHueSaturation' ||
+      command === 'moveToHue' ||
+      command === 'moveToSaturation' ||
+      command === 'stepHue' ||
+      command === 'stepSaturation' ||
+      command === 'moveHue' ||
+      command === 'moveSaturation'
+    ) {
       delete this.cachePayload['color_temp'];
     }
 
@@ -490,6 +512,17 @@ export class ZigbeeEntity extends EventEmitter {
       this.cachePublishTimeout = undefined;
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion typescript/non-nullable-type-assertion-style
       if (isValidObject(this.cachePayload, 1)) this.publishCommand(command, (this.isGroup ? this.group?.friendly_name : this.device?.friendly_name) as string, this.cachePayload);
+      // A stop is followed by zigbee2mqtt reading back the final state from the device, so we don't block the updates
+      const isStop = Object.values(this.cachePayload).includes('stop');
+      if (isStop) {
+        this.cachePayload = {};
+        clearTimeout(this.noUpdateTimeout);
+        this.noUpdateTimeout = undefined;
+        this.noUpdate = false;
+        this.noUpdateKeys = undefined;
+        return;
+      }
+      this.noUpdateKeys = [...new Set([...(this.noUpdateKeys ?? []), ...Object.keys(this.cachePayload)])];
       this.cachePayload = {};
       this.noUpdate = true;
       this.log.debug(
@@ -501,6 +534,7 @@ export class ZigbeeEntity extends EventEmitter {
         this.noUpdateTimeout = undefined;
         this.log.debug(`No update is now reset for the device ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db}`);
         this.noUpdate = false;
+        this.noUpdateKeys = undefined;
       }, this.noUpdateTimeoutTime).unref();
     }, this.cachePublishTimeoutTime).unref();
   }
@@ -716,6 +750,228 @@ export class ZigbeeEntity extends EventEmitter {
     this.log.debug(`Command moveToHueAndSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: ${data.request.hue} - ${data.request.saturation} transition: ${data.request.transitionTime}`);
     const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     this.cachePublish('moveToHueAndSaturation', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { h: Math.round(data.request.hue / 254 * 360), s: Math.round(data.request.saturation / 254 * 100) } }, data.request.transitionTime);
+  }
+
+  /**
+   * Accumulate a relative zigbee2mqtt step property (e.g. brightness_step) in the cache payload so that multiple steps received within the cache window are summed.
+   *
+   * @param {string} key - The zigbee2mqtt step property name including the endpoint postfix
+   * @param {number} step - The signed step to add
+   * @returns {Payload} The payload to pass to cachePublish
+   */
+  private accumulateStep(key: string, step: number): Payload {
+    const cached = this.cachePayload[key];
+    return { [key]: (isValidNumber(cached) ? cached : 0) + step };
+  }
+
+  // oxfmt-ignore
+  protected  stepCommandHandler(data: CommandHandlerDataMap['LevelControl.step']): void {
+    this.saveCommands('step', data);
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.stepSize === 0) {
+      this.log.debug(`Command step ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or stepSize 0`);
+      return;
+    }
+    this.log.debug(`Command step called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const step = data.request.stepMode === LevelControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
+    this.cachePublish('step', this.accumulateStep('brightness_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+  }
+
+  // oxfmt-ignore
+  protected  stepWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.stepWithOnOff']): void {
+    this.saveCommands('stepWithOnOff', data);
+    if (data.request.stepSize === 0) {
+      this.log.debug(`Command stepWithOnOff ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} stepSize 0`);
+      return;
+    }
+    this.log.debug(`Command stepWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const step = data.request.stepMode === LevelControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
+    this.cachePublish('stepWithOnOff', this.accumulateStep('brightness_step_onoff' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+  }
+
+  // oxfmt-ignore
+  protected  stepColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.stepColorTemperature']): void {
+    this.saveCommands('stepColorTemperature', data);
+    delete this.cachePayload['color'];
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.stepSize === 0) {
+      this.log.debug(`Command stepColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or stepSize 0`);
+      return;
+    }
+    this.log.debug(`Command stepColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const step = data.request.stepMode === ColorControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
+    if (this.propertyMap.get('color_temp')) {
+      this.cachePublish('stepColorTemperature', this.accumulateStep('color_temp_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+    } else {
+      // No color_temp property: compute the target mireds within the allowed range and convert it to RGB like moveToColorTemperature does
+      const minMireds = data.request.colorTemperatureMinimumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMinMireds');
+      const maxMireds = data.request.colorTemperatureMaximumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMaxMireds');
+      const mireds = Math.min(maxMireds, Math.max(minMireds, data.endpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds') + step));
+      const rgb = kelvinToRGB(miredToKelvin(mireds));
+      this.cachePublish('stepColorTemperature', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { r: rgb.r, g: rgb.g, b: rgb.b } }, data.request.transitionTime);
+      this.log.debug(`Command stepColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} but color_temp property is not available. Converting ${mireds} to RGB ${debugStringify(rgb)}.`);
+    }
+  }
+
+  // oxfmt-ignore
+  protected  stepHueCommandHandler(data: CommandHandlerDataMap['ColorControl.stepHue']): void {
+    this.saveCommands('stepHue', data);
+    delete this.cachePayload['color_temp'];
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.stepSize === 0) {
+      this.log.debug(`Command stepHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or stepSize 0`);
+      return;
+    }
+    this.log.debug(`Command stepHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const step = data.request.stepMode === ColorControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
+    this.cachePublish('stepHue', this.accumulateStep('hue_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+  }
+
+  // oxfmt-ignore
+  protected  stepSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.stepSaturation']): void {
+    this.saveCommands('stepSaturation', data);
+    delete this.cachePayload['color_temp'];
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.stepSize === 0) {
+      this.log.debug(`Command stepSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or stepSize 0`);
+      return;
+    }
+    this.log.debug(`Command stepSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const step = data.request.stepMode === ColorControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
+    this.cachePublish('stepSaturation', this.accumulateStep('saturation_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+  }
+
+  // oxfmt-ignore
+  protected  moveCommandHandler(data: CommandHandlerDataMap['LevelControl.move']): void {
+    this.saveCommands('move', data);
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.rate === 0) {
+      this.log.debug(`Command move ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or rate 0`);
+      return;
+    }
+    this.log.debug(`Command move called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    // A null rate means the default move rate: 0xff for the zigbee move command
+    const rate = data.request.rate ?? 0xff;
+    // oxlint-disable-next-line typescript/no-dynamic-delete
+    delete this.cachePayload['brightness_move_onoff' + postfix];
+    this.cachePublish('move', { ['brightness_move' + postfix]: data.request.moveMode === LevelControl.MoveMode.Up ? rate : -rate });
+  }
+
+  // oxfmt-ignore
+  protected  moveWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.moveWithOnOff']): void {
+    this.saveCommands('moveWithOnOff', data);
+    if (data.request.rate === 0) {
+      this.log.debug(`Command moveWithOnOff ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} rate 0`);
+      return;
+    }
+    this.log.debug(`Command moveWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    // A null rate means the default move rate: 0xff for the zigbee move command
+    const rate = data.request.rate ?? 0xff;
+    // oxlint-disable-next-line typescript/no-dynamic-delete
+    delete this.cachePayload['brightness_move' + postfix];
+    this.cachePublish('moveWithOnOff', { ['brightness_move_onoff' + postfix]: data.request.moveMode === LevelControl.MoveMode.Up ? rate : -rate });
+  }
+
+  // oxfmt-ignore
+  protected  stopCommandHandler(data: CommandHandlerDataMap['LevelControl.stop']): void {
+    this.saveCommands('stop', data);
+    this.log.debug(`Command stop called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    // oxlint-disable-next-line typescript/no-dynamic-delete
+    delete this.cachePayload['brightness_move_onoff' + postfix];
+    this.cachePublish('stop', { ['brightness_move' + postfix]: 'stop' });
+  }
+
+  // oxfmt-ignore
+  protected  stopWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.stopWithOnOff']): void {
+    this.saveCommands('stopWithOnOff', data);
+    this.log.debug(`Command stopWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    // zigbee2mqtt sends the same zigbee stop command for both brightness_move and brightness_move_onoff.
+    // Use the same payload as stop, so a single stop is published even if Matter.js also calls the stop handler.
+    // oxlint-disable-next-line typescript/no-dynamic-delete
+    delete this.cachePayload['brightness_move_onoff' + postfix];
+    this.cachePublish('stopWithOnOff', { ['brightness_move' + postfix]: 'stop' });
+  }
+
+  /**
+   * Publish a zigbee2mqtt color move property (color_temp_move, hue_move or saturation_move) and track it so that stopMoveStep can stop it.
+   *
+   * @param {string} command - The Matter command name
+   * @param {string} property - The zigbee2mqtt move property name without the endpoint postfix
+   * @param {string} postfix - The endpoint postfix (e.g. '', '_l1')
+   * @param {ColorControl.MoveMode} moveMode - The Matter move mode
+   * @param {number} rate - The Matter rate
+   */
+  private publishColorMove(command: string, property: string, postfix: string, moveMode: ColorControl.MoveMode, rate: number): void {
+    const key = property + postfix;
+    const previous = this.colorMoveKeys.get(postfix);
+    // oxlint-disable-next-line typescript/no-dynamic-delete
+    if (previous !== undefined && previous !== key) delete this.cachePayload[previous];
+    if (moveMode === ColorControl.MoveMode.Stop) {
+      this.colorMoveKeys.delete(postfix);
+      this.cachePublish(command, { [key]: 'stop' });
+    } else {
+      this.colorMoveKeys.set(postfix, key);
+      this.cachePublish(command, { [key]: moveMode === ColorControl.MoveMode.Up ? rate : -rate });
+    }
+  }
+
+  // oxfmt-ignore
+  protected  moveColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.moveColorTemperature']): void {
+    this.saveCommands('moveColorTemperature', data);
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || !this.propertyMap.get('color_temp') || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
+      this.log.debug(`Command moveColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF, color_temp property not available or rate 0`);
+      return;
+    }
+    this.log.debug(`Command moveColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.publishColorMove('moveColorTemperature', 'color_temp_move', isChildEndpoint ? '_' + data.endpoint.id : '', data.request.moveMode, data.request.rate);
+  }
+
+  // oxfmt-ignore
+  protected  moveHueCommandHandler(data: CommandHandlerDataMap['ColorControl.moveHue']): void {
+    this.saveCommands('moveHue', data);
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
+      this.log.debug(`Command moveHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or rate 0`);
+      return;
+    }
+    this.log.debug(`Command moveHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.publishColorMove('moveHue', 'hue_move', isChildEndpoint ? '_' + data.endpoint.id : '', data.request.moveMode, data.request.rate);
+  }
+
+  // oxfmt-ignore
+  protected  moveSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveSaturation']): void {
+    this.saveCommands('moveSaturation', data);
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
+      this.log.debug(`Command moveSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or rate 0`);
+      return;
+    }
+    this.log.debug(`Command moveSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.publishColorMove('moveSaturation', 'saturation_move', isChildEndpoint ? '_' + data.endpoint.id : '', data.request.moveMode, data.request.rate);
+  }
+
+  // oxfmt-ignore
+  protected  stopMoveStepCommandHandler(data: CommandHandlerDataMap['ColorControl.stopMoveStep']): void {
+    this.saveCommands('stopMoveStep', data);
+    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    const key = this.colorMoveKeys.get(postfix);
+    if (key === undefined) {
+      this.log.debug(`Command stopMoveStep ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} no color move in progress`);
+      return;
+    }
+    this.log.debug(`Command stopMoveStep called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} stopping ${key}`);
+    this.colorMoveKeys.delete(postfix);
+    this.cachePublish('stopMoveStep', { [key]: 'stop' });
   }
 
   protected addBridgedDeviceBasicInformation(): MatterbridgeEndpoint {
@@ -1014,10 +1270,10 @@ export class ZigbeeGroup extends ZigbeeEntity {
   static async create(platform: ZigbeePlatform, group: BridgeGroup): Promise<ZigbeeGroup> {
     const zigbeeGroup = new ZigbeeGroup(platform, group);
 
-    if (zigbeeGroup.platform.postfix === '') {
+    if (zigbeeGroup.platform.config.postfix === '') {
       zigbeeGroup.serial = `group-${group.id}`.slice(0, 32);
     } else {
-      zigbeeGroup.serial = `group-${group.id}-${zigbeeGroup.platform.postfix}`.slice(0, 32);
+      zigbeeGroup.serial = `group-${group.id}-${zigbeeGroup.platform.config.postfix}`.slice(0, 32);
     }
 
     // Set the device entity select
@@ -1091,9 +1347,9 @@ export class ZigbeeGroup extends ZigbeeEntity {
       let deviceType: DeviceTypeDefinition | undefined;
       if (useState) {
         deviceType = onOffLight;
-        if (platform.switchList.includes(group.friendly_name)) deviceType = onOffLightSwitch;
-        else if (platform.lightList.includes(group.friendly_name)) deviceType = onOffLight;
-        else if (platform.outletList.includes(group.friendly_name)) deviceType = onOffPlugInUnit;
+        if (platform.config.switchList.includes(group.friendly_name)) deviceType = onOffLightSwitch;
+        else if (platform.config.lightList.includes(group.friendly_name)) deviceType = onOffLight;
+        else if (platform.config.outletList.includes(group.friendly_name)) deviceType = onOffPlugInUnit;
         zigbeeGroup.propertyMap.set('state', { name: 'state', type: isLight ? 'light' : 'switch', endpoint: '' });
       }
       if (useBrightness) {
@@ -1130,7 +1386,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
       if (deviceType.code === onOffLightSwitch.code) zigbeeGroup.bridgedDevice.createDefaultOnOffClusterServer();
     }
 
-    if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
+    if (!platform.config.featureBlackList?.includes('scenes') && !platform.config.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
       for (const scene of group.scenes) {
         zigbeeGroup.log.debug(`***Group ${gn}${group.friendly_name}${rs}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
         platform.setSelectDeviceEntity(`group-${group.id}`, 'scenes', 'Scenes', 'component');
@@ -1173,15 +1429,30 @@ export class ZigbeeGroup extends ZigbeeEntity {
       if (useBrightness) {
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevel', zigbeeGroup.moveToLevelCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', zigbeeGroup.moveToLevelWithOnOffCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('LevelControl.step', zigbeeGroup.stepCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('LevelControl.stepWithOnOff', zigbeeGroup.stepWithOnOffCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('LevelControl.move', zigbeeGroup.moveCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('LevelControl.moveWithOnOff', zigbeeGroup.moveWithOnOffCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('LevelControl.stop', zigbeeGroup.stopCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('LevelControl.stopWithOnOff', zigbeeGroup.stopWithOnOffCommandHandler.bind(zigbeeGroup));
       }
       if (useColorTemperature) {
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToColorTemperature', zigbeeGroup.moveToColorTemperatureCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('ColorControl.stepColorTemperature', zigbeeGroup.stepColorTemperatureCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('ColorControl.moveColorTemperature', zigbeeGroup.moveColorTemperatureCommandHandler.bind(zigbeeGroup));
       }
       if (useColor) {
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToHue', zigbeeGroup.moveToHueCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToSaturation', zigbeeGroup.moveToSaturationCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToHueAndSaturation', zigbeeGroup.moveToHueAndSaturationCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('ColorControl.stepHue', zigbeeGroup.stepHueCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('ColorControl.stepSaturation', zigbeeGroup.stepSaturationCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('ColorControl.moveHue', zigbeeGroup.moveHueCommandHandler.bind(zigbeeGroup));
+        zigbeeGroup.bridgedDevice.addCommandHandler('ColorControl.moveSaturation', zigbeeGroup.moveSaturationCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('moveToColor', zigbeeGroup.moveToColorCommandHandler.bind(zigbeeGroup));
+      }
+      if (useColorTemperature || useColor) {
+        zigbeeGroup.bridgedDevice.addCommandHandler('ColorControl.stopMoveStep', zigbeeGroup.stopMoveStepCommandHandler.bind(zigbeeGroup));
       }
     }
     if (isCover) {
@@ -1352,7 +1623,7 @@ const z2ms: ZigbeeToMatter[] = [
   { type: '', name: 'pm1', property: 'pm1', deviceType: airQualitySensor, cluster: Pm1ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
   { type: '', name: 'pm25', property: 'pm25', deviceType: airQualitySensor, cluster: Pm25ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
   { type: '', name: 'pm10', property: 'pm10', deviceType: airQualitySensor, cluster: Pm10ConcentrationMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value) } },
-  { type: '', name: 'cpu_temperature', property: 'temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
+  { type: '', name: 'cpu_temperature', property: 'cpu_temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
   { type: '', name: 'device_temperature', property: 'device_temperature', deviceType: temperatureSensor, cluster: TemperatureMeasurement.id, attribute: 'measuredValue', converter: (value) => { return Math.round(value * 100) } },
   { type: '', name: '', property: 'battery', deviceType: powerSource, cluster: PowerSource.id, attribute: 'batPercentRemaining', converter: (value) => { return Math.round(value * 2) } },
   { type: '', name: '', property: 'battery_low', deviceType: powerSource, cluster: PowerSource.id, attribute: 'batChargeLevel', converter: (value) => { return value === true ? PowerSource.BatChargeLevel.Critical : PowerSource.BatChargeLevel.Ok } },
@@ -1398,8 +1669,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
     const zigbeeDevice = new ZigbeeDevice(platform, device);
 
     zigbeeDevice.serial = device.ieee_address;
-    if (zigbeeDevice.platform.postfix !== '') {
-      zigbeeDevice.serial = `${zigbeeDevice.serial}-${zigbeeDevice.platform.postfix}`.slice(0, 32);
+    if (zigbeeDevice.platform.config.postfix !== '') {
+      zigbeeDevice.serial = `${zigbeeDevice.serial}-${zigbeeDevice.platform.config.postfix}`.slice(0, 32);
     }
 
     // Set Coordinator and dedicated routers
@@ -1438,7 +1709,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       return zigbeeDevice;
     }
 
-    if (!platform.featureBlackList?.includes('scenes') && !platform.deviceFeatureBlackList[device.friendly_name]?.includes('scenes')) {
+    if (!platform.config.featureBlackList?.includes('scenes') && !platform.config.deviceFeatureBlackList[device.friendly_name]?.includes('scenes')) {
       for (const [key, endpoint] of Object.entries(device.endpoints)) {
         for (const scene of Object.values(endpoint.scenes)) {
           zigbeeDevice.log.debug(`***Device ${dn}${device.friendly_name}${rs}${db} endpoint ${CYAN}${key}${db} scene ${CYAN}${scene.name}${db} id ${CYAN}${scene.id}${db}`);
@@ -1522,17 +1793,17 @@ export class ZigbeeDevice extends ZigbeeEntity {
       value_maxs.push(option.value_max ?? Number.NaN);
       values.push(option.values ? option.values.join('|') : '');
     });
-    if (platform.switchList.includes(device.friendly_name)) {
+    if (platform.config.switchList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'light' ? 'switch' : type;
       });
     }
-    if (platform.lightList.includes(device.friendly_name)) {
+    if (platform.config.lightList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'switch' ? 'light' : type;
       });
     }
-    if (platform.outletList.includes(device.friendly_name)) {
+    if (platform.config.outletList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'switch' || type === 'light' ? 'outlet' : type;
       });
@@ -1550,9 +1821,9 @@ export class ZigbeeDevice extends ZigbeeEntity {
     }
 
     // Set the global and device based feature blacklist
-    if (platform.featureBlackList) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.featureBlackList];
-    if (platform.deviceFeatureBlackList[device.friendly_name])
-      zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.deviceFeatureBlackList[device.friendly_name]];
+    if (platform.config.featureBlackList) zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.config.featureBlackList];
+    if (platform.config.deviceFeatureBlackList[device.friendly_name])
+      zigbeeDevice.ignoreFeatures = [...zigbeeDevice.ignoreFeatures, ...platform.config.deviceFeatureBlackList[device.friendly_name]];
 
     /*
     zigbeeDevice.log.debug(`Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} - types[${types.length}]: ${debugStringify(types)}`);
@@ -1566,11 +1837,14 @@ export class ZigbeeDevice extends ZigbeeEntity {
     */
 
     for (const [index, name] of names.entries()) {
-      if (platform.featureBlackList.includes(name) || platform.featureBlackList.includes(properties[index])) {
+      if (platform.config.featureBlackList.includes(name) || platform.config.featureBlackList.includes(properties[index])) {
         zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} property ${properties[index]} is globally blacklisted`);
         continue;
       }
-      if (platform.deviceFeatureBlackList[device.friendly_name]?.includes(name) || platform.deviceFeatureBlackList[device.friendly_name]?.includes(properties[index])) {
+      if (
+        platform.config.deviceFeatureBlackList[device.friendly_name]?.includes(name) ||
+        platform.config.deviceFeatureBlackList[device.friendly_name]?.includes(properties[index])
+      ) {
         zigbeeDevice.log.debug(`Device ${zigbeeDevice.en}${device.friendly_name}${db} feature ${name} property ${properties[index]} is blacklisted`);
         continue;
       }
@@ -1603,7 +1877,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
           } else { zigbeeDevice.mutableDevice.set(endpoint, { tagList: [], deviceTypes: [z2m.deviceType], clusterServersIds: [...z2m.deviceType.requiredServerClusters, ClusterId(z2m.cluster)], clusterServersOptions: [], clusterClientsIds: [], clusterClientsOptions: [] });
           }
         } else {
-          const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+          const tagList: Semtag[] = [];
           if (endpoint === 'l1') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.One.namespaceId, tag: CommonNumberTag.One.tag, label: 'endpoint ' + endpoint });
           if (endpoint === 'l2') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Two.namespaceId, tag: CommonNumberTag.Two.tag, label: 'endpoint ' + endpoint });
           if (endpoint === 'l3') tagList.push({ mfgCode: null, namespaceId: CommonNumberTag.Three.namespaceId, tag: CommonNumberTag.Three.tag, label: 'endpoint ' + endpoint });
@@ -1641,7 +1915,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
             zigbeeDevice.propertyMap.set('action_' + actionsMap[a], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a] });
             zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a]}${nf} <=> ${zb}${actionsMap[a]}${nf}`);
           }
-          const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+          const tagList: Semtag[] = [];
           tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
           zigbeeDevice.mutableDevice.set('switch_' + count, {
             tagList,
@@ -1659,7 +1933,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
               zigbeeDevice.propertyMap.set('action_' + actionsMap[a - i], { name, type: '', endpoint: 'switch_' + count, action: triggerMap[a - i] });
               zigbeeDevice.log.info(`-- Button ${count}: ${hk}${switchMap[a - i]}${nf} <=> ${zb}${actionsMap[a - i]}${nf}`);
             }
-            const tagList: { mfgCode: VendorId | null; namespaceId: number; tag: number; label?: string | null }[] = [];
+            const tagList: Semtag[] = [];
             tagList.push({ mfgCode: null, namespaceId: SwitchesTag.Custom.namespaceId, tag: SwitchesTag.Custom.tag, label: 'switch_' + count });
             zigbeeDevice.mutableDevice.set('switch_' + count, {
               tagList,
@@ -1727,6 +2001,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
 
     // Add PowerSource cluster
     zigbeeDevice.addPowerSource();
+    // Defensive: PowerSource is added by addPowerSource() and the z2ms battery entries have no name, so they never add it
+    /* v8 ignore next 3 */
     if (mainEndpoint.clusterServersIds.includes(PowerSource.id)) {
       mainEndpoint.clusterServersIds.splice(mainEndpoint.clusterServersIds.indexOf(PowerSource.id), 1);
     }
@@ -1739,23 +2015,32 @@ export class ZigbeeDevice extends ZigbeeEntity {
         deviceClusterServersIdMap.set(clusterServer, clusterServer);
       });
       const deviceClusterServersObjMap = new Map<ClusterId, BehaviorOptions>();
+      // Unimplemented: clusterServersOptions is never populated
+      /* v8 ignore start */
       device.clusterServersOptions.forEach((clusterServer) => {
         deviceClusterServersIdMap.delete(clusterServer.clusterId);
         deviceClusterServersObjMap.set(clusterServer.clusterId, clusterServer);
       });
+      /* v8 ignore stop */
       device.clusterServersIds = Array.from(deviceClusterServersIdMap.values());
       device.clusterServersOptions = Array.from(deviceClusterServersObjMap.values());
 
       // Filter out duplicate client clusters and client clusters objects. Remove the cluster client id when a cluster client object is present.
       const deviceClusterClientsIdMap = new Map<ClusterId, ClusterId>();
+      // Unimplemented: clusterClientsIds is never populated
+      /* v8 ignore start */
       device.clusterClientsIds.forEach((clusterClient) => {
         deviceClusterClientsIdMap.set(clusterClient, clusterClient);
       });
+      /* v8 ignore stop */
       const deviceClusterClientsObjMap = new Map<ClusterId, BehaviorOptions>();
+      // Unimplemented: clusterClientsOptions is never populated
+      /* v8 ignore start */
       device.clusterClientsOptions.forEach((clusterClient) => {
         deviceClusterClientsIdMap.delete(clusterClient.clusterId);
         deviceClusterClientsObjMap.set(clusterClient.clusterId, clusterClient);
       });
+      /* v8 ignore stop */
       device.clusterClientsIds = Array.from(deviceClusterClientsIdMap.values());
       device.clusterClientsOptions = Array.from(deviceClusterClientsObjMap.values());
 
@@ -1885,20 +2170,36 @@ export class ZigbeeDevice extends ZigbeeEntity {
     if (zigbeeDevice.bridgedDevice.hasClusterServer(LevelControl.id)) {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevel', zigbeeDevice.moveToLevelCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToLevelWithOnOff', zigbeeDevice.moveToLevelWithOnOffCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('LevelControl.step', zigbeeDevice.stepCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('LevelControl.stepWithOnOff', zigbeeDevice.stepWithOnOffCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('LevelControl.move', zigbeeDevice.moveCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('LevelControl.moveWithOnOff', zigbeeDevice.moveWithOnOffCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('LevelControl.stop', zigbeeDevice.stopCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('LevelControl.stopWithOnOff', zigbeeDevice.stopWithOnOffCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
       if (child.hasClusterServer(LevelControl.id)) {
         child.addCommandHandler('moveToLevel', zigbeeDevice.moveToLevelCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('moveToLevelWithOnOff', zigbeeDevice.moveToLevelWithOnOffCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('LevelControl.step', zigbeeDevice.stepCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('LevelControl.stepWithOnOff', zigbeeDevice.stepWithOnOffCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('LevelControl.move', zigbeeDevice.moveCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('LevelControl.moveWithOnOff', zigbeeDevice.moveWithOnOffCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('LevelControl.stop', zigbeeDevice.stopCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('LevelControl.stopWithOnOff', zigbeeDevice.stopWithOnOffCommandHandler.bind(zigbeeDevice));
       }
     }
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.id) && zigbeeDevice.bridgedDevice.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds')) {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToColorTemperature', zigbeeDevice.moveToColorTemperatureCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('ColorControl.stepColorTemperature', zigbeeDevice.stepColorTemperatureCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('ColorControl.moveColorTemperature', zigbeeDevice.moveColorTemperatureCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
       if (child.hasClusterServer(ColorControl.id) && child.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds')) {
         child.addCommandHandler('moveToColorTemperature', zigbeeDevice.moveToColorTemperatureCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('ColorControl.stepColorTemperature', zigbeeDevice.stepColorTemperatureCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('ColorControl.moveColorTemperature', zigbeeDevice.moveColorTemperatureCommandHandler.bind(zigbeeDevice));
       }
     }
 
@@ -1915,12 +2216,29 @@ export class ZigbeeDevice extends ZigbeeEntity {
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToHue', zigbeeDevice.moveToHueCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToSaturation', zigbeeDevice.moveToSaturationCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('moveToHueAndSaturation', zigbeeDevice.moveToHueAndSaturationCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('ColorControl.stepHue', zigbeeDevice.stepHueCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('ColorControl.stepSaturation', zigbeeDevice.stepSaturationCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('ColorControl.moveHue', zigbeeDevice.moveHueCommandHandler.bind(zigbeeDevice));
+      zigbeeDevice.bridgedDevice.addCommandHandler('ColorControl.moveSaturation', zigbeeDevice.moveSaturationCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
       if (child.hasClusterServer(ColorControl.id) && child.hasAttributeServer(ColorControl.id, 'currentHue')) {
         child.addCommandHandler('moveToHue', zigbeeDevice.moveToHueCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('moveToSaturation', zigbeeDevice.moveToSaturationCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('moveToHueAndSaturation', zigbeeDevice.moveToHueAndSaturationCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('ColorControl.stepHue', zigbeeDevice.stepHueCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('ColorControl.stepSaturation', zigbeeDevice.stepSaturationCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('ColorControl.moveHue', zigbeeDevice.moveHueCommandHandler.bind(zigbeeDevice));
+        child.addCommandHandler('ColorControl.moveSaturation', zigbeeDevice.moveSaturationCommandHandler.bind(zigbeeDevice));
+      }
+    }
+
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(ColorControl.id)) {
+      zigbeeDevice.bridgedDevice.addCommandHandler('ColorControl.stopMoveStep', zigbeeDevice.stopMoveStepCommandHandler.bind(zigbeeDevice));
+    }
+    for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
+      if (child.hasClusterServer(ColorControl.id)) {
+        child.addCommandHandler('ColorControl.stopMoveStep', zigbeeDevice.stopMoveStepCommandHandler.bind(zigbeeDevice));
       }
     }
 

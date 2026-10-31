@@ -754,6 +754,8 @@ describe('TestZigbee2MQTT', () => {
     expect(reconnectSpy).toHaveBeenCalled();
 
     getHandler('disconnect')?.({});
+    getHandler('packetsend')?.({ cmd: 'pingreq' });
+    getHandler('packetreceive')?.({ cmd: 'pingresp' });
 
     getHandler('close')?.();
     expect(closeSpy).toHaveBeenCalled();
@@ -900,5 +902,102 @@ describe('TestZigbee2MQTT', () => {
     z2m.messageHandler('zigbee2mqtt/bridge/response/networkmap', Buffer.from(JSON.stringify(raw)));
     await wait(150);
     expect(z2m).toBeDefined();
+  });
+});
+
+describe('Zigbee2MQTT message edge cases', () => {
+  let client: Zigbee2MQTTType;
+
+  beforeEach(() => {
+    client = new Zigbee2MQTT('mqtt://localhost', 1883, 'zigbee2mqtt');
+    client.z2mDevices = [{ ieee_address: '0xabc', friendly_name: 'Device' }] as typeof client.z2mDevices;
+    client.z2mGroups = [{ id: 1, friendly_name: 'Group', description: '', members: [], scenes: [] }];
+  });
+
+  /**
+   * Dispatches an MQTT message through the client routing logic.
+   *
+   * @param {string} topic - Topic suffix below the MQTT base topic.
+   * @param {object} payload - JSON payload to dispatch.
+   */
+  function dispatch(topic: string, payload: object): void {
+    // @ts-expect-error accessing private method for testing
+    client.messageHandler('zigbee2mqtt/' + topic, Buffer.from(JSON.stringify(payload)));
+  }
+
+  test.each(['bridge/state', 'Device/availability', 'Group/availability'])('should ignore unknown availability on %s', (topic) => {
+    const emit = vi.spyOn(client, 'emit');
+
+    dispatch(topic, { state: 'unknown' });
+
+    expect(emit).not.toHaveBeenCalled();
+    // @ts-expect-error accessing private state for testing
+    expect(client.z2mIsOnline).toBe(false);
+  });
+
+  test.each(['Device/get', 'Device/set', 'Device/attribute', 'Group/get', 'Group/set', 'Group/attribute', 'Coordinator', '/Device'])(
+    'should ignore non-state messages on %s',
+    (topic) => {
+      const emit = vi.spyOn(client, 'emit');
+
+      dispatch(topic, { state: 'ON' });
+
+      expect(emit).not.toHaveBeenCalled();
+    },
+  );
+
+  test('should emit permit_join for a specific device', () => {
+    const permitJoin = vi.fn();
+    client.on('permit_join', permitJoin);
+
+    dispatch('bridge/response/permit_join', { data: { device: 'Coordinator', time: 60, value: true }, status: 'ok' });
+
+    expect(permitJoin).toHaveBeenCalledExactlyOnceWith('Coordinator', 60, true);
+  });
+
+  test('should ignore unknown bridge events', () => {
+    const emit = vi.spyOn(client, 'emit');
+
+    dispatch('bridge/event', { type: 'unknown', data: {} });
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  test('should sort multiple network links and display unknown node types by address', () => {
+    // @ts-expect-error accessing private logger for testing
+    const debug = vi.spyOn(client.log, 'debug');
+    const link = {
+      sourceIeeeAddr: '0x1',
+      targetIeeeAddr: '0x2',
+      source: { ieeeAddr: '0x1', networkAddress: 1 },
+      target: { ieeeAddr: '0x2', networkAddress: 2 },
+      depth: 1,
+      relationship: 0,
+    };
+
+    dispatch('bridge/response/networkmap', {
+      data: {
+        type: 'raw',
+        value: {
+          nodes: [
+            { ieeeAddr: '0x1', friendlyName: 'Router', networkAddress: 1, type: 'Router', lastSeen: Date.now() },
+            { ieeeAddr: '0x2', friendlyName: 'Unknown', networkAddress: 2, type: 'Unknown', lastSeen: Date.now() },
+          ],
+          links: [
+            { ...link, lqi: 100 },
+            { ...link, lqi: 20 },
+          ],
+        },
+      },
+    });
+
+    const links = debug.mock.calls.map(([message]) => message).filter((message) => message.includes('link ['));
+    expect(links).toHaveLength(4);
+    expect(links[0]).toContain(' 20');
+    expect(links[1]).toContain('100');
+    expect(links[2]).toContain(' 20');
+    expect(links[3]).toContain('100');
+    expect(links[0]).toContain('0x2');
+    expect(links[1]).toContain('0x2');
   });
 });

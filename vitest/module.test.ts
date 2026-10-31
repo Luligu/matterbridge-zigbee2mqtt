@@ -26,7 +26,7 @@ import {
   windowCovering,
 } from 'matterbridge';
 import { db, hk, idn, ign, LogLevel, or, rs, YELLOW } from 'matterbridge/logger';
-import { Thermostat } from 'matterbridge/matter/clusters';
+import { ColorControl, Thermostat } from 'matterbridge/matter/clusters';
 import { flushAsync } from 'matterbridge/test-utils';
 import {
   addMatterbridge,
@@ -75,7 +75,6 @@ describe('TestPlatform', () => {
   let matterbridge: PlatformMatterbridge;
   let platform: ZigbeePlatform;
 
-  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
   const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
 
   const mockConfig: ZigbeePlatformConfig = {
@@ -148,6 +147,31 @@ describe('TestPlatform', () => {
     expect(() => new ZigbeePlatform({ ...matterbridge, matterbridgeVersion: '1.0.0' }, log, mockConfig)).toThrow();
   });
 
+  it.each([
+    { host: '', port: 0, topic: '', username: '', password: '', expectedHost: 'mqtt://localhost', expectedPort: 1883, expectedTopic: 'zigbee2mqtt' },
+    { host: 42 as unknown as string, port: 1883, topic: 'custom', username: '', password: '', expectedHost: 'mqtt://localhost', expectedPort: 1883, expectedTopic: 'custom' },
+    { host: 'broker', port: 1884, topic: 'custom', username: 'user', password: 'pass', expectedHost: 'mqtt://broker', expectedPort: 1884, expectedTopic: 'custom' },
+    { host: 'wss://broker', port: 8883, topic: 'custom', username: 'user', password: 'pass', expectedHost: 'wss://broker', expectedPort: 8883, expectedTopic: 'custom' },
+  ])('should preserve MQTT config sanitization for host $host and port $port', async ({ host, port, topic, username, password, expectedHost, expectedPort, expectedTopic }) => {
+    const config = { ...mockConfig, host, port, topic, username, password };
+    const platform = new ZigbeePlatform(matterbridge, log, config);
+
+    try {
+      expect(config.host).toBe(expectedHost);
+      expect(config.port).toBe(expectedPort);
+      expect(config.topic).toBe(expectedTopic);
+      expect(config.username).toBe(username);
+      expect(config.password).toBe(password);
+      expect(platform.z2m.mqttHost).toBe(expectedHost);
+      expect(platform.z2m.mqttPort).toBe(expectedPort);
+      expect(platform.z2m.mqttTopic).toBe(expectedTopic);
+      expect(platform.z2m.mqttUsername).toBe(username || undefined);
+      expect(platform.z2m.mqttPassword).toBe(password || undefined);
+    } finally {
+      await platform.onShutdown();
+    }
+  });
+
   it('should initialize platform with default values', async () => {
     const config = Object.assign({}, mockConfig);
     config.host = 'localhost';
@@ -202,7 +226,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = undefined;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).rejects.toThrow(
       'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
     );
@@ -211,7 +235,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = undefined;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).rejects.toThrow(
       'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
     );
@@ -220,7 +244,7 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).rejects.toThrow(
       'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
     );
@@ -229,31 +253,31 @@ describe('TestPlatform', () => {
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = [] as BridgeDevice[];
     platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     platform.z2mBridgeOnline = true;
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = undefined;
     platform.z2mBridgeGroups = [] as BridgeGroup[];
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     platform.z2mBridgeOnline = true;
     platform.z2mBridgeInfo = {} as BridgeInfo;
     platform.z2mBridgeDevices = [] as BridgeDevice[];
     platform.z2mBridgeGroups = [] as BridgeGroup[];
-    (platform as any).connectTimeout = 50; // 50 ms for testing
+    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     await platform.onShutdown();
-    expect((platform as any).mqttHost).toBe('mqtt://localhost');
-    expect((platform as any).mqttPort).toBe(-1883);
+    expect(platform.config.host).toBe('mqtt://localhost');
+    expect(platform.config.port).toBe(-1883);
     expect(platform.config.protocolVersion).toBe(5);
     expect(platform.config.clientId).toBe('');
-    expect((platform as any).mqttTopic).toBe('zigbee2mqtt');
-    expect((platform as any).mqttUsername).toBe('user');
-    expect((platform as any).mqttPassword).toBe('password');
+    expect(platform.config.topic).toBe('zigbee2mqtt');
+    expect(platform.config.username).toBe('user');
+    expect(platform.config.password).toBe('password');
   });
 
   it('should initialize platform with config name', () => {
@@ -299,7 +323,7 @@ describe('TestPlatform', () => {
 
   it('should have configured', async () => {
     expect(platform).toBeDefined();
-    (platform as any).availabilityTimeout = 1;
+    (platform as any).availabilityTimeoutMs = 1;
     await platform.onConfigure();
     await flushAsync();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Setting availability for/));
@@ -312,7 +336,6 @@ describe('TestPlatform', () => {
       expect(entity.entityName).toBeDefined();
       expect(entity.entityName.length).toBeGreaterThan(0);
       platform.z2m.emit('OFFLINE-' + entity.entityName);
-      await wait(50);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${entity.entityName}${rs}`);
     }
     await flushAsync();
@@ -324,7 +347,6 @@ describe('TestPlatform', () => {
       expect(entity.entityName).toBeDefined();
       expect(entity.entityName.length).toBeGreaterThan(0);
       platform.z2m.emit('ONLINE-' + entity.entityName);
-      await wait(50);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${entity.entityName}${rs}`);
     }
     await flushAsync();
@@ -521,6 +543,54 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining(`Removing device: ${entity}`));
   });
 
+  it.each([false, true])('should skip unregistering when the entity has no bridged device (entity exists: %s)', async (entityExists) => {
+    const friendlyName = 'Unregistered entity';
+    const entity = { entityName: friendlyName, bridgedDevice: undefined, destroy: vi.fn() } as unknown as ZigbeeDevice;
+    const originalEntities = platform.zigbeeEntities;
+    const originalDevices = [...platform.bridgedDevices];
+    const unregisterSpy = vi.spyOn(platform, 'unregisterDevice');
+    platform.zigbeeEntities = entityExists ? [...originalEntities, entity] : [...originalEntities];
+    const expectedEntities = [...platform.zigbeeEntities];
+
+    try {
+      // @ts-expect-error accessing private method for testing
+      await platform.unregisterZigbeeEntity(friendlyName);
+
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `Entity with friendly name ${friendlyName} not found`);
+      expect(unregisterSpy).not.toHaveBeenCalled();
+      expect(entity.destroy).not.toHaveBeenCalled();
+      expect(platform.zigbeeEntities).toEqual(expectedEntities);
+      expect(platform.bridgedDevices).toEqual(originalDevices);
+    } finally {
+      platform.zigbeeEntities = originalEntities;
+      unregisterSpy.mockRestore();
+    }
+  });
+
+  it('should log an error and preserve the entity when unregistering fails', async () => {
+    const entity = platform.zigbeeEntities.find((entity) => entity.bridgedDevice);
+    expect(entity).toBeDefined();
+    if (!entity) throw new Error('Expected a registered entity');
+    const originalEntities = [...platform.zigbeeEntities];
+    const originalDevices = [...platform.bridgedDevices];
+    const unregisterSpy = vi.spyOn(platform, 'unregisterDevice').mockRejectedValueOnce(new Error('unregister failed'));
+    const destroySpy = vi.spyOn(entity, 'destroy');
+
+    try {
+      // @ts-expect-error accessing private method for testing
+      await expect(platform.unregisterZigbeeEntity(entity.entityName)).resolves.toBeUndefined();
+
+      expect(unregisterSpy).toHaveBeenCalledWith(entity.bridgedDevice);
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.ERROR, `Error removing device ${entity.entityName}: unregister failed`);
+      expect(destroySpy).not.toHaveBeenCalled();
+      expect(platform.zigbeeEntities).toEqual(originalEntities);
+      expect(platform.bridgedDevices).toEqual(originalDevices);
+    } finally {
+      unregisterSpy.mockRestore();
+      destroySpy.mockRestore();
+    }
+  });
+
   it('should rename Sleeping', async () => {
     const entity = 'Sleeping';
     const payload = { data: { from: entity, to: 'Is dark' }, status: 'ok', transaction: '8j6s7-10' };
@@ -542,7 +612,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(doorLock.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
@@ -557,7 +626,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
     await device.executeCommandHandler('lockDoor', {}, 'doorLock', {} as any, device);
     await device.executeCommandHandler('unlockDoor', {}, 'doorLock', {} as any, device);
@@ -576,7 +644,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(onOffLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(dimmableLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(colorTemperatureLight.code)).toBeUndefined();
@@ -594,7 +661,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
     await device.setAttribute('onOff', 'onOff', false);
     await device.executeCommandHandler('on', {}, 'onOff', {} as any, device);
@@ -620,7 +686,13 @@ describe('TestPlatform', () => {
       {} as any,
       device,
     );
-    await device.executeCommandHandler('moveToHue', { hue: 200, direction: 0, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToHue',
+      { hue: 200, direction: ColorControl.Direction.Shortest, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
     await device.executeCommandHandler('moveToSaturation', { saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
     await device.executeCommandHandler(
       'moveToHueAndSaturation',
@@ -652,7 +724,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(windowCovering.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
@@ -667,7 +738,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
     await device.executeCommandHandler('upOrOpen', {}, 'windowCovering', {} as any, device);
     await device.executeCommandHandler('downOrClose', {}, 'windowCovering', {} as any, device);
@@ -690,7 +760,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(thermostat.code)).toBeDefined();
     expect(device.deviceTypes.get(bridgedNode.code)).toBeDefined();
     expect(device.deviceTypes.get(powerSource.code)).toBeDefined();
@@ -705,7 +774,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
     await device.executeCommandHandler('setpointRaiseLower', { mode: Thermostat.SetpointRaiseLowerMode.Both, amount: 10 }, 'thermostat', {} as any, device);
 
@@ -722,7 +790,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(onOffLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(dimmableLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(colorTemperatureLight.code)).toBeDefined();
@@ -740,7 +807,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     expect(device.deviceTypes.get(onOffLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(dimmableLight.code)).toBeUndefined();
     expect(device.deviceTypes.get(colorTemperatureLight.code)).toBeUndefined();
@@ -758,7 +824,6 @@ describe('TestPlatform', () => {
     expect(device).toBeDefined();
     if (!device) return;
     await device.construction.ready;
-    await flushAsync(undefined, undefined, commandTimeout);
     await device.executeCommandHandler('identify', { identifyTime: 10 }, 'identify', {} as any, device);
     await device.setAttribute('onOff', 'onOff', false);
     await device.executeCommandHandler('on', {}, 'onOff', {} as any, device);
@@ -783,7 +848,13 @@ describe('TestPlatform', () => {
       {} as any,
       device,
     );
-    await device.executeCommandHandler('moveToHue', { hue: 200, direction: 0, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
+    await device.executeCommandHandler(
+      'moveToHue',
+      { hue: 200, direction: ColorControl.Direction.Shortest, transitionTime: 0, optionsMask: {}, optionsOverride: {} },
+      'colorControl',
+      {} as any,
+      device,
+    );
     await device.executeCommandHandler('moveToSaturation', { saturation: 90, transitionTime: 0, optionsMask: {}, optionsOverride: {} }, 'colorControl', {} as any, device);
     await device.executeCommandHandler(
       'moveToHueAndSaturation',
@@ -811,23 +882,47 @@ describe('TestPlatform', () => {
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Setting availability for/));
   });
 
-  it('should replay retained payloads during onConfigure', async () => {
+  it('should replay online and offline availability and retained payloads during onConfigure', async () => {
+    const onlineSpy = vi.fn();
+    const offlineSpy = vi.fn();
     const retainedSpy = vi.fn();
+    // @ts-expect-error accessing private property for testing
+    const availability = platform.z2mEntityAvailability;
+    // @ts-expect-error accessing private property for testing
+    const payloads = platform.z2mEntityPayload;
+    // @ts-expect-error accessing private property for testing
+    const originalTimeoutMs = platform.availabilityTimeoutMs;
+    platform.z2m.on('ONLINE-OnlineReplayDevice', onlineSpy);
+    platform.z2m.on('OFFLINE-OfflineReplayDevice', offlineSpy);
     platform.z2m.on('MESSAGE-RetainedDevice', retainedSpy);
-    (platform as any).z2mEntityPayload.set('RetainedDevice', { state: 'ON' });
-    (platform as any).availabilityTimeout = 1;
+    availability.set('OnlineReplayDevice', true);
+    availability.set('OfflineReplayDevice', false);
+    payloads.set('RetainedDevice', { state: 'ON' });
+    // @ts-expect-error accessing private property for testing
+    platform.availabilityTimeoutMs = 1;
 
-    await platform.onConfigure();
-    await wait(20);
-
-    expect(retainedSpy).toHaveBeenCalledWith({ state: 'ON' });
-    platform.z2m.off('MESSAGE-RetainedDevice', retainedSpy);
-    (platform as any).z2mEntityPayload.delete('RetainedDevice');
+    try {
+      await platform.onConfigure();
+      await vi.waitFor(() => {
+        expect(onlineSpy).toHaveBeenCalledExactlyOnceWith();
+        expect(offlineSpy).toHaveBeenCalledExactlyOnceWith();
+        expect(retainedSpy).toHaveBeenCalledExactlyOnceWith({ state: 'ON' });
+      });
+    } finally {
+      platform.z2m.off('ONLINE-OnlineReplayDevice', onlineSpy);
+      platform.z2m.off('OFFLINE-OfflineReplayDevice', offlineSpy);
+      platform.z2m.off('MESSAGE-RetainedDevice', retainedSpy);
+      availability.delete('OnlineReplayDevice');
+      availability.delete('OfflineReplayDevice');
+      payloads.delete('RetainedDevice');
+      // @ts-expect-error accessing private property for testing
+      platform.availabilityTimeoutMs = originalTimeoutMs;
+    }
   });
 
   it('should call onConfigure permit_join = false', async () => {
     (platform as any).z2mBridgeInfo.permit_join = false;
-    (platform as any).availabilityTimeout = 1;
+    (platform as any).availabilityTimeoutMs = 1;
     await platform.onConfigure();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
   });
@@ -836,6 +931,150 @@ describe('TestPlatform', () => {
     (platform as any).z2mBridgeInfo.permit_join = true;
     await platform.onConfigure();
     expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringMatching(/^Configured zigbee2mqtt dynamic platform/));
+  });
+
+  it.each([
+    ['zigbee2mqtt-frontend', 'http://localhost:8080/#/device/0x1234/info', 'http://localhost:8080/#/group/42'],
+    ['zigbee2mqtt-windfront', 'http://localhost:8080/#/device/0/0x1234/info', 'http://localhost:8080/#/group/0/42'],
+  ] as const)('should set device and group config URLs when using %s', async (frontend, deviceUrl, groupUrl) => {
+    const originalInfo = platform.z2mBridgeInfo;
+    if (!originalInfo) throw new Error('Expected bridge info');
+    const originalEntities = [...platform.zigbeeEntities];
+    const originalDevices = [...platform.bridgedDevices];
+    const device = { bridgedDevice: { configUrl: undefined } } as unknown as ZigbeeDevice;
+    const group = { bridgedDevice: { configUrl: undefined } } as unknown as ZigbeeGroup;
+    const deviceCreateSpy = vi.spyOn(ZigbeeDevice, 'create').mockResolvedValueOnce(device);
+    const groupCreateSpy = vi.spyOn(ZigbeeGroup, 'create').mockResolvedValueOnce(group);
+    const registerSpy = vi.spyOn(platform, 'registerDevice').mockImplementation(async () => {});
+    platform.z2mBridgeInfo = { ...originalInfo, config: { ...originalInfo.config, frontend: { package: frontend } } };
+
+    try {
+      // @ts-expect-error accessing private method for testing
+      const registeredDevice = await platform.registerZigbeeDevice({ ieee_address: '0x1234', friendly_name: 'Frontend device' } as BridgeDevice);
+      const registeredGroup = await platform.registerZigbeeGroup({ id: 42, friendly_name: 'Frontend group', description: '', members: [], scenes: [] });
+
+      expect(registeredDevice).toBe(device);
+      expect(registeredGroup).toBe(group);
+      expect(device.bridgedDevice?.configUrl).toBe(deviceUrl);
+      expect(group.bridgedDevice?.configUrl).toBe(groupUrl);
+      expect(registerSpy).toHaveBeenCalledWith(device.bridgedDevice);
+      expect(registerSpy).toHaveBeenCalledWith(group.bridgedDevice);
+    } finally {
+      platform.z2mBridgeInfo = originalInfo;
+      platform.zigbeeEntities = originalEntities;
+      platform.bridgedDevices = originalDevices;
+      deviceCreateSpy.mockRestore();
+      groupCreateSpy.mockRestore();
+      registerSpy.mockRestore();
+    }
+  });
+
+  describe('bridge event coverage', () => {
+    let eventPlatform: ZigbeePlatform;
+    const device = { ieee_address: '0x1234', friendly_name: 'Event device' } as BridgeDevice;
+    const group: BridgeGroup = { id: 42, friendly_name: 'Event group', description: '', members: [], scenes: [] };
+    const registerDevice = vi.fn<() => Promise<undefined>>();
+    const registerGroup = vi.fn<() => Promise<undefined>>();
+    const unregister = vi.fn<() => Promise<void>>();
+
+    beforeEach(() => {
+      eventPlatform = new ZigbeePlatform(matterbridge, log, { ...mockConfig });
+      eventPlatform.z2mBridgeDevices = [device];
+      eventPlatform.z2mBridgeGroups = [group];
+      vi.spyOn(eventPlatform, 'registerZigbeeDevice').mockImplementation(registerDevice);
+      vi.spyOn(eventPlatform, 'registerZigbeeGroup').mockImplementation(registerGroup);
+      vi.spyOn(eventPlatform, 'unregisterZigbeeEntity').mockImplementation(unregister);
+      vi.spyOn(eventPlatform, 'validateDevice').mockReturnValue(true);
+    });
+
+    afterEach(async () => {
+      await eventPlatform.onShutdown();
+    });
+
+    it.each([
+      ['device_interview', [device.friendly_name, device.ieee_address, 'successful', true], true, false],
+      ['device_rename', [device.ieee_address, 'Old device', device.friendly_name], true, true],
+      ['group_add', [group.friendly_name, group.id, 'ok'], false, false],
+      ['group_rename', ['Old group', group.friendly_name, 'ok'], false, true],
+      ['group_add_member', [group.friendly_name, device.ieee_address, 'ok'], false, true],
+      ['group_remove_member', [group.friendly_name, device.friendly_name, 'ok'], false, true],
+    ] as const)('should register the matching entity on %s', async (event, args, isDevice, removesPrevious) => {
+      eventPlatform.z2m.emit(event, ...args);
+      await flushAsync(undefined, undefined, 0);
+
+      expect(isDevice ? registerDevice : registerGroup).toHaveBeenCalledExactlyOnceWith(isDevice ? device : group);
+      expect(isDevice ? registerGroup : registerDevice).not.toHaveBeenCalled();
+      expect(unregister).toHaveBeenCalledTimes(removesPrevious ? 1 : 0);
+    });
+
+    it.each([
+      ['device_remove', [device.friendly_name, 'error', false, false]],
+      ['device_interview', [device.friendly_name, device.ieee_address, 'failed', true]],
+      ['device_interview', [device.friendly_name, device.ieee_address, 'successful', false]],
+      ['group_rename', [group.friendly_name, 'New group', 'error']],
+      ['group_add_member', [group.friendly_name, device.ieee_address, 'error']],
+      ['group_remove_member', [group.friendly_name, device.friendly_name, 'error']],
+    ] as const)('should leave entities unchanged on unsuccessful %s', async (event, args) => {
+      eventPlatform.z2m.emit(event, ...args);
+      await flushAsync(undefined, undefined, 0);
+
+      expect(registerDevice).not.toHaveBeenCalled();
+      expect(registerGroup).not.toHaveBeenCalled();
+      expect(unregister).not.toHaveBeenCalled();
+    });
+
+    it.each(['device_interview', 'group_add'])('should skip registration when validation rejects %s', async (event) => {
+      vi.spyOn(eventPlatform, 'validateDevice').mockReturnValue(false);
+      if (event === 'device_interview') eventPlatform.z2m.emit(event, device.friendly_name, device.ieee_address, 'successful', true);
+      else eventPlatform.z2m.emit(event, group.friendly_name, group.id, 'ok');
+      await flushAsync(undefined, undefined, 0);
+
+      expect(registerDevice).not.toHaveBeenCalled();
+      expect(registerGroup).not.toHaveBeenCalled();
+    });
+
+    it('should configure mixed entities and skip duplicate registration on repeated bridge lists', async () => {
+      const configureDevice = vi.fn();
+      const configureGroup = vi.fn();
+      eventPlatform.zigbeeEntities = [
+        { isDevice: true, device, configure: configureDevice, destroy: vi.fn() },
+        { isGroup: true, group, configure: configureGroup, destroy: vi.fn() },
+      ] as unknown as ZigbeeDevice[];
+      const deviceUpdate = vi.spyOn(eventPlatform, 'requestDeviceUpdate').mockImplementation(() => {});
+      const groupUpdate = vi.spyOn(eventPlatform, 'requestGroupUpdate').mockImplementation(() => {});
+      eventPlatform.shouldStart = true;
+      eventPlatform.shouldConfigure = true;
+
+      for (let i = 0; i < 2; i++) {
+        eventPlatform.z2m.emit('bridge-devices', [device]);
+        eventPlatform.z2m.emit('bridge-groups', [group]);
+        await flushAsync(undefined, undefined, 0);
+      }
+
+      expect(registerDevice).toHaveBeenCalledExactlyOnceWith(device);
+      expect(registerGroup).toHaveBeenCalledExactlyOnceWith(group);
+      expect(eventPlatform.z2mDevicesRegistered).toBe(true);
+      expect(eventPlatform.z2mGroupsRegistered).toBe(true);
+      expect(deviceUpdate).toHaveBeenCalledTimes(2);
+      expect(deviceUpdate).toHaveBeenCalledWith(device);
+      expect(groupUpdate).toHaveBeenCalledTimes(2);
+      expect(groupUpdate).toHaveBeenCalledWith(group);
+      expect(configureDevice).toHaveBeenCalledTimes(4);
+      expect(configureGroup).toHaveBeenCalledTimes(4);
+    });
+
+    it('should reject startup when bridge info arrives without bridge state', async () => {
+      eventPlatform.z2mBridgeInfo = {} as BridgeInfo;
+      eventPlatform.z2mBridgeOnline = undefined;
+
+      await expect(eventPlatform.onStart()).rejects.toThrow('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups.');
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.ERROR,
+        'The plugin did not receive zigbee2mqtt bridge state. Check if zigbee2mqtt is running and connected to the MQTT broker.',
+      );
+      expect(registerDevice).not.toHaveBeenCalled();
+      expect(registerGroup).not.toHaveBeenCalled();
+    });
   });
 
   it('should return undefined when device registration is not valid', async () => {
@@ -895,8 +1134,6 @@ describe('TestPlatform', () => {
   });
 
   it('should call onShutdown with reason', async () => {
-    // @ts-expect-error accessing private property for testing
-    platform.injectTimer = setTimeout(() => {}, 1000).unref();
     platform.config.unregisterOnShutdown = true;
     await platform.onShutdown('Jest Test');
     platform.config.unregisterOnShutdown = false;
