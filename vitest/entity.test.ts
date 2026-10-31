@@ -13,12 +13,24 @@ const MATTER_CREATE_ONLY = true;
 
 import path from 'node:path';
 
-import { featuresFor, invokeBehaviorCommand, invokeSubscribeHandler, MatterbridgeEndpoint, type PlatformMatterbridge } from 'matterbridge';
+import {
+  colorDimmerSwitch,
+  dimmableLight,
+  dimmablePlugInUnit,
+  dimmerSwitch,
+  extendedColorLight,
+  featuresFor,
+  invokeBehaviorCommand,
+  invokeSubscribeHandler,
+  MatterbridgeEndpoint,
+  onOffLight,
+  onOffLightSwitch,
+  onOffPlugInUnit,
+  type PlatformMatterbridge,
+  waterValve,
+} from 'matterbridge';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import type { Endpoint, ServerNode } from 'matterbridge/matter';
-import { ColorControl, DoorLock, PowerSource, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
-import type { AggregatorEndpoint } from 'matterbridge/matter/endpoints';
-import { flushAsync } from 'matterbridge/test-utils';
+import { AirQuality, ColorControl, DoorLock, OnOff, PowerSource, SmokeCoAlarm, Thermostat, ValveConfigurationAndControl, WindowCovering } from 'matterbridge/matter/clusters';
 import {
   addDevice,
   addMatterbridge,
@@ -37,7 +49,7 @@ import {
   startServerNode,
   stopServerNode,
 } from 'matterbridge/test-utils/vitest';
-import { getMacAddress, kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
+import { kelvinToRGB, miredToKelvin } from 'matterbridge/utils';
 
 import { ZigbeeDevice, ZigbeeEntity, ZigbeeGroup } from '../src/entity.js';
 import { ZigbeePlatform, type ZigbeePlatformConfig } from '../src/module.js';
@@ -78,8 +90,7 @@ describe('Test Entity', () => {
   let platform: ZigbeePlatform;
   const executeTrue = { executeIfOff: true };
 
-  const commandTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
-  const updateTimeout = getMacAddress() === 'c4:cb:76:b3:cd:1f' ? 100 : 250;
+  const waitOptions = { interval: 5, timeout: 2000 };
 
   const mockConfig: ZigbeePlatformConfig = {
     name: 'matterbridge-zigbee2mqtt',
@@ -102,6 +113,7 @@ describe('Test Entity', () => {
     switchList: [],
     lightList: [],
     outletList: [],
+    valveList: [],
     featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
     deviceFeatureBlackList: {},
     scenesType: 'outlet',
@@ -183,6 +195,42 @@ describe('Test Entity', () => {
     platform.z2m.emit('MESSAGE-No update entity', { state: 'ON' });
 
     expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('Skipping (no update) MQTT message for accessory No update entity'));
+    entity.destroy();
+  });
+
+  test('MESSAGE update skips only the published keys when noUpdateKeys is set', () => {
+    const entity = new ZigbeeEntity(platform, { id: 9005, friendly_name: 'No update keys entity', description: '', members: [], scenes: [] });
+    entity.bridgedDevice = {} as MatterbridgeEndpoint;
+    (entity as any).noUpdate = true;
+    (entity as any).noUpdateKeys = ['state'];
+
+    platform.z2m.emit('MESSAGE-No update keys entity', { state: 'OFF', power: 0 });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Skipping (no update) keys ${CYAN}state${db} for accessory No update keys entity`));
+    expect(loggerDebugSpy).not.toHaveBeenCalledWith(expect.stringContaining('Skipping (no update) MQTT message for accessory No update keys entity'));
+    expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining(`payload: ${debugStringify({ power: 0 })}`));
+
+    vi.clearAllMocks();
+    platform.z2m.emit('MESSAGE-No update keys entity', { state: 'ON' });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('Skipping (no update) MQTT message for accessory No update keys entity'));
+    entity.destroy();
+  });
+
+  test('cachePublish sets and resets noUpdateKeys', async () => {
+    const entity = new ZigbeeEntity(platform, { id: 9006, friendly_name: 'Cache publish keys', description: '', members: [], scenes: [] });
+    (entity as any).cachePublishTimeoutTime = 1;
+    (entity as any).noUpdateTimeoutTime = 50;
+
+    (entity as any).cachePublish('on', { state: 'ON' });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state']), waitOptions);
+    expect((entity as any).noUpdate).toBe(true);
+
+    (entity as any).cachePublish('moveToLevel', { brightness: 100 });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state', 'brightness']), waitOptions);
+
+    await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+    expect((entity as any).noUpdateKeys).toBeUndefined();
     entity.destroy();
   });
 
@@ -295,6 +343,7 @@ describe('Test Entity', () => {
       if (!z2mGroup) throw new Error('Z2M Group not found');
       // await setDebug(true);
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       // await setDebug(false);
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
@@ -320,8 +369,8 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       (entity as any).noUpdateTimeoutTime = 1;
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      await flushAsync(undefined, undefined, 25); // Wait for the noUpdate reset timeout
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions); // Wait for the noUpdate reset timeout
       expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON' });
@@ -339,8 +388,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -353,8 +404,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -383,34 +436,38 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       payload = { state: 'OFF' };
       platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON' };
       platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`OFFLINE-${z2mGroup.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`ONLINE-${z2mGroup.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      }, waitOptions);
 
       entity.destroy();
     });
@@ -421,6 +478,7 @@ describe('Test Entity', () => {
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       // @ts-expect-error accessing private property for test
@@ -448,8 +506,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -461,8 +521,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -474,8 +536,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -487,9 +551,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 128, transitionTime: 5, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -504,9 +570,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -521,9 +589,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -565,34 +635,38 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       payload = { state: 'OFF' };
       platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON' };
       platform.z2m.emit(`MESSAGE-${z2mGroup.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`OFFLINE-${z2mGroup.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`ONLINE-${z2mGroup.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}`);
+      }, waitOptions);
 
       entity.destroy();
     });
@@ -603,6 +677,7 @@ describe('Test Entity', () => {
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -621,8 +696,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'upOrOpen');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command upOrOpen called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -630,8 +707,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'downOrClose');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -642,8 +721,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'stopMotion');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command stopMotion called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
@@ -651,8 +732,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'goToLiftPercentage', { liftPercent100thsValue: 5000 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -665,15 +748,16 @@ describe('Test Entity', () => {
     });
 
     test('create a thermostat group', async () => {
-      platform.postfix = '';
+      platform.config.postfix = '';
       const friendlyName = 'Thermostats';
       const z2mGroup = platform.z2mBridgeGroups?.find((group) => group.friendly_name === friendlyName);
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
-      // expect(entity.platform.postfix).toBe('');
+      // expect(entity.platform.config.postfix).toBe('');
       const device = entity.bridgedDevice;
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
@@ -703,7 +787,7 @@ describe('Test Entity', () => {
       await invokeSubscribeHandler(device, 'Thermostat', 'systemMode', Thermostat.SystemMode.Cool, Thermostat.SystemMode.Off);
       await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2000, 2200);
       await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2000, 2200);
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions); // Wait for the thermostat noUpdate reset timeouts
 
       entity.destroy();
     });
@@ -714,9 +798,10 @@ describe('Test Entity', () => {
       expect(z2mGroup).toBeDefined();
       if (!z2mGroup) throw new Error('Z2M Group not found');
       const entity = await ZigbeeGroup.create(platform, z2mGroup);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
-      // expect(entity.platform.postfix).toBe('');
+      // expect(entity.platform.config.postfix).toBe('');
       const device = entity.bridgedDevice;
       expect(device).toBeDefined();
       expect(device).toBeInstanceOf(MatterbridgeEndpoint);
@@ -740,6 +825,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -759,13 +845,20 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.DEBUG,
+          expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -777,8 +870,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -790,8 +885,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -810,35 +907,159 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       payload = { state: 'OFF' };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON' };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
+
+      entity.destroy();
+    });
+
+    test('should expose a switch on valveList as a water valve when listed', async () => {
+      const z2mDevice = waterValveDevice;
+      const friendlyName = z2mDevice.friendly_name;
+      platform.config.valveList = [friendlyName];
+      expect(z2mDevice).toBeDefined();
+      if (!z2mDevice) throw new Error('Z2M Device not found');
+      const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      expect(entity).toBeDefined();
+      expect(entity.entityName).toBe(friendlyName);
+      const device = entity.bridgedDevice;
+      expect(device).toBeDefined();
+      expect(device).toBeInstanceOf(MatterbridgeEndpoint);
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(device.deviceTypes.get(waterValve.code)).toBeDefined();
+      expect(device.hasClusterServer(ValveConfigurationAndControl.id)).toBe(true);
+      expect(device.hasClusterServer(OnOff.id)).toBe(false);
+      expect(device.getChildEndpoints()).toHaveLength(1);
+      expect(device.getChildEndpointById('l1')?.hasClusterServer(ValveConfigurationAndControl.id)).toBe(true);
+
+      vi.clearAllMocks();
+      expect(await addDevice(aggregator, device)).toBe(true);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+      expect(device.hasAttributeServer(ValveConfigurationAndControl.id, 'currentLevel')).toBe(false);
+      expect(device.hasAttributeServer(ValveConfigurationAndControl.id, 'targetLevel')).toBe(false);
+      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', {});
+      await vi.waitFor(() => {
+        expect(publishCommandSpy).toHaveBeenCalledWith('open', friendlyName, { state: 'ON' });
+      }, waitOptions);
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command open called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'close', {});
+      await vi.waitFor(() => {
+        expect(publishCommandSpy).toHaveBeenCalledWith('close', friendlyName, { state: 'OFF' });
+      }, waitOptions);
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command close called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+
+      let payload: Payload;
+
+      vi.clearAllMocks();
+      payload = { state: 'ON' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await vi.waitFor(() => {
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+      }, waitOptions);
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.INFO,
         `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
       );
 
       vi.clearAllMocks();
-      platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      payload = { state: 'OFF' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await vi.waitFor(() => {
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+      }, waitOptions);
 
       vi.clearAllMocks();
-      platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      await expect(device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', { targetLevel: 50 })).rejects.toThrow(/targetLevel 50/);
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+      expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
 
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'close', {});
+      await vi.waitFor(() => {
+        expect(publishCommandSpy).toHaveBeenCalledWith('close', friendlyName, { state: 'OFF' });
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+      }, waitOptions);
+
+      vi.clearAllMocks();
+      payload = { state: 'ON' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await vi.waitFor(() => {
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+      }, waitOptions);
+
+      vi.clearAllMocks();
+      await device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', {});
+      await vi.waitFor(() => {
+        expect(publishCommandSpy).toHaveBeenCalledWith('open', friendlyName, { state: 'ON' });
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+      }, waitOptions);
+
+      vi.useFakeTimers();
+      try {
+        vi.clearAllMocks();
+        await device.invokeBehaviorCommand('valveConfigurationAndControl', 'open', { openDuration: 1 });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(publishCommandSpy).toHaveBeenCalledWith('open', friendlyName, { state: 'ON' });
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'remainingDuration')).toBe(1);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(publishCommandSpy).toHaveBeenCalledWith('close', friendlyName, { state: 'OFF' });
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'remainingDuration')).toBeNull();
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Transitioning);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+      } finally {
+        vi.useRealTimers();
+      }
+
+      vi.clearAllMocks();
+      payload = { state: 'OFF' };
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+      await vi.waitFor(() => {
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+        expect(device.getAttribute(ValveConfigurationAndControl.id, 'targetState')).toBeNull();
+      }, waitOptions);
+
+      platform.config.valveList = [];
       entity.destroy();
     });
 
@@ -848,6 +1069,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -886,8 +1108,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(ch1, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -899,8 +1123,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(ch1, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -912,8 +1138,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(ch1, 'OnOff', 'toggle');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -927,8 +1155,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(ch2, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -940,8 +1170,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(ch2, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -953,8 +1185,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(ch2, 'OnOff', 'toggle');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -973,32 +1207,34 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       payload = { state_l1: 'OFF', state_l2: 'OFF', energy: 123.4, voltage: 230, power: 0, current: 0 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(device.getAttribute('ElectricalEnergyMeasurement', 'cumulativeEnergyImported')).toEqual({ energy: 123400000 });
-      expect(device.getAttribute('ElectricalPowerMeasurement', 'voltage')).toBe(230000);
-      expect(device.getAttribute('ElectricalPowerMeasurement', 'activePower')).toBe(0);
-      expect(device.getAttribute('ElectricalPowerMeasurement', 'activeCurrent')).toBe(0);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(ch1.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(ch2.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(device.getAttribute('ElectricalEnergyMeasurement', 'cumulativeEnergyImported')).toEqual({ energy: 123400000 });
+        expect(device.getAttribute('ElectricalPowerMeasurement', 'voltage')).toBe(230000);
+        expect(device.getAttribute('ElectricalPowerMeasurement', 'activePower')).toBe(0);
+        expect(device.getAttribute('ElectricalPowerMeasurement', 'activeCurrent')).toBe(0);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state_l1: 'ON', state_l2: 'ON', energy: 124, voltage: 220, power: 56, current: 0.789 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('ElectricalEnergyMeasurement', 'cumulativeEnergyImported')).toEqual({ energy: 124000000 });
-      expect(device.getAttribute('ElectricalPowerMeasurement', 'voltage')).toBe(220000);
-      expect(device.getAttribute('ElectricalPowerMeasurement', 'activePower')).toBe(56000);
-      expect(device.getAttribute('ElectricalPowerMeasurement', 'activeCurrent')).toBe(789);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(ch1.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(ch2.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('ElectricalEnergyMeasurement', 'cumulativeEnergyImported')).toEqual({ energy: 124000000 });
+        expect(device.getAttribute('ElectricalPowerMeasurement', 'voltage')).toBe(220000);
+        expect(device.getAttribute('ElectricalPowerMeasurement', 'activePower')).toBe(56000);
+        expect(device.getAttribute('ElectricalPowerMeasurement', 'activeCurrent')).toBe(789);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       entity.destroy();
     });
@@ -1009,6 +1245,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1033,14 +1270,21 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.DEBUG,
+          expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'upOrOpen');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+        expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(0);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command upOrOpen called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1049,9 +1293,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'downOrClose');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+        expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1063,9 +1309,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'goToLiftPercentage', { liftPercent100thsValue: 5000 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+        expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1077,13 +1325,15 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'WindowCovering', 'stopMotion');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
-        global: WindowCovering.MovementStatus.Stopped,
-        lift: WindowCovering.MovementStatus.Stopped,
-      });
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+        });
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(5000);
+        expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(5000);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1101,78 +1351,85 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       payload = { position: 0 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(0);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { position: 100 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { moving: 'UP' };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
-        global: WindowCovering.MovementStatus.Opening,
-        lift: WindowCovering.MovementStatus.Opening,
-      });
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+          global: WindowCovering.MovementStatus.Opening,
+          lift: WindowCovering.MovementStatus.Opening,
+        });
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { motor_state: 'opening' });
 
       vi.clearAllMocks();
       payload = { moving: 'DOWN' };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
-        global: WindowCovering.MovementStatus.Closing,
-        lift: WindowCovering.MovementStatus.Closing,
-      });
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+          global: WindowCovering.MovementStatus.Closing,
+          lift: WindowCovering.MovementStatus.Closing,
+        });
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { motor_state: 'closing' });
 
       vi.clearAllMocks();
       payload = { moving: 'STOP' };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
-        global: WindowCovering.MovementStatus.Stopped,
-        lift: WindowCovering.MovementStatus.Stopped,
-      });
-      expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
-      expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('WindowCovering', 'operationalStatus')).toEqual({
+          global: WindowCovering.MovementStatus.Stopped,
+          lift: WindowCovering.MovementStatus.Stopped,
+        });
+        expect(device.getAttribute('WindowCovering', 'currentPositionLiftPercent100ths')).toBe(10000);
+        expect(device.getAttribute('WindowCovering', 'targetPositionLiftPercent100ths')).toBe(10000);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { motor_state: 'stopped' });
 
       vi.clearAllMocks();
       platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
 
       entity.destroy();
     });
@@ -1184,6 +1441,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1218,7 +1476,7 @@ describe('Test Entity', () => {
       // Test commands from the controller
       vi.clearAllMocks();
       await device.invokeBehaviorCommand('doorLock', 'lockDoor', {});
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command lockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1226,11 +1484,31 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await device.invokeBehaviorCommand('doorLock', 'unlockDoor', {});
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command unlockDoor called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
       expect(publishCommandSpy).toHaveBeenCalledWith('unlockDoor', friendlyName, { state: 'UNLOCK' });
+
+      // Test updates from Z2M
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { state: 'LOCK' });
+      await vi.waitFor(() => {
+        expect(device.getAttribute('doorLock', 'lockState')).toBe(DoorLock.LockState.Locked);
+      }, waitOptions);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { state: 'UNLOCK' });
+      await vi.waitFor(() => {
+        expect(device.getAttribute('doorLock', 'lockState')).toBe(DoorLock.LockState.Unlocked);
+      }, waitOptions);
+
+      // Configure triggers the lockOperation event for the unlocked state
+      vi.clearAllMocks();
+      await entity.configure();
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining('DoorLock cluster'));
+
+      entity.destroy();
     });
 
     test('create a thermostat device', async () => {
@@ -1240,6 +1518,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as unknown as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1274,31 +1553,33 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       let payload: Payload = { system_mode: 'heat', current_heating_setpoint: 23 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('Thermostat', 'systemMode')).toBe(Thermostat.SystemMode.Heat);
-      expect(device.getAttribute('Thermostat', 'occupiedHeatingSetpoint')).toBe(2300);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('Thermostat', 'systemMode')).toBe(Thermostat.SystemMode.Heat);
+        expect(device.getAttribute('Thermostat', 'occupiedHeatingSetpoint')).toBe(2300);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { system_mode: 'cool', current_heating_setpoint: 24 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('Thermostat', 'systemMode')).toBe(Thermostat.SystemMode.Cool);
-      expect(device.getAttribute('Thermostat', 'occupiedCoolingSetpoint')).toBe(2400);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('Thermostat', 'systemMode')).toBe(Thermostat.SystemMode.Cool);
+        expect(device.getAttribute('Thermostat', 'occupiedCoolingSetpoint')).toBe(2400);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
       await device.setAttribute('Thermostat', 'occupiedHeatingSetpoint', 2100);
       await device.setAttribute('Thermostat', 'occupiedCoolingSetpoint', 2500);
 
       // Test commands from the controller
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'Thermostat', 'setpointRaiseLower', { mode: Thermostat.SetpointRaiseLowerMode.Both, amount: 100 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerDebugSpy).toHaveBeenCalledWith(
@@ -1326,7 +1607,7 @@ describe('Test Entity', () => {
       await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2000, 2200);
       await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2000, 2200);
       expect(publishCommandSpy).toHaveBeenCalledTimes(5);
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions); // Wait for the thermostat noUpdate reset timeouts
 
       entity.destroy();
     });
@@ -1337,6 +1618,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1356,13 +1638,20 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.DEBUG,
+          expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1380,8 +1669,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1393,8 +1684,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1412,9 +1705,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 128, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1429,9 +1724,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1446,9 +1743,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1474,23 +1773,25 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       payload = { state: 'OFF' };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON', brightness: 200 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       entity.destroy();
     });
@@ -1501,6 +1802,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice as BridgeDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1520,13 +1822,20 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'Identify', 'identify', { identifyTime: 3 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.DEBUG,
+          expect.stringContaining(`Command identify called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`),
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1544,8 +1853,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command off called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1557,8 +1868,10 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'toggle');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
@@ -1576,9 +1889,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 128, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(128);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1593,9 +1908,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1610,9 +1927,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(1);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1627,9 +1946,11 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 100, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+      }, waitOptions);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(
@@ -1644,10 +1965,12 @@ describe('Test Entity', () => {
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToColorTemperature', { colorTemperatureMireds: 200, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(200);
-      expect(publishCommandSpy).toHaveBeenCalledWith('moveToColorTemperature', friendlyName, { color_temp: 200 });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(200);
+        expect(publishCommandSpy).toHaveBeenCalledWith('moveToColorTemperature', friendlyName, { color_temp: 200 });
+      }, waitOptions);
 
       vi.clearAllMocks();
       const colorTempMap = (entity as any).propertyMap.get('color_temp');
@@ -1660,9 +1983,11 @@ describe('Test Entity', () => {
         optionsMask: 1,
         optionsOverride: 1,
       });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(publishCommandSpy).toHaveBeenCalledWith('moveToColorTemperature', friendlyName, { color: { r: fallbackRgb.r, g: fallbackRgb.g, b: fallbackRgb.b } });
-      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`but color_temp property is not available. Converting ${fallbackMireds} to RGB`));
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(publishCommandSpy).toHaveBeenCalledWith('moveToColorTemperature', friendlyName, { color: { r: fallbackRgb.r, g: fallbackRgb.g, b: fallbackRgb.b } });
+        expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`but color_temp property is not available. Converting ${fallbackMireds} to RGB`));
+      }, waitOptions);
       if (colorTempMap) (entity as any).propertyMap.set('color_temp', colorTempMap);
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
@@ -1675,109 +2000,135 @@ describe('Test Entity', () => {
         optionsMask: 1,
         optionsOverride: 1,
       });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(150);
-      expect(publishCommandSpy).toHaveBeenCalledWith('moveToHue', friendlyName, { color: { h: 213, s: 0 } });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(150);
+        expect(publishCommandSpy).toHaveBeenCalledWith('moveToHue', friendlyName, { color: { h: 213, s: 0 } });
+      }, waitOptions);
 
       vi.clearAllMocks();
       // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToSaturation', { saturation: 80, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(80);
-      expect(publishCommandSpy).toHaveBeenCalledWith('moveToSaturation', friendlyName, { color: { h: 213, s: 31 } });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(80);
+        expect(publishCommandSpy).toHaveBeenCalledWith('moveToSaturation', friendlyName, { color: { h: 213, s: 31 } });
+      }, waitOptions);
 
       vi.clearAllMocks();
       // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 130, saturation: 70, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(130);
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(70);
-      expect(publishCommandSpy).toHaveBeenCalledWith('moveToHueAndSaturation', friendlyName, { color: { h: 184, s: 28 }, transition: 1 });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(130);
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(70);
+        expect(publishCommandSpy).toHaveBeenCalledWith('moveToHueAndSaturation', friendlyName, { color: { h: 184, s: 28 }, transition: 1 });
+      }, waitOptions);
 
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToColor', { colorX: 32000, colorY: 30000, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
-      expect(device.getAttribute('ColorControl', 'currentX')).toBe(32000);
-      expect(device.getAttribute('ColorControl', 'currentY')).toBe(30000);
-      expect(publishCommandSpy).toHaveBeenCalledWith('moveToColor', friendlyName, { color: { x: 0.4883, y: 0.4578 }, transition: 1 });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+        expect(device.getAttribute('ColorControl', 'currentX')).toBe(32000);
+        expect(device.getAttribute('ColorControl', 'currentY')).toBe(30000);
+        expect(publishCommandSpy).toHaveBeenCalledWith('moveToColor', friendlyName, { color: { x: 0.4883, y: 0.4578 }, transition: 1 });
+      }, waitOptions);
 
       // Turn the light off and test that moveToLevel and moveToColorTemperature commands remember their state
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+      }, waitOptions);
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 160, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
       // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToColorTemperature', { colorTemperatureMireds: 350, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+      }, waitOptions);
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 161, color_temp: 350 });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+        expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 161, color_temp: 350 });
+      }, waitOptions);
 
       // Turn the light off and test that moveToLevel and moveToHueAndSaturation commands remember their state
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+      }, waitOptions);
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 135, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
       // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 125, saturation: 40, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+      }, waitOptions);
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(135);
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+      }, waitOptions);
       // oxfmt-ignore
       expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((135 / 254) * 255), color: { h: Math.round(125 / 254 * 360), s: Math.round(40 / 254 * 100) } });
 
       // Turn the light off and test that moveToLevel and moveToColor commands remember their state
       await invokeBehaviorCommand(device, 'OnOff', 'off');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+      }, waitOptions);
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevel', { level: 115, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
       // oxfmt-ignore
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToColor', { colorX: 25000, colorY: 28000, transitionTime: null, optionsMask: executeTrue, optionsOverride: executeTrue });
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
-      expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
-      expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+        expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
+        expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+      }, waitOptions);
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'on');
-      await flushAsync(undefined, undefined, commandTimeout); // Wait for the cachePublish timeout
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
-      expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
-      expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(115);
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentXAndCurrentY);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(125);
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
+        expect(device.getAttribute('ColorControl', 'currentX')).toBe(25000);
+        expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
+      }, waitOptions);
       // oxfmt-ignore
       expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((115 / 254) * 255), color: { x: 25000 / 65535, y: 28000 / 65535 } });
 
@@ -1790,65 +2141,69 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       payload = { state: 'OFF' };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON', brightness: 200 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(200);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON', brightness: 150, color_mode: 'color_temp', color_temp: 260 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(150);
-      expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(260);
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(150);
+        expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(260);
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON', brightness: 130, color_mode: 'hs', color: { hue: 150, saturation: 90 } };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      await flushAsync(undefined, undefined, updateTimeout); // Extra wait for the fire-and-forget setAttribute() to settle (flaky in CI)
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(Math.round((150 / 360) * 254));
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(Math.round((90 / 100) * 254));
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(Math.round((150 / 360) * 254));
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(Math.round((90 / 100) * 254));
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       payload = { state: 'ON', brightness: 130, color_mode: 'xy', color: { x: 0.56, y: 0.92 } };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
-      expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
-      expect(device.getAttribute('ColorControl', 'currentHue')).toBe(49);
-      expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(254);
-      expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(130);
+        expect(device.getAttribute('ColorControl', 'currentHue')).toBe(49);
+        expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(254);
+        expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.CurrentHueAndCurrentSaturation);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       entity.destroy();
     }, 30000);
@@ -1859,6 +2214,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1880,41 +2236,45 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       const payload: Payload = { temperature: 22.5, humidity: 55.3, pressure: 1013.2, linkquality: 120, battery: 95, voltage: 2900 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(2250);
-      expect(device.getAttribute('RelativeHumidityMeasurement', 'measuredValue')).toBe(5530);
-      expect(device.getAttribute('PressureMeasurement', 'measuredValue')).toBe(1013.2);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(device.getAttribute('PowerSource', 'batChargeLevel')).toBe(PowerSource.BatChargeLevel.Ok);
-      expect(device.getAttribute('PowerSource', 'batVoltage')).toBe(payload.voltage);
-      expect(device.getAttribute('PowerSource', 'batPercentRemaining')).toBe((payload.battery as number) * 2);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(2250);
+        expect(device.getAttribute('RelativeHumidityMeasurement', 'measuredValue')).toBe(5530);
+        expect(device.getAttribute('PressureMeasurement', 'measuredValue')).toBe(1013.2);
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(device.getAttribute('PowerSource', 'batChargeLevel')).toBe(PowerSource.BatChargeLevel.Ok);
+        expect(device.getAttribute('PowerSource', 'batVoltage')).toBe(payload.voltage);
+        expect(device.getAttribute('PowerSource', 'batPercentRemaining')).toBe((payload.battery as number) * 2);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       const lowBatteryPayload: Payload = { battery: 19 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, lowBatteryPayload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('PowerSource', 'batChargeLevel')).toBe(PowerSource.BatChargeLevel.Critical);
-      expect(device.getAttribute('PowerSource', 'batPercentRemaining')).toBe((lowBatteryPayload.battery as number) * 2);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(lowBatteryPayload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('PowerSource', 'batChargeLevel')).toBe(PowerSource.BatChargeLevel.Critical);
+        expect(device.getAttribute('PowerSource', 'batPercentRemaining')).toBe((lowBatteryPayload.battery as number) * 2);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(lowBatteryPayload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
 
       entity.destroy();
     });
@@ -1925,6 +2285,7 @@ describe('Test Entity', () => {
       expect(z2mDevice).toBeDefined();
       if (!z2mDevice) throw new Error('Z2M Device not found');
       const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).cachePublishTimeoutTime = 1;
       expect(entity).toBeDefined();
       expect(entity.entityName).toBe(friendlyName);
       const device = entity.bridgedDevice;
@@ -1945,29 +2306,410 @@ describe('Test Entity', () => {
       vi.clearAllMocks();
       const payload: Payload = { illuminance: 539, occupancy: true, linkquality: 120, battery: 95, voltage: 2900 };
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('OccupancySensing', 'occupancy')).toEqual({ occupied: true });
-      expect(device.getAttribute('IlluminanceMeasurement', 'measuredValue')).toBe(27316); // 10 * log10(illuminance) * 1000
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(device.getAttribute('PowerSource', 'batChargeLevel')).toBe(PowerSource.BatChargeLevel.Ok);
-      expect(device.getAttribute('PowerSource', 'batVoltage')).toBe(payload.voltage);
-      expect(device.getAttribute('PowerSource', 'batPercentRemaining')).toBe((payload.battery as number) * 2);
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.INFO,
-        `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
-      );
+      await vi.waitFor(() => {
+        expect(device.getAttribute('OccupancySensing', 'occupancy')).toEqual({ occupied: true });
+        expect(device.getAttribute('IlluminanceMeasurement', 'measuredValue')).toBe(27316); // 10 * log10(illuminance) * 1000
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(device.getAttribute('PowerSource', 'batChargeLevel')).toBe(PowerSource.BatChargeLevel.Ok);
+        expect(device.getAttribute('PowerSource', 'batVoltage')).toBe(payload.voltage);
+        expect(device.getAttribute('PowerSource', 'batPercentRemaining')).toBe((payload.battery as number) * 2);
+        expect(loggerLogSpy).toHaveBeenCalledWith(
+          LogLevel.INFO,
+          `${db}MQTT message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} payload: ${debugStringify(payload)}`,
+        );
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`OFFLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(false);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.WARN, `OFFLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
 
       vi.clearAllMocks();
       platform.z2m.emit(`ONLINE-${z2mDevice.friendly_name}`);
-      await flushAsync(undefined, undefined, updateTimeout);
-      expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
-      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      await vi.waitFor(() => {
+        expect(device.getAttribute('BridgedDeviceBasicInformation', 'reachable')).toBe(true);
+        expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.INFO, `ONLINE message for device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}`);
+      }, waitOptions);
+
+      entity.destroy();
+    });
+
+    test.each([
+      {
+        title: 'water leak sensor',
+        device: makeDevice('Test leak sensor', '0x00000000000000a1', [generic('water_leak', 'binary'), generic('battery_low', 'binary'), generic('battery')], 'Battery'),
+        clusters: ['booleanState'],
+        payload: { water_leak: true, battery_low: true },
+        expected: [
+          ['BooleanState', 'stateValue', true],
+          ['PowerSource', 'batChargeLevel', PowerSource.BatChargeLevel.Critical],
+        ],
+      },
+      {
+        title: 'rain sensor',
+        device: makeDevice('Test rain sensor', '0x00000000000000a2', [generic('rain', 'binary')]),
+        clusters: ['booleanState'],
+        payload: { rain: true },
+        expected: [['BooleanState', 'stateValue', true]],
+      },
+      {
+        title: 'smoke sensor',
+        device: makeDevice('Test smoke sensor', '0x00000000000000a3', [generic('smoke', 'binary')]),
+        clusters: ['smokeCoAlarm'],
+        payload: { smoke: true },
+        expected: [['SmokeCoAlarm', 'smokeState', SmokeCoAlarm.AlarmState.Critical]],
+      },
+      {
+        title: 'carbon monoxide sensor',
+        device: makeDevice('Test co sensor', '0x00000000000000a4', [generic('carbon_monoxide', 'binary'), generic('co')]),
+        clusters: ['booleanState', 'carbonMonoxideConcentrationMeasurement'],
+        payload: { carbon_monoxide: true, co: 12.4 },
+        expected: [
+          ['BooleanState', 'stateValue', false],
+          ['CarbonMonoxideConcentrationMeasurement', 'measuredValue', 12],
+        ],
+      },
+      {
+        title: 'air quality sensor',
+        device: makeDevice('Test air quality sensor', '0x00000000000000a5', [
+          generic('air_quality', 'enum', { values: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] }),
+          generic('voc'),
+          generic('co2'),
+          generic('formaldehyd'),
+          generic('pm1'),
+          generic('pm25'),
+          generic('pm10'),
+        ]),
+        clusters: ['airQuality', 'totalVolatileOrganicCompoundsConcentrationMeasurement', 'pm25ConcentrationMeasurement'],
+        payload: { air_quality: 'good', voc: 300, co2: 812.6, formaldehyd: 0.4, pm1: 5.4, pm25: 9.6, pm10: 20 },
+        expected: [
+          ['AirQuality', 'airQuality', AirQuality.AirQualityEnum.Fair],
+          ['TotalVolatileOrganicCompoundsConcentrationMeasurement', 'measuredValue', 300],
+          ['CarbonDioxideConcentrationMeasurement', 'measuredValue', 813],
+          ['FormaldehydeConcentrationMeasurement', 'measuredValue', 0],
+          ['Pm1ConcentrationMeasurement', 'measuredValue', 5],
+          ['Pm25ConcentrationMeasurement', 'measuredValue', 10],
+          ['Pm10ConcentrationMeasurement', 'measuredValue', 20],
+        ],
+      },
+      {
+        title: 'cpu temperature sensor',
+        device: makeDevice('Test cpu sensor', '0x00000000000000a7', [generic('cpu_temperature')]),
+        clusters: ['temperatureMeasurement'],
+        payload: { cpu_temperature: 45.678 },
+        expected: [['TemperatureMeasurement', 'measuredValue', 4568]],
+      },
+      {
+        title: 'soil moisture sensor',
+        device: makeDevice('Test soil sensor', '0x00000000000000a6', [generic('soil_moisture')]),
+        clusters: ['relativeHumidityMeasurement'],
+        payload: { soil_moisture: 41.25 },
+        expected: [['RelativeHumidityMeasurement', 'measuredValue', 4125]],
+      },
+    ] as { title: string; device: BridgeDevice; clusters: string[]; payload: Payload; expected: [string, string, unknown][] }[])(
+      'create a $title device',
+      async ({ device: z2mDevice, clusters, payload, expected }) => {
+        const entity = await ZigbeeDevice.create(platform, z2mDevice);
+        (entity as any).cachePublishTimeoutTime = 1;
+        const device = entity.bridgedDevice;
+        if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+        expect(device.getAllClusterServerNames()).toEqual(expect.arrayContaining(clusters));
+        expect(await addDevice(aggregator, device)).toBe(true);
+
+        vi.clearAllMocks();
+        platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, payload);
+        await vi.waitFor(() => {
+          for (const [cluster, attribute, value] of expected) expect(device.getAttribute(cluster, attribute)).toBe(value);
+        }, waitOptions);
+
+        entity.destroy();
+      },
+    );
+
+    test('create a cpu temperature sensor device on an endpoint', async () => {
+      // Some devices expose cpu_temperature with property temperature on an endpoint (e.g. msh, xyzroe)
+      const z2mDevice = makeDevice('Test cpu endpoint sensor', '0x00000000000000aa', [{ ...generic('cpu_temperature'), property: 'temperature_l3', endpoint: 'l3' }]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      const child = device.getChildEndpointById('l3');
+      if (!child) throw new Error('Child endpoint l3 is undefined');
+      expect(child.getAllClusterServerNames()).toEqual(expect.arrayContaining(['temperatureMeasurement']));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { temperature_l3: 45.678 });
+      await vi.waitFor(() => expect(child.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(4568), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('handle duplicate, null, out of lookup and unknown action payloads', async () => {
+      const z2mDevice = makeDevice('Test guard sensor', '0x00000000000000a8', [
+        generic('air_quality', 'enum', { values: ['unknown', 'excellent', 'good', 'moderate', 'poor', 'unhealthy', 'out_of_range'] }),
+        generic('action', 'enum', { values: ['single'] }),
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: 'good' });
+      await vi.waitFor(() => expect(device.getAttribute('AirQuality', 'airQuality')).toBe(AirQuality.AirQualityEnum.Fair), waitOptions);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: 'good' });
+      expect(loggerLogSpy).not.toHaveBeenCalledWith(LogLevel.INFO, expect.stringContaining('MQTT message for device'));
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: null, linkquality: 100 });
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { air_quality: 'bogus' });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('not found in propertyMap values'));
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { action: 'double' });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('not found in propertyMap'));
+      expect(device.getAttribute('AirQuality', 'airQuality')).toBe(AirQuality.AirQualityEnum.Fair);
+
+      entity.destroy();
+    });
+
+    test('create a device with device_temperature and a device feature blacklist', async () => {
+      const z2mDevice = makeDevice('Test device temperature', '0x00000000000000a9', [generic('device_temperature'), generic('battery')], 'Battery');
+      const featureBlackList = platform.config.featureBlackList;
+      platform.config.featureBlackList = [];
+      platform.config.deviceFeatureBlackList = { [z2mDevice.friendly_name]: ['battery'] };
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      platform.config.featureBlackList = featureBlackList;
+      platform.config.deviceFeatureBlackList = {};
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('feature battery property battery is blacklisted'));
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { device_temperature: 31.5 });
+      await vi.waitFor(() => expect(device.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(3150), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('create devices with switchList, lightList and outletList overrides', async () => {
+      const findDevice = (name: string): BridgeDevice => {
+        const z2mDevice = platform.z2mBridgeDevices?.find((device) => device.friendly_name === name);
+        if (!z2mDevice) throw new Error(`Z2M Device ${name} not found`);
+        return structuredClone(z2mDevice);
+      };
+
+      // Dimmable light as outlet
+      platform.config.outletList = ['Gledopto GL-SD-001'];
+      const outlet = await ZigbeeDevice.create(platform, findDevice('Gledopto GL-SD-001'));
+      platform.config.outletList = [];
+      (outlet as any).cachePublishTimeoutTime = 1;
+      const outletDevice = outlet.bridgedDevice;
+      if (!outletDevice) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(outletDevice.deviceTypes.has(dimmablePlugInUnit.code)).toBe(true);
+      expect(outletDevice.deviceTypes.has(onOffPlugInUnit.code)).toBe(false);
+      expect(await addDevice(aggregator, outletDevice)).toBe(true);
+      platform.z2m.emit(`MESSAGE-${outlet.entityName}`, { state: 'ON', brightness: 100 });
+      await vi.waitFor(() => {
+        expect(outletDevice.getAttribute('OnOff', 'onOff')).toBe(true);
+        expect(outletDevice.getAttribute('LevelControl', 'currentLevel')).toBe(100);
+      }, waitOptions);
+      // Destroy with a pending cache publish
+      (outlet as any).cachePublishTimeoutTime = 1000;
+      await invokeBehaviorCommand(outletDevice, 'OnOff', 'off');
+      expect((outlet as any).cachePublishTimeout).toBeDefined();
+      outlet.destroy();
+      expect((outlet as any).cachePublishTimeout).toBeUndefined();
+
+      // Color light as switch
+      platform.config.switchList = ['Moes RGBCCT light bulb'];
+      const colorSwitch = await ZigbeeDevice.create(platform, findDevice('Moes RGBCCT light bulb'));
+      platform.config.switchList = [];
+      const colorSwitchDevice = colorSwitch.bridgedDevice;
+      if (!colorSwitchDevice) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(colorSwitchDevice.deviceTypes.has(colorDimmerSwitch.code)).toBe(true);
+      expect(colorSwitchDevice.deviceTypes.has(dimmerSwitch.code)).toBe(false);
+      expect(colorSwitchDevice.deviceTypes.has(onOffLightSwitch.code)).toBe(false);
+      expect(await addDevice(aggregator, colorSwitchDevice)).toBe(true);
+      platform.z2m.emit(`MESSAGE-${colorSwitch.entityName}`, { brightness: 300 });
+      await vi.waitFor(() => expect(colorSwitchDevice.getAttribute('LevelControl', 'currentLevel')).toBe(254), waitOptions);
+      colorSwitch.destroy();
+
+      // Switch as light
+      platform.config.lightList = ['Aqara switch no neutral'];
+      const light = await ZigbeeDevice.create(platform, findDevice('Aqara switch no neutral'));
+      platform.config.lightList = [];
+      expect(light.bridgedDevice?.deviceTypes.has(onOffLight.code)).toBe(true);
+      light.destroy();
+    });
+
+    test('create groups with switchList, lightList and outletList overrides', async () => {
+      const switches = platform.z2mBridgeGroups?.find((group) => group.friendly_name === 'Switches');
+      if (!switches) throw new Error('Z2M Group not found');
+      const z2mGroup = { ...switches, scenes: [] }; // The group scenes are already registered as virtual devices
+      for (const [list, deviceType] of [
+        ['switchList', onOffLightSwitch],
+        ['lightList', onOffLight],
+        ['outletList', onOffPlugInUnit],
+      ] as const) {
+        platform.config[list] = [z2mGroup.friendly_name];
+        const entity = await ZigbeeGroup.create(platform, z2mGroup);
+        platform.config[list] = [];
+        expect(entity.bridgedDevice?.deviceTypes.has(deviceType.code)).toBe(true);
+        entity.destroy();
+      }
+    });
+
+    test('create a group with an unknown member', async () => {
+      const entity = await ZigbeeGroup.create(platform, {
+        id: 9002,
+        friendly_name: 'Unknown members',
+        description: '',
+        members: [{ ieee_address: '0xffffffffffffffff', endpoint: 1 }],
+        scenes: [],
+      });
+      expect(entity.bridgedDevice).toBeUndefined();
+      entity.destroy();
+    });
+
+    test('create a heating only thermostat device', async () => {
+      const z2mDevice = makeDevice('Test heating thermostat', '0x00000000000000b1', [
+        {
+          type: 'climate',
+          features: [
+            generic('local_temperature'),
+            generic('occupied_heating_setpoint', 'numeric', { value_min: 5, value_max: 30 }),
+            generic('unoccupied_heating_setpoint', 'numeric', { value_min: 5, value_max: 30 }),
+            generic('system_mode', 'enum', { values: ['off', 'heat'] }),
+          ],
+        },
+        generic('min_heat_setpoint_limit'),
+        generic('max_heat_setpoint_limit'),
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).thermostatTimeoutTime = 1;
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(featuresFor(device, 'thermostat')).toEqual(expect.objectContaining({ heating: true, cooling: false }));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { occupied_heating_setpoint: 21, min_heat_setpoint_limit: 6, max_heat_setpoint_limit: 29 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedHeatingSetpoint')).toBe(2100), waitOptions);
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { unoccupied_heating_setpoint: 17 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedHeatingSetpoint')).toBe(1700), waitOptions);
+
+      vi.clearAllMocks();
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2200, 1700);
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedHeatingSetpoint', z2mDevice.friendly_name, { occupied_heating_setpoint: 22 });
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('create a cooling only thermostat device', async () => {
+      const z2mDevice = makeDevice('Test cooling thermostat', '0x00000000000000b2', [
+        {
+          type: 'climate',
+          features: [
+            generic('local_temperature'),
+            generic('occupied_cooling_setpoint', 'numeric', { value_min: 16, value_max: 32 }),
+            generic('unoccupied_cooling_setpoint', 'numeric', { value_min: 16, value_max: 32 }),
+            generic('system_mode', 'enum', { values: ['off', 'cool'] }),
+          ],
+        },
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).thermostatTimeoutTime = 1;
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(featuresFor(device, 'thermostat')).toEqual(expect.objectContaining({ heating: false, cooling: true }));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      vi.clearAllMocks();
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { occupied_cooling_setpoint: 25 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedCoolingSetpoint')).toBe(2500), waitOptions);
+      platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { unoccupied_cooling_setpoint: 28 });
+      await vi.waitFor(() => expect(device.getAttribute('Thermostat', 'occupiedCoolingSetpoint')).toBe(2800), waitOptions);
+
+      vi.clearAllMocks();
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2400, 2800);
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedCoolingSetpoint', z2mDevice.friendly_name, { occupied_cooling_setpoint: 24 });
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('create an auto thermostat device with current_heating_setpoint', async () => {
+      const z2mDevice = makeDevice('Test current setpoint thermostat', '0x00000000000000b3', [
+        {
+          type: 'climate',
+          features: [
+            generic('local_temperature'),
+            generic('current_heating_setpoint', 'numeric', { value_min: 5, value_max: 35 }),
+            generic('occupied_heating_setpoint', 'numeric', { value_min: 5, value_max: 35 }),
+            generic('occupied_cooling_setpoint', 'numeric', { value_min: 5, value_max: 35 }),
+            generic('system_mode', 'enum', { values: ['off', 'auto', 'heat', 'cool'] }),
+          ],
+        },
+      ]);
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      (entity as any).thermostatTimeoutTime = 1;
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(featuresFor(device, 'thermostat')).toEqual(expect.objectContaining({ heating: true, cooling: true }));
+      expect(await addDevice(aggregator, device)).toBe(true);
+
+      // The device uses current_heating_setpoint for both heating and cooling (see issue #89)
+      vi.clearAllMocks();
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedHeatingSetpoint', 2100, 2000);
+      await invokeSubscribeHandler(device, 'Thermostat', 'occupiedCoolingSetpoint', 2600, 2500);
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedHeatingSetpoint', z2mDevice.friendly_name, { current_heating_setpoint: 21 });
+      expect(publishCommandSpy).toHaveBeenCalledWith('OccupiedCoolingSetpoint', z2mDevice.friendly_name, { current_heating_setpoint: 26 });
+      await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+
+      entity.destroy();
+    });
+
+    test('create a six channel device with color child endpoints and scenes', async () => {
+      const lightFeatures = (endpoint: string, colors: string[]): object => ({
+        type: 'light',
+        endpoint,
+        features: [
+          { ...generic('state', 'binary'), property: `state_${endpoint}` },
+          { ...generic('brightness'), property: `brightness_${endpoint}` },
+          ...colors.map((color) => ({
+            ...generic(color, color === 'color_temp' ? 'numeric' : 'composite'),
+            property: color === 'color_temp' ? `color_temp_${endpoint}` : `color_${endpoint}`,
+          })),
+        ],
+      });
+      const switchFeatures = (endpoint: string): object => ({ type: 'switch', endpoint, features: [{ ...generic('state', 'binary'), property: `state_${endpoint}` }] });
+      const z2mDevice = makeDevice('Test six channel', '0x00000000000000c1', [
+        lightFeatures('l1', ['color_temp', 'color_xy', 'color_hs']),
+        lightFeatures('l2', ['color_xy']),
+        switchFeatures('l3'),
+        switchFeatures('l4'),
+        switchFeatures('l5'),
+        switchFeatures('l6'),
+      ]);
+      if (z2mDevice.endpoints['1']) z2mDevice.endpoints['1'].scenes = [{ id: 1, name: 'Movie' }];
+      const registerVirtualDeviceSpy = vi.spyOn(platform, 'registerVirtualDevice').mockImplementation(async (_name, _type, callback) => {
+        await callback();
+        return true;
+      });
+      const entity = await ZigbeeDevice.create(platform, z2mDevice);
+      registerVirtualDeviceSpy.mockRestore();
+      expect(publishCommandSpy).toHaveBeenCalledWith('scene_recall', z2mDevice.friendly_name, { scene_recall: 1 });
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      expect(device.getChildEndpoints()).toHaveLength(6);
+      const l2 = device.getChildEndpointById('l2');
+      expect(l2?.deviceTypes.has(extendedColorLight.code)).toBe(true);
+      expect(l2?.deviceTypes.has(dimmableLight.code)).toBe(false);
 
       entity.destroy();
     });
@@ -3936,3 +4678,113 @@ const lock = {
   supported: true,
   type: 'Router',
 };
+
+const waterValveDevice = {
+  date_code: '',
+  definition: {
+    description: 'Zigbee smart water valve',
+    exposes: [
+      {
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the valve',
+            label: 'State',
+            name: 'state',
+            property: 'state',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        endpoint: 'l1',
+        features: [
+          {
+            access: 7,
+            description: 'On/off state of the second valve',
+            label: 'State',
+            name: 'state',
+            property: 'state_l1',
+            type: 'binary',
+            value_off: 'OFF',
+            value_on: 'ON',
+            value_toggle: 'TOGGLE',
+          },
+        ],
+        type: 'switch',
+      },
+      {
+        access: 1,
+        category: 'diagnostic',
+        description: 'Remaining battery in %',
+        label: 'Battery',
+        name: 'battery',
+        property: 'battery',
+        type: 'numeric',
+        unit: '%',
+        value_max: 100,
+        value_min: 0,
+      },
+    ],
+    model: 'SWV',
+    options: [],
+    supports_ota: false,
+    vendor: 'SONOFF',
+  },
+  disabled: false,
+  endpoints: {
+    '1': {
+      bindings: [],
+      clusters: {
+        input: ['genBasic', 'genIdentify', 'genOnOff'],
+        output: ['genOta', 'genTime'],
+      },
+      configured_reportings: [],
+      scenes: [],
+    },
+  },
+  friendly_name: 'Garden water valve',
+  ieee_address: '0x00124b002a1b2c3d',
+  interview_completed: true,
+  interviewing: false,
+  manufacturer: 'SONOFF',
+  model_id: 'SWV',
+  network_address: 21450,
+  power_source: 'Battery',
+  supported: true,
+  type: 'EndDevice',
+};
+
+/**
+ * Create a generic expose for the synthetic test devices.
+ *
+ * @param {string} name The expose name and property
+ * @param {string} type The expose type
+ * @param {object} extra Additional expose fields
+ * @returns {object} The expose
+ */
+function generic(name: string, type = 'numeric', extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return { access: 1, name, property: name, type, label: name, description: name, ...extra };
+}
+
+/**
+ * Create a synthetic test device from the lock fixture with the given exposes.
+ *
+ * @param {string} friendly_name The device friendly name
+ * @param {string} ieee_address The device ieee address
+ * @param {object[]} exposes The device exposes
+ * @param {string} power_source The device power source
+ * @returns {BridgeDevice} The device
+ */
+function makeDevice(friendly_name: string, ieee_address: string, exposes: object[], power_source = 'Mains (single phase)'): BridgeDevice {
+  const device = structuredClone(lock) as unknown as BridgeDevice;
+  device.friendly_name = friendly_name;
+  device.ieee_address = ieee_address;
+  device.power_source = power_source;
+  if (device.definition) device.definition.exposes = exposes as NonNullable<BridgeDevice['definition']>['exposes'];
+  return device;
+}

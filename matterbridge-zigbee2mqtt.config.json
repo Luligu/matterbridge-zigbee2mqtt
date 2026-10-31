@@ -19,6 +19,7 @@
   "switchList": [],
   "lightList": [],
   "outletList": [],
+  "valveList": [],
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
   "scenesType": "outlet",
