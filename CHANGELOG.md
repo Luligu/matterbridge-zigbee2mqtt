@@ -31,7 +31,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 ---
 
-## [3.3.1] - Dev branch
+## [3.3.1] - 2026-10-31
 
 ### Added
 
