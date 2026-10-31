@@ -127,7 +127,7 @@
     "node-persist-manager": "2.1.1"
   },
   "devDependencies": {
-    "@types/node": "26.6.5",
+    "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.0.5",
     "oxfmt": "0.75.0",
     "oxlint": "1.90.0",
