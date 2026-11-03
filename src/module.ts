@@ -24,7 +24,7 @@
 import path from 'node:path';
 
 import { type BasePlatformConfig, MatterbridgeDynamicPlatform, type MatterbridgeEndpoint, type PlatformMatterbridge } from 'matterbridge';
-import { type AnsiLogger, CYAN, db, debugStringify, dn, er, gn, type LogLevel, nf, payloadStringify, rs, wr, zb } from 'matterbridge/logger';
+import { type AnsiLogger, CYAN, db, debugStringify, dn, er, gn, type LogLevel, nf, payloadStringify, wr, zb } from 'matterbridge/logger';
 import { BridgedDeviceBasicInformation, DoorLock } from 'matterbridge/matter/clusters';
 import { fireAndForget, getErrorMessage, isValidNumber, isValidString, waiter } from 'matterbridge/utils';
 
@@ -157,9 +157,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.debug ??= false;
     config.unregisterOnShutdown ??= false;
 
-    this.log.info(`Initializing platform: ${CYAN}${this.config.name}${nf} version: ${CYAN}${this.config.version}${rs}`);
-    this.log.info(`Loaded zigbee2mqtt parameters from ${CYAN}${path.join(matterbridge.matterbridgeDirectory, 'matterbridge-zigbee2mqtt.config.json')}${rs}`);
-    // this.log.debug(`Config:\n${rs}${JSON.stringify(config, null, 2)}${rs}`);
+    this.log.info(`Initializing platform ${this.config.name}...`);
 
     this.z2m = new Zigbee2MQTT(
       config.host,
@@ -488,10 +486,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     });
 
     this.log.debug('Created zigbee2mqtt dynamic platform');
+
+    this.log.info(`Platform ${this.config.name} initialized successfully`);
   }
 
   override async onStart(reason?: string): Promise<void> {
-    this.log.info(`Starting zigbee2mqtt dynamic platform v${this.version}: ` + reason);
+    this.log.info(`Starting platform ${this.config.name} with reason: ${reason ?? 'no reason provided'}...`);
 
     // Check if the platform is already initialized
     await this.ready;
@@ -537,11 +537,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       this.z2mGroupsRegistered = true;
     }
 
-    this.log.info(`Started zigbee2mqtt dynamic platform v${this.version}: ` + reason);
+    this.log.info(`Platform ${this.config.name} started successfully`);
   }
 
   override async onConfigure(): Promise<void> {
     await super.onConfigure();
+    this.log.info(`Configuring platform ${this.config.name}...`);
     this.log.info(`Configuring ${this.zigbeeEntities.length} zigbee entities.`);
     for (const bridgedEntity of this.zigbeeEntities) {
       await bridgedEntity.configure();
@@ -588,12 +589,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
       }
     }, this.availabilityTimeoutMs).unref();
 
-    this.log.info(`Configured zigbee2mqtt dynamic platform v${this.version}`);
+    this.log.info(`Platform ${this.config.name} configured successfully`);
   }
 
   // oxlint-disable-next-line typescript/require-await
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
-    this.log.info(`Configuring zigbee2mqtt platform logger level to ${CYAN}${logLevel}${nf}`);
+    this.log.info(`Changing logger level of platform ${this.config.name} to ${logLevel}...`);
     this.log.logLevel = logLevel;
     // oxlint-disable-next-line typescript/ban-ts-comment
     // @ts-ignore We avoid the type issue here when node-ansi-logger is not updated here but is updated in matterbridge
@@ -604,11 +605,12 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     for (const entity of this.zigbeeEntities) {
       entity.log.logLevel = logLevel;
     }
-    this.log.debug('Changed logger level to ' + logLevel);
+    this.log.info(`Platform ${this.config.name} logger level changed successfully to ${logLevel}`);
   }
 
   override async onShutdown(reason?: string): Promise<void> {
     await super.onShutdown(reason);
+    this.log.info(`Shutting down platform ${this.config.name} with reason: ${reason ?? 'no reason provided'}...`);
     this.z2m.removeAllListeners();
     this.z2m.stop();
     this.log.debug('Shutting down zigbee2mqtt platform: ' + reason);
@@ -625,7 +627,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     this.z2mBridgeInfo = undefined;
     this.z2mEntityAvailability.clear();
     this.z2mEntityPayload.clear();
-    this.log.info(`Shutdown zigbee2mqtt dynamic platform v${this.version}`);
+    this.log.info(`Platform ${this.config.name} shut down successfully`);
   }
 
   public publish(topic: string, subTopic: string, message: string): void {
