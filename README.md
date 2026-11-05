@@ -392,3 +392,13 @@ Licensed under the [Apache License 2.0](./LICENSE).
 If you find this project useful, please consider giving it a star on GitHub and sponsoring it. Your support helps maintain and improve the project.
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/yellow_img.png)](https://www.buymeacoffee.com/luligugithub)
+
+### Startup readiness
+
+The plugin waits for Zigbee2MQTT to report online, bridge information, devices, and groups before registering its initial topology.
+It logs a warning every 90 seconds while waiting and recovers automatically when the missing data arrives.
+An empty groups list is valid; a missing list is not ready.
+This keeps the Matter bridge offline while dependency data is incomplete, preserving registered devices.
+
+Matterbridge must also support pending plugin startup beyond its startup watchdog deadline.
+On older Matterbridge versions, the core watchdog can still halt startup after approximately five minutes.

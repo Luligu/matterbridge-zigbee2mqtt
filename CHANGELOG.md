@@ -31,6 +31,14 @@ If you like this project and find it useful, please consider giving it a star on
 
 ---
 
+## [3.3.2] - Dev branch
+
+### Fixed
+
+- [startup]: Keep startup pending until Zigbee2MQTT is online with complete bridge data, and cancel the wait on shutdown.
+
+---
+
 ## [3.3.1] - 2026-10-31
 
 ### Added

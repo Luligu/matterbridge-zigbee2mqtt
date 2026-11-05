@@ -81,8 +81,10 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   public bridgedDevices: MatterbridgeEndpoint[] = [];
   /** Registered Zigbee device and group entities managed by this platform. */
   public zigbeeEntities: ZigbeeEntity[] = [];
-  /** Maximum wait in milliseconds for Zigbee2MQTT bridge data during startup. Defaults to 90 seconds. */
+  /** Warning interval in milliseconds while waiting for complete Zigbee2MQTT bridge data. */
   private connectTimeoutMs = 90000;
+  /** Cancels startup when the platform shuts down. */
+  private readonly startupAbort = new AbortController();
   /** Timeout handle for replaying entity availability and retained state after configuration. */
   private availabilityTimeout: NodeJS.Timeout | undefined;
   /** Delay in milliseconds before replaying entity availability and retained state. Defaults to 10 seconds. */
@@ -500,30 +502,27 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     await this.clearSelect();
     this.setSelectEntity('scenes', 'Scenes', 'component');
 
-    await waiter(
-      'zigbee2mqtt',
-      () => this.z2mBridgeDevices !== undefined && this.z2mBridgeGroups !== undefined && (this.z2mBridgeOnline !== undefined || this.z2mBridgeInfo !== undefined),
-      false,
-      this.connectTimeoutMs,
-      1000,
-      true,
-    );
-
-    if (this.z2mBridgeOnline === undefined)
-      this.log.error('The plugin did not receive zigbee2mqtt bridge state. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-
-    if (this.z2mBridgeInfo === undefined) this.log.error('The plugin did not receive zigbee2mqtt bridge info. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-
-    if (this.z2mBridgeDevices === undefined && this.z2mBridgeGroups === undefined)
-      this.log.error('The plugin did not receive zigbee2mqtt bridge devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
-
-    if (this.z2mBridgeOnline === undefined || this.z2mBridgeInfo === undefined || (this.z2mBridgeDevices === undefined && this.z2mBridgeGroups === undefined)) {
-      throw new Error('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.');
+    // Keep onStart pending so Matterbridge cannot expose an incomplete topology.
+    while (
+      !(await waiter(
+        'zigbee2mqtt',
+        () =>
+          this.startupAbort.signal.aborted ||
+          (this.z2mBridgeOnline === true && this.z2mBridgeInfo !== undefined && this.z2mBridgeDevices !== undefined && this.z2mBridgeGroups !== undefined),
+        false,
+        this.connectTimeoutMs,
+        1000,
+        true,
+      ))
+    ) {
+      this.log.warn('Waiting for zigbee2mqtt bridge state, info, devices and groups. The bridge remains offline to preserve registered devices.');
     }
+    this.startupAbort.signal.throwIfAborted();
 
     if (!this.z2mDevicesRegistered && this.z2mBridgeDevices) {
       this.log.info(`Registering ${this.z2mBridgeDevices.length} devices`);
       for (const device of this.z2mBridgeDevices) {
+        this.startupAbort.signal.throwIfAborted();
         await this.registerZigbeeDevice(device);
       }
       this.z2mDevicesRegistered = true;
@@ -532,11 +531,13 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     if (!this.z2mGroupsRegistered && this.z2mBridgeGroups) {
       this.log.info(`Registering ${this.z2mBridgeGroups.length} groups`);
       for (const group of this.z2mBridgeGroups) {
+        this.startupAbort.signal.throwIfAborted();
         await this.registerZigbeeGroup(group);
       }
       this.z2mGroupsRegistered = true;
     }
 
+    this.startupAbort.signal.throwIfAborted();
     this.log.info(`Platform ${this.config.name} started successfully`);
   }
 
@@ -609,6 +610,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   }
 
   override async onShutdown(reason?: string): Promise<void> {
+    this.startupAbort.abort();
     await super.onShutdown(reason);
     this.log.info(`Shutting down platform ${this.config.name} with reason: ${reason ?? 'no reason provided'}...`);
     this.z2m.removeAllListeners();

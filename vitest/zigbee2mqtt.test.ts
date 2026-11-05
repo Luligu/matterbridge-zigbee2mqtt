@@ -966,6 +966,7 @@ describe('Zigbee2MQTT message edge cases', () => {
   test('should sort multiple network links and display unknown node types by address', () => {
     // @ts-expect-error accessing private logger for testing
     const debug = vi.spyOn(client.log, 'debug');
+    debug.mockClear();
     const link = {
       sourceIeeeAddr: '0x1',
       targetIeeeAddr: '0x2',

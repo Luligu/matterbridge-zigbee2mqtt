@@ -222,52 +222,10 @@ describe('TestPlatform', () => {
     platform.z2m.emit('group_add_member', 'Group 1', '0x01234567890abcdef', 'ok');
     platform.z2m.emit('group_remove_member', 'Group 1', 'zigbee2mqtt/TestEntity', 'ok');
 
-    platform.z2mBridgeOnline = undefined;
-    platform.z2mBridgeInfo = undefined;
-    platform.z2mBridgeDevices = undefined;
-    platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
-    await expect(platform.onStart()).rejects.toThrow(
-      'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
-    );
-
-    platform.z2mBridgeOnline = true;
-    platform.z2mBridgeInfo = undefined;
-    platform.z2mBridgeDevices = undefined;
-    platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
-    await expect(platform.onStart()).rejects.toThrow(
-      'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
-    );
-
     platform.z2mBridgeOnline = true;
     platform.z2mBridgeInfo = {} as BridgeInfo;
-    platform.z2mBridgeDevices = undefined;
-    platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
-    await expect(platform.onStart()).rejects.toThrow(
-      'The plugin did not receive zigbee2mqtt bridge state or info or devices/groups. Check if zigbee2mqtt is running and connected to the MQTT broker.',
-    );
-
-    platform.z2mBridgeOnline = true;
-    platform.z2mBridgeInfo = {} as BridgeInfo;
-    platform.z2mBridgeDevices = [] as BridgeDevice[];
-    platform.z2mBridgeGroups = undefined;
-    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
-    await expect(platform.onStart()).resolves.toBeUndefined();
-
-    platform.z2mBridgeOnline = true;
-    platform.z2mBridgeInfo = {} as BridgeInfo;
-    platform.z2mBridgeDevices = undefined;
-    platform.z2mBridgeGroups = [] as BridgeGroup[];
-    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
-    await expect(platform.onStart()).resolves.toBeUndefined();
-
-    platform.z2mBridgeOnline = true;
-    platform.z2mBridgeInfo = {} as BridgeInfo;
-    platform.z2mBridgeDevices = [] as BridgeDevice[];
-    platform.z2mBridgeGroups = [] as BridgeGroup[];
-    (platform as any).connectTimeoutMs = 50; // 50 ms for testing
+    platform.z2mBridgeDevices = [];
+    platform.z2mBridgeGroups = [];
     await expect(platform.onStart()).resolves.toBeUndefined();
 
     await platform.onShutdown();
@@ -968,6 +926,109 @@ describe('TestPlatform', () => {
     }
   });
 
+  describe('startup readiness', () => {
+    it.each(['state', 'offline', 'info', 'devices', 'groups'])('should wait beyond the deadline for missing %s', async (missing) => {
+      const pendingPlatform = new ZigbeePlatform(matterbridge, log, { ...mockConfig });
+      await pendingPlatform.ready;
+      vi.spyOn(pendingPlatform, 'clearSelect').mockResolvedValue();
+      const registerDevice = vi.spyOn(pendingPlatform, 'registerZigbeeDevice').mockImplementation(async () => {});
+      const registerGroup = vi.spyOn(pendingPlatform, 'registerZigbeeGroup').mockImplementation(async () => {});
+      const ready = {
+        z2mBridgeOnline: true,
+        z2mBridgeInfo: {} as BridgeInfo,
+        z2mBridgeDevices: [{ ieee_address: '0x1234', friendly_name: 'Late device' }] as BridgeDevice[],
+        z2mBridgeGroups: [{ id: 42, friendly_name: 'Late group', description: '', members: [], scenes: [] }] as BridgeGroup[],
+      };
+      Object.assign(pendingPlatform, ready);
+      if (missing === 'state') pendingPlatform.z2mBridgeOnline = undefined;
+      if (missing === 'offline') pendingPlatform.z2mBridgeOnline = false;
+      if (missing === 'info') pendingPlatform.z2mBridgeInfo = undefined;
+      if (missing === 'devices') pendingPlatform.z2mBridgeDevices = undefined;
+      if (missing === 'groups') pendingPlatform.z2mBridgeGroups = undefined;
+      // @ts-expect-error accessing private startup interval for testing
+      pendingPlatform.connectTimeoutMs = 20;
+      let settled = false;
+      const startup = pendingPlatform.onStart().then(
+        () => {
+          settled = true;
+          return;
+        },
+        (error: unknown) => {
+          settled = true;
+          throw error;
+        },
+      );
+      // Attach the rejection handler before advancing the baseline timeout.
+      const result = startup.catch((error: unknown) => error);
+      try {
+        await wait(70);
+        expect(settled).toBe(false);
+        expect(registerDevice).not.toHaveBeenCalled();
+        expect(registerGroup).not.toHaveBeenCalled();
+        Object.assign(pendingPlatform, ready);
+        await wait(30);
+        await expect(result).resolves.toBeUndefined();
+        expect(registerDevice).toHaveBeenCalledExactlyOnceWith(ready.z2mBridgeDevices[0]);
+        expect(registerGroup).toHaveBeenCalledExactlyOnceWith(ready.z2mBridgeGroups[0]);
+        pendingPlatform.z2m.emit('mqtt_connect');
+        pendingPlatform.z2m.emit('bridge-devices', ready.z2mBridgeDevices);
+        pendingPlatform.z2m.emit('bridge-groups', ready.z2mBridgeGroups);
+        await wait(30);
+        expect(registerDevice).toHaveBeenCalledTimes(1);
+        expect(registerGroup).toHaveBeenCalledTimes(1);
+      } finally {
+        await pendingPlatform.onShutdown();
+        await wait(30);
+        await result;
+      }
+    });
+
+    it('should stop initial registration when shutdown interrupts a device registration', async () => {
+      const pendingPlatform = new ZigbeePlatform(matterbridge, log, { ...mockConfig });
+      await pendingPlatform.ready;
+      pendingPlatform.z2mBridgeOnline = true;
+      pendingPlatform.z2mBridgeInfo = {} as BridgeInfo;
+      pendingPlatform.z2mBridgeDevices = [
+        { ieee_address: '0x1234', friendly_name: 'First device' },
+        { ieee_address: '0x5678', friendly_name: 'Second device' },
+      ] as BridgeDevice[];
+      pendingPlatform.z2mBridgeGroups = [];
+      const register = vi.spyOn(pendingPlatform, 'registerZigbeeDevice').mockImplementation(async () => {
+        await pendingPlatform.onShutdown();
+        return;
+      });
+      await expect(pendingPlatform.onStart()).rejects.toHaveProperty('name', 'AbortError');
+      expect(register).toHaveBeenCalledTimes(1);
+      expect(pendingPlatform.z2mDevicesRegistered).toBe(false);
+    });
+
+    it('should cancel pending startup on shutdown without registering late topology', async () => {
+      const pendingPlatform = new ZigbeePlatform(matterbridge, log, { ...mockConfig });
+      await pendingPlatform.ready;
+      vi.spyOn(pendingPlatform, 'clearSelect').mockResolvedValue();
+      const register = vi.spyOn(pendingPlatform, 'registerDevice');
+      // @ts-expect-error accessing private startup interval for testing
+      pendingPlatform.connectTimeoutMs = 20;
+      let settled = false;
+      const startup = pendingPlatform.onStart().catch((error: unknown) => {
+        settled = true;
+        return error;
+      });
+      try {
+        await wait(30);
+        await pendingPlatform.onShutdown();
+        await wait(30);
+        expect(settled).toBe(true);
+        expect(await startup).toHaveProperty('name', 'AbortError');
+        expect(register).not.toHaveBeenCalled();
+        expect(pendingPlatform.z2m.listenerCount('bridge-devices')).toBe(0);
+      } finally {
+        await wait(30);
+        await startup;
+      }
+    });
+  });
+
   describe('bridge event coverage', () => {
     let eventPlatform: ZigbeePlatform;
     const device = { ieee_address: '0x1234', friendly_name: 'Event device' } as BridgeDevice;
@@ -1060,19 +1121,6 @@ describe('TestPlatform', () => {
       expect(groupUpdate).toHaveBeenCalledWith(group);
       expect(configureDevice).toHaveBeenCalledTimes(4);
       expect(configureGroup).toHaveBeenCalledTimes(4);
-    });
-
-    it('should reject startup when bridge info arrives without bridge state', async () => {
-      eventPlatform.z2mBridgeInfo = {} as BridgeInfo;
-      eventPlatform.z2mBridgeOnline = undefined;
-
-      await expect(eventPlatform.onStart()).rejects.toThrow('The plugin did not receive zigbee2mqtt bridge state or info or devices/groups.');
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        LogLevel.ERROR,
-        'The plugin did not receive zigbee2mqtt bridge state. Check if zigbee2mqtt is running and connected to the MQTT broker.',
-      );
-      expect(registerDevice).not.toHaveBeenCalled();
-      expect(registerGroup).not.toHaveBeenCalled();
     });
   });
 
