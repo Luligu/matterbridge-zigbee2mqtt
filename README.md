@@ -113,7 +113,9 @@ If the blackList is defined the devices included will not be exposed to Matter.
 
 If any device creates issues put it in the blackList.
 
-The switchList, lightList and outletList are used if you want to expose the z2m device like switch, light or outlet.
+The switchList, lightList, outletList, valveList and pumpList change how a z2m device or group is exposed: as a switch, light, outlet, water valve or pump. A valve or pump is binary (on/off, no level) and is driven by the original z2m state property; the other sensors and the feature blacklists are kept. Entries are matched by name only, with no device or group member checks (empty groups included). An entry can be in one list only: at startup duplicates are removed, keeping the first in the order switchList, lightList, outletList, valveList, pumpList, an error is logged and the cleaned config is saved.
+
+Matter valve Open/Close and pump On/Off publish ON/OFF to z2m, and z2m state reports update Matter without being sent back to the device. Open takes `openDuration` in seconds (`defaultOpenDuration` when omitted, `null` for no limit); when it expires the plugin publishes OFF. Reopening restarts the timer and a Matter Close cancels it. Timers are lost on plugin restart, and nothing reaches the device while it or the broker is offline.
 
 The featureBlackList allows to globally (for all devices) blacklist a z2m feature if you don't want to expose it (e.g. device_temperature).
 
@@ -150,6 +152,8 @@ These are the default vules:
   "switchList": [],
   "lightList": [],
   "outletList": [],
+  "valveList": [],
+  "pumpList": [],
   "featureBlackList": [],
   "deviceFeatureBlackList": {},
   "scenesType": "outlet",

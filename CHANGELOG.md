@@ -33,6 +33,15 @@ If you like this project and find it useful, please consider giving it a star on
 
 ## [3.3.2] - Dev branch
 
+### Breaking changes
+
+- [matterbridge]: Require Matterbridge v.3.11.2 for valve support.
+
+### Added
+
+- [entities]: Add binary valveList and pumpList switch overrides, with attribute subscriptions for local and controller changes, feedback-driven valve state and timed physical OFF publishing.
+- [config]: Remove duplicate modifiers at startup, keeping the first entry and reporting an error snackbar.
+
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
 ## [3.3.1] - 2026-10-31
