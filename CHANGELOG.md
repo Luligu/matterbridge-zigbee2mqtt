@@ -41,6 +41,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 - [entities]: Add binary valveList and pumpList switch overrides, with attribute subscriptions for local and controller changes, feedback-driven valve state and timed physical OFF publishing.
 - [config]: Remove duplicate modifiers at startup, keeping the first entry and reporting an error snackbar.
+- [agents]: Add support for Bionic / LM Studio local agents.
 
 ### Changed
 
