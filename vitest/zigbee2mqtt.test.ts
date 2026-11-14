@@ -442,6 +442,55 @@ describe('TestZigbee2MQTT', () => {
     expect(off).toHaveBeenCalled();
   });
 
+  test('friendly names with / resolve to the longest known device or group name', async () => {
+    const devices = z2m.z2mDevices;
+    const groups = z2m.z2mGroups;
+    const nestedDevices = [
+      { ieee_address: '0x1', friendly_name: 'kitchen' },
+      { ieee_address: '0x2', friendly_name: 'kitchen/light' },
+    ];
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/bridge/devices', Buffer.from(JSON.stringify(nestedDevices)));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/bridge/groups', Buffer.from(JSON.stringify([{ id: 1, friendly_name: 'floor/kitchen/lights' }])));
+    const kitchen = vi.fn();
+    const kitchenOnline = vi.fn();
+    const light = vi.fn();
+    const lightOnline = vi.fn();
+    const group = vi.fn();
+    const groupOnline = vi.fn();
+    z2m.on('MESSAGE-kitchen', kitchen);
+    z2m.on('ONLINE-kitchen', kitchenOnline);
+    z2m.on('MESSAGE-kitchen/light', light);
+    z2m.on('ONLINE-kitchen/light', lightOnline);
+    z2m.on('MESSAGE-floor/kitchen/lights', group);
+    z2m.on('ONLINE-floor/kitchen/lights', groupOnline);
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/kitchen', Buffer.from(JSON.stringify({ state: 'ON' })));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/kitchen/availability', Buffer.from('online'));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/kitchen/light', Buffer.from(JSON.stringify({ state: 'OFF' })));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/kitchen/light/availability', Buffer.from('online'));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/kitchen/light/set', Buffer.from(JSON.stringify({ state: 'ON' })));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/floor/kitchen/lights', Buffer.from(JSON.stringify({ state: 'ON' })));
+    // @ts-expect-error private method access for test
+    z2m.messageHandler('zigbee2mqtt/floor/kitchen/lights/availability', Buffer.from('online'));
+    expect(kitchen).toHaveBeenCalledTimes(1);
+    expect(kitchen).toHaveBeenCalledWith(expect.objectContaining({ state: 'ON' }));
+    expect(kitchenOnline).toHaveBeenCalledTimes(1);
+    expect(light).toHaveBeenCalledTimes(1);
+    expect(light).toHaveBeenCalledWith(expect.objectContaining({ state: 'OFF' }));
+    expect(lightOnline).toHaveBeenCalledTimes(1);
+    expect(group).toHaveBeenCalledTimes(1);
+    expect(groupOnline).toHaveBeenCalledTimes(1);
+    z2m.z2mDevices = devices;
+    z2m.z2mGroups = groups;
+  });
+
   test('networkmap responses: graphviz/plantuml/raw branches', async () => {
     // graphviz
     // @ts-expect-error private method access for test
