@@ -31,6 +31,54 @@ If you like this project and find it useful, please consider giving it a star on
 
 ---
 
+## [3.3.2] - 2026-11-14
+
+### Breaking changes
+
+- [matterbridge]: Require Matterbridge v.3.11.2 for valve support.
+
+### Added
+
+- [entities]: Add binary valveList and pumpList switch overrides, with attribute subscriptions for local and controller changes, feedback-driven valve state and timed physical OFF publishing.
+- [config]: Remove duplicate modifiers at startup, keeping the first entry and reporting an error snackbar.
+- [agents]: Add support for Bionic / LM Studio local agents.
+
+### Changed
+
+- [package]: Bump `@vitest/coverage-v8` to v.5.1.0.
+- [package]: Bump `oxfmt` to v.0.78.0.
+- [package]: Bump `oxlint` to v.1.93.0.
+- [package]: Bump `oxlint-tsgolint` to v.7.0.2007.
+- [package]: Bump `vitest` to v.5.1.0.
+- [agents]: Update `.agents/README.md` to v.1.0.6.
+- [agents]: Update `.agents/rules/chip-tests.instructions.md`, `.claude/rules/chip-tests/chip-tests.instructions.md` and `.github/instructions/chip-tests/chip-tests.instructions.md` to v.1.0.1.
+- [agents]: Update `.agents/rules/matterbridge.instructions.md`, `.claude/rules/matterbridge/matterbridge.instructions.md` and `.github/instructions/matterbridge/matterbridge.instructions.md` to v.1.0.4.
+- [agents]: Update `.agents/rules/plugin-frontend.instructions.md`, `.claude/rules/plugin-frontend/plugin-frontend.instructions.md` and `.github/instructions/plugin-frontend/plugin-frontend.instructions.md` to v.1.0.3.
+- [agents]: Update `.agents/rules/testing.instructions.md`, `.claude/rules/testing/testing.instructions.md` and `.github/instructions/testing/testing.instructions.md` to v.1.0.8.
+- [agents]: Update `.agents/skills/verify-agent-context/SKILL.md`, `.claude/skills/verify-agent-context/SKILL.md` and `.github/skills/verify-agent-context/SKILL.md` to v.1.0.6.
+- [agents]: Update `.antigravity/settings.json` to v.1.0.6.
+- [agents]: Update `.claude/settings.json` to v.1.0.12.
+- [codex]: Update `.codex/config.toml` to v.1.0.8.
+- [codex]: Update `.codex/rules/default.rules` to v.1.0.8.
+- [workflows]: Update `.github/workflows/build.yml` to v.2.0.8.
+- [workflows]: Update `.github/workflows/codecov.yml` to v.2.0.8.
+- [workflows]: Update `.github/workflows/codeql.yml` to v.2.0.0.
+- [workflows]: Update `.github/workflows/publish.yml` to v.2.0.7.
+- [config]: Update `.gitignore` to v.1.0.5.
+- [config]: Update `.oxfmtrc.json` to v.1.2.0.
+- [config]: Update `.oxlintrc.json` to v.1.2.0.
+- [vscode]: Update `.vscode/settings.json` to v.1.0.21.
+- [agents]: Update `AGENTS.md` to v.1.0.12.
+- [config]: Update `SHARED-AGENTS.md` to v.1.0.0.
+- [config]: Update `vitest.config.ts` to v.2.0.9.
+- [package]: Bump `node-ansi-logger` to v.3.3.2.
+- [package]: Bump `node-persist-manager` to v.2.1.2.
+- [vscode]: Update `.vscode/extensions.json` to v.1.0.6.
+- [styleguide]: Update `STYLEGUIDE.md` to v.1.1.1.
+- [config]: Update `vitest/zigbee2mqtt.test.ts`.
+
+<a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
+
 ## [3.3.1] - 2026-10-31
 
 ### Added

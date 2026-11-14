@@ -53,11 +53,13 @@ import {
   onOffPlugInUnit,
   powerSource,
   pressureSensor,
+  pump,
   rainSensor,
   smokeCoAlarm,
   temperatureSensor,
   thermostat,
   waterLeakDetector,
+  waterValve,
   windowCovering,
 } from 'matterbridge';
 import { AnsiLogger, CYAN, db, debugStringify, dn, gn, hk, idn, ign, LogLevel, nf, or, rs, TimestampFormat, YELLOW, zb } from 'matterbridge/logger';
@@ -88,6 +90,7 @@ import {
   TemperatureMeasurement,
   Thermostat,
   TotalVolatileOrganicCompoundsConcentrationMeasurement,
+  ValveConfigurationAndControl,
   WindowCovering,
 } from 'matterbridge/matter/clusters';
 import { ClusterId, getClusterNameById, type Semtag } from 'matterbridge/matter/types';
@@ -290,6 +293,7 @@ export class ZigbeeEntity extends EventEmitter {
             `Payload entry ${CYAN}${key}${db} => name: ${CYAN}${propertyMap.name}${db} type: ${CYAN}${propertyMap.type === '' ? 'generic' : propertyMap.type}${db} ` +
               `endpoint: ${CYAN}${propertyMap.endpoint === '' ? 'main' : propertyMap.endpoint}${db}`,
           );
+          if (propertyMap.name === 'state' && this.updateValveState(propertyMap.endpoint, value)) return;
           let z2m: ZigbeeToMatter | undefined;
           z2m = z2ms.find((z2m) => z2m.type === propertyMap?.type && z2m.property === propertyMap?.name);
           z2m ??= z2ms.find((z2m) => z2m.property === propertyMap?.name);
@@ -888,7 +892,7 @@ export class ZigbeeEntity extends EventEmitter {
    * @param {string | undefined} childEndpointName - The name of the child endpoint, if any.
    * @param {number} clusterId - The ID of the cluster to update.
    * @param {string} attributeName - The name of the attribute to update.
-   * @param {PayloadValue} value - The new value of the attribute.
+   * @param {PayloadValue | null} value - The new value of the attribute.
    * @param {string[]} [lookup] - Optional lookup array for converting string values to indices.
    *
    * @remarks
@@ -902,7 +906,7 @@ export class ZigbeeEntity extends EventEmitter {
     childEndpointName: string | undefined,
     clusterId: number,
     attributeName: string,
-    value: PayloadValue,
+    value: PayloadValue | null,
     lookup?: string[],
   ): void {
     if (value === undefined) return;
@@ -954,6 +958,69 @@ export class ZigbeeEntity extends EventEmitter {
       // oxlint-disable-next-line typescript/no-base-to-string typescript/restrict-template-expressions
       `Error setting attribute ${getClusterNameById(ClusterId(clusterId))}.${attributeName} to ${value}`,
     );
+  }
+
+  /**
+   * Selects a binary modifier from the configured lists
+   *
+   * @returns {'valve' | 'pump' | undefined} The selected modifier, or undefined for an unchanged entity.
+   */
+  protected getBinaryModifier(): 'valve' | 'pump' | undefined {
+    const config = this.platform.config;
+    return config.valveList.includes(this.entityName) ? 'valve' : config.pumpList.includes(this.entityName) ? 'pump' : undefined;
+  }
+
+  /**
+   * Updates a binary valve endpoint from the Zigbee2MQTT state feedback
+   *
+   * @param {string} endpointName - The property map endpoint name ('' for the main endpoint).
+   * @param {PayloadValue} value - The state value reported by Zigbee2MQTT.
+   * @returns {boolean} True if the endpoint is a valve and the value was handled, false otherwise.
+   *
+   * @remarks
+   * The reported state is final, so TargetState is always cleared: a stale TargetState would make the next Open or Close a no-op.
+   */
+  protected updateValveState(endpointName: string, value: PayloadValue): boolean {
+    const endpoint = endpointName === '' ? this.bridgedDevice : this.bridgedDevice?.getChildEndpointById(endpointName);
+    if (!endpoint?.deviceTypes.has(waterValve.code)) return false;
+    if (value !== 'ON' && value !== 'OFF') return true;
+    const state = value === 'ON' ? ValveConfigurationAndControl.ValveState.Open : ValveConfigurationAndControl.ValveState.Closed;
+    this.updateAttributeIfChanged(endpoint, undefined, ValveConfigurationAndControl.id, 'currentState', state);
+    this.updateAttributeIfChanged(endpoint, undefined, ValveConfigurationAndControl.id, 'targetState', null);
+    if (value === 'OFF') {
+      this.updateAttributeIfChanged(endpoint, undefined, ValveConfigurationAndControl.id, 'openDuration', null);
+      this.updateAttributeIfChanged(endpoint, undefined, ValveConfigurationAndControl.id, 'remainingDuration', null);
+    }
+    return true;
+  }
+
+  /**
+   * Subscribes binary valve and pump attributes to their original Zigbee state properties
+   *
+   * @returns {void} No return value.
+   */
+  protected subscribeBinaryAttributes(): void {
+    for (const [property, mapping] of this.propertyMap) {
+      if (mapping.name !== 'state' || mapping.type !== 'switch') continue;
+      const endpoint = mapping.endpoint === '' ? this.bridgedDevice : this.bridgedDevice?.getChildEndpointById(mapping.endpoint);
+      if (!endpoint) continue;
+      if (endpoint.deviceTypes.has(waterValve.code)) {
+        endpoint.subscribeAttribute(ValveConfigurationAndControl, 'targetState', (newValue, oldValue) => {
+          if (!this.bridgedDevice || newValue === oldValue) return;
+          if (newValue === ValveConfigurationAndControl.ValveState.Open) {
+            this.publishCommand('open', this.entityName, { [property]: 'ON' });
+          } else if (newValue === ValveConfigurationAndControl.ValveState.Closed) {
+            this.publishCommand('close', this.entityName, { [property]: 'OFF' });
+          }
+        });
+      } else if (endpoint.deviceTypes.has(pump.code)) {
+        endpoint.subscribeAttribute(OnOff, 'onOff', (newValue, oldValue, context) => {
+          // Skip local changes (MQTT feedback) so device reports are not echoed back as commands
+          if (!this.bridgedDevice || newValue === oldValue || context.fabric === undefined) return;
+          this.publishCommand('onOff', this.entityName, { [property]: newValue ? 'ON' : 'OFF' });
+        });
+      }
+    }
   }
 
   /**
@@ -1036,6 +1103,8 @@ export class ZigbeeGroup extends ZigbeeEntity {
     // Set the device entity select
     platform.setSelectDevice(`group-${group.id}`, group.friendly_name, 'wifi');
 
+    const binaryModifier = zigbeeGroup.getBinaryModifier();
+
     let useState = false;
     let useBrightness = false;
     let useTransition = false;
@@ -1050,8 +1119,10 @@ export class ZigbeeGroup extends ZigbeeEntity {
     if (group.members.length === 0) {
       // Create a virtual device for the empty group to use in automations
       zigbeeGroup.log.debug(`Group: ${gn}${group.friendly_name}${rs}${db} is a ${CYAN}virtual${db} group`);
-      zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([onOffLightSwitch, bridgedNode, powerSource], { id: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
-      zigbeeGroup.bridgedDevice.createDefaultOnOffClusterServer();
+      const deviceType = binaryModifier ? binaryDeviceType(binaryModifier) : onOffLightSwitch;
+      zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([deviceType, bridgedNode, powerSource], { id: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
+      if (!binaryModifier) zigbeeGroup.bridgedDevice.createDefaultOnOffClusterServer();
+      else if (binaryModifier === 'valve') createBinaryValve(zigbeeGroup.bridgedDevice);
       isSwitch = true;
       zigbeeGroup.propertyMap.set('state', { name: 'state', type: 'switch', endpoint: '' });
     } else {
@@ -1138,9 +1209,22 @@ export class ZigbeeGroup extends ZigbeeEntity {
         zigbeeGroup.propertyMap.set('running_state', { name: 'running_state', type: 'climate', endpoint: '' });
         zigbeeGroup.propertyMap.set('system_mode', { name: 'system_mode', type: 'climate', endpoint: '' });
       }
+      if (binaryModifier) {
+        deviceType = binaryDeviceType(binaryModifier);
+        zigbeeGroup.propertyMap.clear();
+        zigbeeGroup.propertyMap.set('state', { name: 'state', type: 'switch', endpoint: '' });
+        isSwitch = true;
+        isLight = false;
+        isCover = false;
+        isThermostat = false;
+        useBrightness = false;
+        useColor = false;
+        useColorTemperature = false;
+      }
       if (!deviceType) return zigbeeGroup;
       zigbeeGroup.bridgedDevice = new MatterbridgeEndpoint([deviceType, bridgedNode, powerSource], { id: group.friendly_name }, zigbeeGroup.log.logLevel === LogLevel.DEBUG);
       if (deviceType.code === onOffLightSwitch.code) zigbeeGroup.bridgedDevice.createDefaultOnOffClusterServer();
+      else if (binaryModifier === 'valve') createBinaryValve(zigbeeGroup.bridgedDevice);
     }
 
     if (!platform.config.featureBlackList?.includes('scenes') && !platform.config.deviceFeatureBlackList[group.friendly_name]?.includes('scenes')) {
@@ -1158,6 +1242,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
     zigbeeGroup.addBridgedDeviceBasicInformation();
     zigbeeGroup.addPowerSource();
     zigbeeGroup.bridgedDevice.addRequiredClusters();
+    zigbeeGroup.subscribeBinaryAttributes();
 
     // Verify the device
     if (!zigbeeGroup.bridgedDevice || !zigbeeGroup.verifyMutableDevice(zigbeeGroup.bridgedDevice)) return zigbeeGroup;
@@ -1176,7 +1261,7 @@ export class ZigbeeGroup extends ZigbeeEntity {
         zigbeeGroup.log.debug(`Command identify called for ${zigbeeGroup.ien}${group.friendly_name}${rs}${db} identifyTime:${identifyTime}`);
         // logEndpoint(zigbeeGroup.bridgedDevice!);
       });
-      if (zigbeeGroup.bridgedDevice.hasClusterServer(OnOff.id)) {
+      if (zigbeeGroup.bridgedDevice.hasClusterServer(OnOff.id) && !binaryModifier) {
         zigbeeGroup.bridgedDevice.addCommandHandler('on', zigbeeGroup.onCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('off', zigbeeGroup.offCommandHandler.bind(zigbeeGroup));
         zigbeeGroup.bridgedDevice.addCommandHandler('toggle', zigbeeGroup.toggleCommandHandler.bind(zigbeeGroup));
@@ -1297,6 +1382,26 @@ export class ZigbeeGroup extends ZigbeeEntity {
     }
     return zigbeeGroup;
   }
+}
+
+/**
+ * Returns the Matter device type exposed for a binary modifier
+ *
+ * @param {'valve' | 'pump'} modifier - The binary modifier.
+ * @returns {DeviceTypeDefinition} The waterValve or pump device type.
+ */
+function binaryDeviceType(modifier: 'valve' | 'pump'): DeviceTypeDefinition {
+  return modifier === 'valve' ? waterValve : pump;
+}
+
+/**
+ * Creates the binary (no Level feature) ValveConfigurationAndControl cluster server with auto-close on the endpoint
+ *
+ * @param {MatterbridgeEndpoint} endpoint - The endpoint to add the cluster server to.
+ * @returns {MatterbridgeEndpoint} The endpoint, for chaining.
+ */
+function createBinaryValve(endpoint: MatterbridgeEndpoint): MatterbridgeEndpoint {
+  return endpoint.createOnOffValveConfigurationAndControlClusterServer(undefined, 0, true);
 }
 
 interface ZigbeeToMatter {
@@ -1535,6 +1640,7 @@ export class ZigbeeDevice extends ZigbeeEntity {
       value_maxs.push(option.value_max ?? Number.NaN);
       values.push(option.values ? option.values.join('|') : '');
     });
+    const binaryModifier = zigbeeDevice.getBinaryModifier();
     if (platform.config.switchList.includes(device.friendly_name)) {
       types.forEach((type, index) => {
         types[index] = type === 'light' ? 'switch' : type;
@@ -1604,7 +1710,17 @@ export class ZigbeeDevice extends ZigbeeEntity {
       const value_min = value_mins[index];
       const value_max = value_maxs[index];
       const value = values[index];
-      const z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);
+      // Keep the original Zigbee type; the modifier changes only its Matter exposure.
+      if (binaryModifier && type === 'switch' && name !== 'state') continue;
+      let z2m = z2ms.find((z2m) => z2m.type === type && z2m.name === name);
+      if (z2m && binaryModifier && type === 'switch') {
+        z2m = {
+          ...z2m,
+          deviceType: binaryDeviceType(binaryModifier),
+          cluster: binaryModifier === 'valve' ? ValveConfigurationAndControl.id : OnOff.id,
+          attribute: binaryModifier === 'valve' ? 'currentState' : 'onOff',
+        };
+      }
       if (z2m) {
         zigbeeDevice.log.debug(
           `Device ${zigbeeDevice.ien}${device.friendly_name}${rs}${db} endpoint: ${zb}${endpoint}${db} type: ${zb}${type}${db} property: ${zb}${name}${db} => deviceType: ${z2m.deviceType?.name} cluster: ${z2m.cluster} attribute: ${z2m.attribute}`,
@@ -1858,6 +1974,12 @@ export class ZigbeeDevice extends ZigbeeEntity {
       }
     }
 
+    // Create a binary valve with auto-close, then remove its cluster id so addClusterServers() does not replace it with the default Level-enabled valve.
+    if (mainEndpoint.deviceTypes.some((type) => type.code === waterValve.code)) {
+      createBinaryValve(zigbeeDevice.bridgedDevice);
+      mainEndpoint.clusterServersIds = mainEndpoint.clusterServersIds.filter((id) => id !== ValveConfigurationAndControl.id);
+    }
+
     // Add the cluster ids to the main endpoint
     zigbeeDevice.bridgedDevice.addClusterServers(mainEndpoint.clusterServersIds);
     zigbeeDevice.bridgedDevice.addRequiredClusters();
@@ -1868,6 +1990,19 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Create the child endpoints
     for (const [endpoint, device] of zigbeeDevice.mutableDevice) {
       if (endpoint === '') continue;
+      if (device.deviceTypes.some((type) => type.code === waterValve.code)) {
+        const child = zigbeeDevice.bridgedDevice.addChildDeviceType(
+          endpoint,
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+          device.deviceTypes as AtLeastOne<DeviceTypeDefinition>,
+          { tagList: device.tagList },
+          zigbeeDevice.log.logLevel === LogLevel.DEBUG,
+        );
+        createBinaryValve(child);
+        child.addClusterServers(device.clusterServersIds.filter((id) => id !== ValveConfigurationAndControl.id));
+        child.addRequiredClusters();
+        continue;
+      }
       zigbeeDevice.bridgedDevice?.addChildDeviceTypeWithClusterServer(
         endpoint,
         // oxlint-disable-next-line typescript/no-unsafe-type-assertion
@@ -1887,6 +2022,8 @@ export class ZigbeeDevice extends ZigbeeEntity {
     // Log properties
     zigbeeDevice.logPropertyMap();
 
+    zigbeeDevice.subscribeBinaryAttributes();
+
     // Add command handlers
 
     if (zigbeeDevice.bridgedDevice.hasClusterServer(Identify.id)) {
@@ -1896,13 +2033,13 @@ export class ZigbeeDevice extends ZigbeeEntity {
       });
     }
 
-    if (zigbeeDevice.bridgedDevice.hasClusterServer(OnOff.id)) {
+    if (zigbeeDevice.bridgedDevice.hasClusterServer(OnOff.id) && !zigbeeDevice.bridgedDevice.deviceTypes.has(pump.code)) {
       zigbeeDevice.bridgedDevice.addCommandHandler('on', zigbeeDevice.onCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('off', zigbeeDevice.offCommandHandler.bind(zigbeeDevice));
       zigbeeDevice.bridgedDevice.addCommandHandler('toggle', zigbeeDevice.toggleCommandHandler.bind(zigbeeDevice));
     }
     for (const child of zigbeeDevice.bridgedDevice.getChildEndpoints()) {
-      if (child.hasClusterServer(OnOff.id)) {
+      if (child.hasClusterServer(OnOff.id) && !child.deviceTypes.has(pump.code)) {
         child.addCommandHandler('on', zigbeeDevice.onCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('off', zigbeeDevice.offCommandHandler.bind(zigbeeDevice));
         child.addCommandHandler('toggle', zigbeeDevice.toggleCommandHandler.bind(zigbeeDevice));

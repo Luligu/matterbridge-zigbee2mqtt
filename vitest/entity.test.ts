@@ -27,9 +27,11 @@ import {
   onOffLightSwitch,
   onOffPlugInUnit,
   type PlatformMatterbridge,
+  pump,
+  waterValve,
 } from 'matterbridge';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import { AirQuality, ColorControl, DoorLock, PowerSource, SmokeCoAlarm, Thermostat, WindowCovering } from 'matterbridge/matter/clusters';
+import { AirQuality, ColorControl, DoorLock, PowerSource, SmokeCoAlarm, Thermostat, ValveConfigurationAndControl, WindowCovering } from 'matterbridge/matter/clusters';
 import { flushAsync } from 'matterbridge/test-utils';
 import {
   addDevice,
@@ -113,6 +115,8 @@ describe('Test Entity', () => {
     switchList: [],
     lightList: [],
     outletList: [],
+    valveList: [],
+    pumpList: [],
     featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
     deviceFeatureBlackList: {},
     scenesType: 'outlet',
@@ -2370,6 +2374,245 @@ describe('Test Entity', () => {
       platform.z2m.emit(`MESSAGE-${z2mDevice.friendly_name}`, { device_temperature: 31.5 });
       await vi.waitFor(() => expect(device.getAttribute('TemperatureMeasurement', 'measuredValue')).toBe(3150), waitOptions);
 
+      entity.destroy();
+    });
+
+    test('should forward valve commands and update state from Zigbee feedback', async () => {
+      const modifier = 'valve';
+      const source = platform.z2mBridgeDevices?.find((device) => device.friendly_name === 'Aqara switch T1');
+      if (!source) throw new Error('Z2M Device not found');
+      const fixture = structuredClone(source);
+      for (const endpoint of Object.values(fixture.endpoints)) endpoint.scenes = [];
+      fixture.friendly_name = `Binary ${modifier}`;
+      fixture.ieee_address = '0x00124b0000009001';
+      const list = 'valveList';
+      platform.config[list] = [fixture.friendly_name];
+      const entity = await ZigbeeDevice.create(platform, fixture);
+      platform.config[list] = [];
+      // @ts-expect-error - inspect the original Zigbee mapping stored by the entity
+      expect(entity.propertyMap.get('state')?.type).toBe('switch');
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      try {
+        expect(device.deviceTypes.has(waterValve.code)).toBe(true);
+        expect(device.hasClusterServer('LevelControl')).toBe(false);
+        expect(device.hasClusterServer('ElectricalPowerMeasurement')).toBe(true);
+        expect(await addDevice(aggregator, device)).toBe(true);
+        vi.clearAllMocks();
+        expect(featuresFor(device, 'ValveConfigurationAndControl')).not.toContain('level');
+        await invokeBehaviorCommand(device, 'ValveConfigurationAndControl', 'open', { openDuration: null });
+        expect(publishCommandSpy).toHaveBeenLastCalledWith('open', fixture.friendly_name, { state: 'ON' });
+        platform.z2m.emit(`MESSAGE-${fixture.friendly_name}`, { state: 'ON' });
+        await vi.waitFor(() => {
+          expect(device.getAttribute('ValveConfigurationAndControl', 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Open);
+          expect(device.getAttribute('ValveConfigurationAndControl', 'targetState')).toBeNull();
+        }, waitOptions);
+        await invokeBehaviorCommand(device, 'ValveConfigurationAndControl', 'close');
+        expect(publishCommandSpy).toHaveBeenLastCalledWith('close', fixture.friendly_name, { state: 'OFF' });
+        platform.z2m.emit(`MESSAGE-${fixture.friendly_name}`, { state: 'OFF' });
+        await vi.waitFor(() => expect(device.getAttribute('ValveConfigurationAndControl', 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed), waitOptions);
+        // A mismatched report (OFF after Open) clears targetState, so a repeated Open is forwarded again.
+        // The power value changes so the repeated OFF report is not dropped as a duplicate payload.
+        await invokeBehaviorCommand(device, 'ValveConfigurationAndControl', 'open', { openDuration: null });
+        expect(publishCommandSpy).toHaveBeenLastCalledWith('open', fixture.friendly_name, { state: 'ON' });
+        platform.z2m.emit(`MESSAGE-${fixture.friendly_name}`, { state: 'OFF', power: 1 });
+        await vi.waitFor(() => {
+          expect(device.getAttribute('ValveConfigurationAndControl', 'currentState')).toBe(ValveConfigurationAndControl.ValveState.Closed);
+          expect(device.getAttribute('ValveConfigurationAndControl', 'targetState')).toBeNull();
+        }, waitOptions);
+        vi.clearAllMocks();
+        await invokeBehaviorCommand(device, 'ValveConfigurationAndControl', 'open', { openDuration: null });
+        expect(publishCommandSpy).toHaveBeenLastCalledWith('open', fixture.friendly_name, { state: 'ON' });
+        platform.z2m.emit(`MESSAGE-${fixture.friendly_name}`, { state: 'OFF', power: 2 });
+        await vi.waitFor(() => expect(device.getAttribute('ValveConfigurationAndControl', 'targetState')).toBeNull(), waitOptions);
+        await invokeBehaviorCommand(device, 'ValveConfigurationAndControl', 'open', { openDuration: 1 });
+        await vi.waitFor(() => expect(publishCommandSpy).toHaveBeenLastCalledWith('close', fixture.friendly_name, { state: 'OFF' }), waitOptions);
+      } finally {
+        entity.destroy();
+      }
+    });
+
+    test('should forward pump commands and update state from Zigbee feedback', async () => {
+      const modifier = 'pump';
+      const source = platform.z2mBridgeDevices?.find((device) => device.friendly_name === 'Aqara switch T1');
+      if (!source) throw new Error('Z2M Device not found');
+      const fixture = structuredClone(source);
+      for (const endpoint of Object.values(fixture.endpoints)) endpoint.scenes = [];
+      fixture.friendly_name = `Binary ${modifier}`;
+      fixture.ieee_address = '0x00124b0000009002';
+      const list = 'pumpList';
+      platform.config[list] = [fixture.friendly_name];
+      const entity = await ZigbeeDevice.create(platform, fixture);
+      platform.config[list] = [];
+      // @ts-expect-error - inspect the original Zigbee mapping stored by the entity
+      expect(entity.propertyMap.get('state')?.type).toBe('switch');
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      try {
+        expect(device.deviceTypes.has(pump.code)).toBe(true);
+        expect(device.hasClusterServer('LevelControl')).toBe(false);
+        expect(device.hasClusterServer('ElectricalPowerMeasurement')).toBe(true);
+        expect(await addDevice(aggregator, device)).toBe(true);
+        vi.clearAllMocks();
+        // Controller changes (fabric context) are forwarded
+        await invokeSubscribeHandler(device, 'OnOff', 'onOff', true, false);
+        expect(publishCommandSpy).toHaveBeenLastCalledWith('onOff', fixture.friendly_name, { state: 'ON' });
+        await invokeSubscribeHandler(device, 'OnOff', 'onOff', false, true);
+        expect(publishCommandSpy).toHaveBeenLastCalledWith('onOff', fixture.friendly_name, { state: 'OFF' });
+        await invokeSubscribeHandler(device, 'OnOff', 'onOff', false, false);
+        expect(publishCommandSpy).toHaveBeenCalledTimes(2);
+        // Zigbee feedback updates the state locally and is not echoed back to the device
+        platform.z2m.emit(`MESSAGE-${fixture.friendly_name}`, { state: 'ON' });
+        await vi.waitFor(() => expect(device.getAttribute('OnOff', 'onOff')).toBe(true), waitOptions);
+        platform.z2m.emit(`MESSAGE-${fixture.friendly_name}`, { state: 'OFF' });
+        await vi.waitFor(() => expect(device.getAttribute('OnOff', 'onOff')).toBe(false), waitOptions);
+        expect(publishCommandSpy).toHaveBeenCalledTimes(2);
+      } finally {
+        entity.destroy();
+      }
+    });
+
+    test.each(['valveList', 'pumpList'] as const)('should forward child endpoint commands to the original property with %s', async (list) => {
+      const source = platform.z2mBridgeDevices?.find((device) => device.friendly_name === 'Aqara switch T1');
+      if (!source?.definition) throw new Error('Z2M Device not found');
+      const fixture = structuredClone(source);
+      fixture.friendly_name = `Child ${list}`;
+      fixture.ieee_address = list === 'valveList' ? '0x00124b0000009011' : '0x00124b0000009012';
+      for (const endpoint of Object.values(fixture.endpoints)) endpoint.scenes = [];
+      for (const expose of fixture.definition?.exposes ?? []) {
+        if (expose.type !== 'switch') continue;
+        expose.endpoint = 'l1';
+        for (const feature of expose.features ?? []) {
+          if (feature.name === 'state') feature.property = 'state_l1';
+        }
+      }
+      platform.config[list] = [fixture.friendly_name];
+      const entity = await ZigbeeDevice.create(platform, fixture);
+      platform.config[list] = [];
+      // @ts-expect-error - inspect the original Zigbee mapping stored by the entity
+      expect(entity.propertyMap.get('state_l1')?.type).toBe('switch');
+      const device = entity.bridgedDevice;
+      const child = device?.getChildEndpointById('l1');
+      if (!device || !child) throw new Error('Child endpoint is undefined');
+      try {
+        expect(await addDevice(aggregator, device)).toBe(true);
+        const cluster = list === 'valveList' ? 'ValveConfigurationAndControl' : 'OnOff';
+        if (list === 'valveList') await invokeBehaviorCommand(child, cluster, 'open', {});
+        else await invokeSubscribeHandler(child, cluster, 'onOff', true, false);
+        const publishCommand = list === 'valveList' ? 'open' : 'onOff';
+        await vi.waitFor(() => expect(publishCommandSpy).toHaveBeenLastCalledWith(publishCommand, fixture.friendly_name, { state_l1: 'ON' }), waitOptions);
+        platform.z2m.emit(`MESSAGE-${fixture.friendly_name}`, { state_l1: 'ON' });
+        const attribute = list === 'valveList' ? 'currentState' : 'onOff';
+        const expected = list === 'valveList' ? ValveConfigurationAndControl.ValveState.Open : true;
+        await vi.waitFor(() => expect(child.getAttribute(cluster, attribute)).toBe(expected), waitOptions);
+        expect(child.hasClusterServer('LevelControl')).toBe(false);
+      } finally {
+        entity.destroy();
+      }
+    });
+
+    test.each(['valveList', 'pumpList'] as const)('should forward switch group commands with %s', async (list) => {
+      const source = platform.z2mBridgeDevices?.find((device) => device.friendly_name === 'Aqara switch T1');
+      if (!source) throw new Error('Z2M Device not found');
+      const group: BridgeGroup = {
+        id: list === 'valveList' ? 9013 : 9014,
+        friendly_name: `Group ${list}`,
+        description: '',
+        scenes: [],
+        members: [{ ieee_address: source.ieee_address, endpoint: 1 }],
+      };
+      platform.config[list] = [group.friendly_name];
+      const entity = await ZigbeeGroup.create(platform, group);
+      platform.config[list] = [];
+      // @ts-expect-error - inspect the original Zigbee mapping stored by the entity
+      expect(entity.propertyMap.get('state')?.type).toBe('switch');
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      try {
+        expect(device.deviceTypes.has(list === 'valveList' ? waterValve.code : pump.code)).toBe(true);
+        expect(await addDevice(aggregator, device)).toBe(true);
+        const cluster = list === 'valveList' ? 'ValveConfigurationAndControl' : 'OnOff';
+        if (list === 'valveList') await invokeBehaviorCommand(device, cluster, 'open', {});
+        else await invokeSubscribeHandler(device, cluster, 'onOff', true, false);
+        const publishCommand = list === 'valveList' ? 'open' : 'onOff';
+        await vi.waitFor(() => expect(publishCommandSpy).toHaveBeenLastCalledWith(publishCommand, group.friendly_name, { state: 'ON' }), waitOptions);
+        platform.z2m.emit(`MESSAGE-${group.friendly_name}`, { state: 'ON' });
+        const attribute = list === 'valveList' ? 'currentState' : 'onOff';
+        const expected = list === 'valveList' ? ValveConfigurationAndControl.ValveState.Open : true;
+        await vi.waitFor(() => expect(device.getAttribute(cluster, attribute)).toBe(expected), waitOptions);
+      } finally {
+        entity.destroy();
+      }
+    });
+
+    test.each([
+      ['valveList', 'empty'],
+      ['pumpList', 'empty'],
+      ['valveList', 'unknown'],
+      ['pumpList', 'unknown'],
+      ['valveList', 'light'],
+      ['pumpList', 'light'],
+      ['valveList', 'climate'],
+      ['pumpList', 'climate'],
+    ] as const)('should apply %s to a group with %s members without checking eligibility', async (list, memberType) => {
+      const source = platform.z2mBridgeDevices?.find((device) => device.definition?.exposes.some((expose) => expose.type === memberType));
+      const group: BridgeGroup = {
+        id: 9100,
+        friendly_name: `Unrestricted ${list} ${memberType}`,
+        description: '',
+        scenes: [],
+        members: memberType === 'empty' ? [] : [{ ieee_address: source?.ieee_address ?? '0x000000000000ffff', endpoint: 1 }],
+      };
+      platform.config[list] = [group.friendly_name];
+      const entity = await ZigbeeGroup.create(platform, group);
+      platform.config[list] = [];
+      const device = entity.bridgedDevice;
+      if (!device) throw new Error('MatterbridgeEndpoint is undefined');
+      try {
+        expect(device.deviceTypes.has(list === 'valveList' ? waterValve.code : pump.code)).toBe(true);
+        expect(device.hasClusterServer('LevelControl')).toBe(false);
+        expect(device.hasClusterServer('Thermostat')).toBe(false);
+        expect(await addDevice(aggregator, device)).toBe(true);
+        const cluster = list === 'valveList' ? 'ValveConfigurationAndControl' : 'OnOff';
+        if (list === 'valveList') await invokeBehaviorCommand(device, cluster, 'open', {});
+        else await invokeSubscribeHandler(device, cluster, 'onOff', true, false);
+        await vi.waitFor(() => expect(publishCommandSpy).toHaveBeenLastCalledWith(list === 'valveList' ? 'open' : 'onOff', group.friendly_name, { state: 'ON' }), waitOptions);
+      } finally {
+        entity.destroy();
+      }
+    });
+
+    test.each(['valveList', 'pumpList'] as const)('should apply %s to switch state even when the device also exposes actions', async (list) => {
+      const source = platform.z2mBridgeDevices?.find((device) => device.friendly_name === 'Aqara switch T1');
+      if (!source) throw new Error('Z2M Device not found');
+      const fixture = structuredClone(source);
+      for (const endpoint of Object.values(fixture.endpoints)) endpoint.scenes = [];
+      fixture.friendly_name = `Switch with actions ${list}`;
+      fixture.definition?.exposes.push({ type: 'enum', name: 'action', property: 'action', access: 1, values: ['single'] });
+      platform.config[list] = [fixture.friendly_name];
+      const entity = await ZigbeeDevice.create(platform, fixture);
+      platform.config[list] = [];
+      try {
+        expect(entity.actions).toEqual(['single']);
+        expect(entity.bridgedDevice?.deviceTypes.has(list === 'valveList' ? waterValve.code : pump.code)).toBe(true);
+        expect(entity.bridgedDevice?.getChildEndpointById('switch_1')).toBeDefined();
+      } finally {
+        entity.destroy();
+      }
+    });
+
+    test('should retain original exposure for a valve modifier on a light', async () => {
+      const name = 'Moes RGBCCT light bulb';
+      const source = platform.z2mBridgeDevices?.find((device) => device.friendly_name === name);
+      if (!source) throw new Error('Z2M Device not found');
+      const fixture = structuredClone(source);
+      for (const endpoint of Object.values(fixture.endpoints)) endpoint.scenes = [];
+      platform.config.valveList = [name];
+      const entity = await ZigbeeDevice.create(platform, fixture);
+      platform.config.valveList = [];
+      platform.config.outletList = [];
+      expect(entity.bridgedDevice?.deviceTypes.has(waterValve.code)).toBe(false);
+      expect(entity.bridgedDevice?.deviceTypes.has(onOffPlugInUnit.code)).toBe(false);
       entity.destroy();
     });
 

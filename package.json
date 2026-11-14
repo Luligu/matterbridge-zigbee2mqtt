@@ -1,6 +1,6 @@
 {
   "name": "matterbridge-zigbee2mqtt",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "description": "Matterbridge zigbee2mqtt plugin",
   "author": "https://github.com/Luligu",
   "license": "Apache-2.0",
@@ -70,7 +70,6 @@
     "plugin": true,
     "jest": false,
     "vitest": true,
-    "native": true,
     "git": false,
     "version": false,
     "publish": false,
@@ -123,16 +122,16 @@
   "dependencies": {
     "moment": "2.31.0",
     "mqtt": "5.16.1",
-    "node-ansi-logger": "3.3.1",
-    "node-persist-manager": "2.1.1"
+    "node-ansi-logger": "3.3.2",
+    "node-persist-manager": "2.1.2"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "@vitest/coverage-v8": "5.0.5",
-    "oxfmt": "0.75.0",
-    "oxlint": "1.90.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "@vitest/coverage-v8": "5.1.0",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2007",
     "typescript": "7.0.2",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   }
 }

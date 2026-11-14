@@ -53,6 +53,8 @@ export type ZigbeePlatformConfig = BasePlatformConfig & {
   switchList: string[];
   lightList: string[];
   outletList: string[];
+  valveList: string[];
+  pumpList: string[];
   featureBlackList: string[];
   deviceFeatureBlackList: DeviceFeatureBlackList;
   scenesType: 'light' | 'outlet' | 'switch' | 'mounted_switch';
@@ -120,9 +122,9 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     super(matterbridge, log, config);
 
     // Verify that Matterbridge is the correct version
-    if (typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.11.0')) {
+    if (typeof this.verifyMatterbridgeVersion !== 'function' || !this.verifyMatterbridgeVersion('3.11.2')) {
       throw new Error(
-        `This plugin requires Matterbridge version >= "3.11.0". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend.`,
+        `This plugin requires Matterbridge version >= "3.11.2". Please update Matterbridge from ${this.matterbridge.matterbridgeVersion} to the latest version in the frontend.`,
       );
     }
 
@@ -148,6 +150,26 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.switchList ??= [];
     config.lightList ??= [];
     config.outletList ??= [];
+    config.valveList ??= [];
+    config.pumpList ??= [];
+
+    const modifierLists = ['switchList', 'lightList', 'outletList', 'valveList', 'pumpList'] as const;
+    const modifiers = new Map<string, 'switchList' | 'lightList' | 'outletList' | 'valveList' | 'pumpList'>();
+    let modifiersChanged = false;
+    for (const list of modifierLists) {
+      config[list] = config[list].filter((name) => {
+        const firstList = modifiers.get(name);
+        if (firstList === undefined) {
+          modifiers.set(name, list);
+          return true;
+        }
+        const message = `Duplicate modifier for "${name}" in ${list}; keeping the first entry in ${firstList}`;
+        this.log.error(message);
+        this.wssSendSnackbarMessage(message, 10, 'error');
+        modifiersChanged = true;
+        return false;
+      });
+    }
     config.featureBlackList ??= [];
     config.deviceFeatureBlackList ??= {};
     config.postfix ??= '';
@@ -156,6 +178,7 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
     config.scenesPrefix ??= true;
     config.debug ??= false;
     config.unregisterOnShutdown ??= false;
+    if (modifiersChanged) this.saveConfig(config);
 
     this.log.info(`Initializing platform ${this.config.name}...`);
 
@@ -596,8 +619,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
     this.log.info(`Changing logger level of platform ${this.config.name} to ${logLevel}...`);
     this.log.logLevel = logLevel;
-    // oxlint-disable-next-line typescript/ban-ts-comment
-    // @ts-ignore We avoid the type issue here when node-ansi-logger is not updated here but is updated in matterbridge
     this.z2m.setLogLevel(logLevel);
     for (const bridgedDevice of this.bridgedDevices) {
       bridgedDevice.log.logLevel = logLevel;
