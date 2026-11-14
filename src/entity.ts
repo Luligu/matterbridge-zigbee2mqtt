@@ -161,7 +161,8 @@ export class ZigbeeEntity extends EventEmitter {
 
   // Cache the commands
   protected cachePayload: Payload = {};
-  protected colorMoveKeys = new Map<string, string>(); // Active zigbee2mqtt color move property (e.g. hue_move) for each endpoint postfix, used by stopMoveStep
+  protected colorMoveKeys = new Map<string, string>(); // Active zigbee2mqtt color move property (e.g. hue_move) of a color move or step transition for each endpoint postfix, used by stopMoveStep
+  protected colorTempStepTargets = new Map<string, { start: number; mireds: number; value: PayloadValue }>(); // Start and target mireds of the cached stepColorTemperature payload value for each endpoint postfix
   protected cachePublishTimeout: NodeJS.Timeout | undefined = undefined;
   protected cachePublishTimeoutTime = 100;
   protected noUpdateTimeout: NodeJS.Timeout | undefined = undefined;
@@ -474,6 +475,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.mutableDevice.clear();
     this.propertyMap.clear();
     this.colorMoveKeys.clear();
+    this.colorTempStepTargets.clear();
   }
 
   isValidDevice(entity: BridgeDevice | BridgeGroup): entity is BridgeDevice {
@@ -492,18 +494,9 @@ export class ZigbeeEntity extends EventEmitter {
    * @param {number} transitionTime - The optional transition time to add to the cached publish payload
    */
   protected cachePublish(command: string = 'unknown', payload?: Payload, transitionTime?: number | null): void {
-    if (command === 'moveToColorTemperature' || command === 'stepColorTemperature' || command === 'moveColorTemperature') {
+    if (command === 'moveToColorTemperature') {
       delete this.cachePayload['color'];
-    } else if (
-      command === 'moveToColor' ||
-      command === 'moveToHueSaturation' ||
-      command === 'moveToHue' ||
-      command === 'moveToSaturation' ||
-      command === 'stepHue' ||
-      command === 'stepSaturation' ||
-      command === 'moveHue' ||
-      command === 'moveSaturation'
-    ) {
+    } else if (command === 'moveToColor' || command === 'moveToHueSaturation' || command === 'moveToHue' || command === 'moveToSaturation') {
       delete this.cachePayload['color_temp'];
     }
 
@@ -757,15 +750,50 @@ export class ZigbeeEntity extends EventEmitter {
   }
 
   /**
+   * Get the zigbee2mqtt property postfix of a command endpoint: '' for the main endpoint and '_<endpoint id>' (e.g. '_l1') for a child endpoint.
+   *
+   * @param {MatterbridgeEndpoint} endpoint - The endpoint that received the command
+   * @returns {string} The property postfix
+   */
+  private endpointPostfix(endpoint: MatterbridgeEndpoint): string {
+    return endpoint.deviceName === this.entityName ? '' : '_' + endpoint.id;
+  }
+
+  /**
+   * Remove the cached color payload of one endpoint that conflicts with the color mode of a new command, so that a stale value is not published together with it.
+   *
+   * @param {string} postfix - The endpoint postfix (e.g. '', '_l1')
+   * @param {'temperature' | 'hueSaturation'} colorMode - The color mode of the new command
+   */
+  private invalidateColorCache(postfix: string, colorMode: 'temperature' | 'hueSaturation'): void {
+    // oxlint-disable-next-line typescript/no-dynamic-delete
+    delete this.cachePayload[(colorMode === 'temperature' ? 'color' : 'color_temp') + postfix];
+  }
+
+  /**
    * Accumulate a relative zigbee2mqtt step property (e.g. brightness_step) in the cache payload so that multiple steps received within the cache window are summed.
+   * The zigbee step commands carry an unsigned 8-bit step size, so the sum is limited to ±255 or, for a circular value like the hue, wrapped around.
    *
    * @param {string} key - The zigbee2mqtt step property name including the endpoint postfix
    * @param {number} step - The signed step to add
+   * @param {number} [wrap] - The full circle of a circular value (254 for the hue): the sum is wrapped instead of limited
    * @returns {Payload} The payload to pass to cachePublish
    */
-  private accumulateStep(key: string, step: number): Payload {
+  private accumulateStep(key: string, step: number, wrap?: number): Payload {
     const cached = this.cachePayload[key];
-    return { [key]: (isValidNumber(cached) ? cached : 0) + step };
+    const total = (isValidNumber(cached) ? cached : 0) + step;
+    return { [key]: wrap ? total % wrap : Math.max(-0xff, Math.min(0xff, total)) };
+  }
+
+  /**
+   * Track a color step with a transition, so that stopMoveStep can stop it with the matching zigbee2mqtt move property.
+   *
+   * @param {string} property - The zigbee2mqtt move property name without the endpoint postfix (e.g. hue_move)
+   * @param {string} postfix - The endpoint postfix (e.g. '', '_l1')
+   * @param {number} transitionTime - The Matter transition time in tenths of seconds
+   */
+  private trackColorStep(property: string, postfix: string, transitionTime: number): void {
+    if (transitionTime > 0) this.colorMoveKeys.set(postfix, property + postfix);
   }
 
   // oxfmt-ignore
@@ -776,9 +804,8 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command step called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const step = data.request.stepMode === LevelControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
-    this.cachePublish('step', this.accumulateStep('brightness_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+    this.cachePublish('step', this.accumulateStep('brightness_step' + this.endpointPostfix(data.endpoint), step), data.request.transitionTime);
   }
 
   // oxfmt-ignore
@@ -789,31 +816,54 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command stepWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const step = data.request.stepMode === LevelControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
-    this.cachePublish('stepWithOnOff', this.accumulateStep('brightness_step_onoff' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+    this.cachePublish('stepWithOnOff', this.accumulateStep('brightness_step_onoff' + this.endpointPostfix(data.endpoint), step), data.request.transitionTime);
   }
 
   // oxfmt-ignore
   protected  stepColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.stepColorTemperature']): void {
     this.saveCommands('stepColorTemperature', data);
-    delete this.cachePayload['color'];
+    const postfix = this.endpointPostfix(data.endpoint);
+    const hasColorTemp = this.propertyMap.get('color_temp' + postfix) !== undefined;
+    // Without the color_temp property the step is published as a color, which replaces the cached color by itself and may continue a previous step
+    if (hasColorTemp) this.invalidateColorCache(postfix, 'temperature');
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.stepSize === 0) {
       this.log.debug(`Command stepColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or stepSize 0`);
       return;
     }
-    this.log.debug(`Command stepColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
+    this.log.debug(`Command stepColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} min ${data.request.colorTemperatureMinimumMireds} max ${data.request.colorTemperatureMaximumMireds} transition: ${data.request.transitionTime}`);
     const step = data.request.stepMode === ColorControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
-    if (this.propertyMap.get('color_temp')) {
-      this.cachePublish('stepColorTemperature', this.accumulateStep('color_temp_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+    // A minimum or maximum of 0 in the request means the physical limit of the light
+    const minMireds = data.request.colorTemperatureMinimumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMinMireds');
+    const maxMireds = data.request.colorTemperatureMaximumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMaxMireds');
+    const clampMireds = (mireds: number): number => Math.min(maxMireds, Math.max(minMireds, mireds));
+    const key = (hasColorTemp ? 'color_temp_step' : 'color') + postfix;
+    // Continue from the target of a previous step that is still in the cache window, so that consecutive steps add up.
+    // The colorTemperatureMireds attribute can't be used for this, because Matter.js already applies each step to it while the device has not received it yet.
+    const pending = this.colorTempStepTargets.get(postfix);
+    const currentMireds = data.endpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds');
+    const isPending = pending !== undefined && this.cachePayload[key] === pending.value;
+    const startMireds = isPending ? pending.start : currentMireds;
+    const mireds = clampMireds((isPending ? pending.mireds : currentMireds) + step);
+    if (hasColorTemp) {
+      // Publish the sum of the steps, limited to the requested range
+      const total = mireds - startMireds;
+      if (total === 0) {
+        // oxlint-disable-next-line typescript/no-dynamic-delete
+        delete this.cachePayload[key];
+        this.colorTempStepTargets.delete(postfix);
+        this.log.debug(`Command stepColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} color temperature at the limit`);
+        return;
+      }
+      this.colorTempStepTargets.set(postfix, { start: startMireds, mireds, value: total });
+      this.trackColorStep('color_temp_move', postfix, data.request.transitionTime);
+      this.cachePublish('stepColorTemperature', { [key]: total }, data.request.transitionTime);
     } else {
-      // No color_temp property: compute the target mireds within the allowed range and convert it to RGB like moveToColorTemperature does
-      const minMireds = data.request.colorTemperatureMinimumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMinMireds');
-      const maxMireds = data.request.colorTemperatureMaximumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMaxMireds');
-      const mireds = Math.min(maxMireds, Math.max(minMireds, data.endpoint.getAttribute(ColorControl.id, 'colorTemperatureMireds') + step));
+      // No color_temp property: convert the target mireds to RGB like moveToColorTemperature does
       const rgb = kelvinToRGB(miredToKelvin(mireds));
-      this.cachePublish('stepColorTemperature', { ['color' + (isChildEndpoint ? '_' + data.endpoint.id : '')]: { r: rgb.r, g: rgb.g, b: rgb.b } }, data.request.transitionTime);
+      const payload: Payload = { r: rgb.r, g: rgb.g, b: rgb.b };
+      this.colorTempStepTargets.set(postfix, { start: startMireds, mireds, value: payload });
+      this.cachePublish('stepColorTemperature', { [key]: payload }, data.request.transitionTime);
       this.log.debug(`Command stepColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} but color_temp property is not available. Converting ${mireds} to RGB ${debugStringify(rgb)}.`);
     }
   }
@@ -821,29 +871,31 @@ export class ZigbeeEntity extends EventEmitter {
   // oxfmt-ignore
   protected  stepHueCommandHandler(data: CommandHandlerDataMap['ColorControl.stepHue']): void {
     this.saveCommands('stepHue', data);
-    delete this.cachePayload['color_temp'];
+    const postfix = this.endpointPostfix(data.endpoint);
+    this.invalidateColorCache(postfix, 'hueSaturation');
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.stepSize === 0) {
       this.log.debug(`Command stepHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or stepSize 0`);
       return;
     }
     this.log.debug(`Command stepHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const step = data.request.stepMode === ColorControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
-    this.cachePublish('stepHue', this.accumulateStep('hue_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+    this.trackColorStep('hue_move', postfix, data.request.transitionTime);
+    this.cachePublish('stepHue', this.accumulateStep('hue_step' + postfix, step, 254), data.request.transitionTime);
   }
 
   // oxfmt-ignore
   protected  stepSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.stepSaturation']): void {
     this.saveCommands('stepSaturation', data);
-    delete this.cachePayload['color_temp'];
+    const postfix = this.endpointPostfix(data.endpoint);
+    this.invalidateColorCache(postfix, 'hueSaturation');
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.stepSize === 0) {
       this.log.debug(`Command stepSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or stepSize 0`);
       return;
     }
     this.log.debug(`Command stepSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.stepMode} size ${data.request.stepSize} transition: ${data.request.transitionTime}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
     const step = data.request.stepMode === ColorControl.StepMode.Up ? data.request.stepSize : -data.request.stepSize;
-    this.cachePublish('stepSaturation', this.accumulateStep('saturation_step' + (isChildEndpoint ? '_' + data.endpoint.id : ''), step), data.request.transitionTime);
+    this.trackColorStep('saturation_move', postfix, data.request.transitionTime);
+    this.cachePublish('stepSaturation', this.accumulateStep('saturation_step' + postfix, step), data.request.transitionTime);
   }
 
   // oxfmt-ignore
@@ -854,8 +906,7 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command move called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    const postfix = this.endpointPostfix(data.endpoint);
     // A null rate means the default move rate: 0xff for the zigbee move command
     const rate = data.request.rate ?? 0xff;
     // oxlint-disable-next-line typescript/no-dynamic-delete
@@ -871,8 +922,7 @@ export class ZigbeeEntity extends EventEmitter {
       return;
     }
     this.log.debug(`Command moveWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    const postfix = this.endpointPostfix(data.endpoint);
     // A null rate means the default move rate: 0xff for the zigbee move command
     const rate = data.request.rate ?? 0xff;
     // oxlint-disable-next-line typescript/no-dynamic-delete
@@ -884,8 +934,7 @@ export class ZigbeeEntity extends EventEmitter {
   protected  stopCommandHandler(data: CommandHandlerDataMap['LevelControl.stop']): void {
     this.saveCommands('stop', data);
     this.log.debug(`Command stop called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    const postfix = this.endpointPostfix(data.endpoint);
     // oxlint-disable-next-line typescript/no-dynamic-delete
     delete this.cachePayload['brightness_move_onoff' + postfix];
     this.cachePublish('stop', { ['brightness_move' + postfix]: 'stop' });
@@ -895,8 +944,7 @@ export class ZigbeeEntity extends EventEmitter {
   protected  stopWithOnOffCommandHandler(data: CommandHandlerDataMap['LevelControl.stopWithOnOff']): void {
     this.saveCommands('stopWithOnOff', data);
     this.log.debug(`Command stopWithOnOff called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    const postfix = this.endpointPostfix(data.endpoint);
     // zigbee2mqtt sends the same zigbee stop command for both brightness_move and brightness_move_onoff.
     // Use the same payload as stop, so a single stop is published even if Matter.js also calls the stop handler.
     // oxlint-disable-next-line typescript/no-dynamic-delete
@@ -912,8 +960,9 @@ export class ZigbeeEntity extends EventEmitter {
    * @param {string} postfix - The endpoint postfix (e.g. '', '_l1')
    * @param {ColorControl.MoveMode} moveMode - The Matter move mode
    * @param {number} rate - The Matter rate
+   * @param {{ minimum: number; maximum: number }} [limits] - The optional color temperature limits in mireds, forwarded with color_temp_move
    */
-  private publishColorMove(command: string, property: string, postfix: string, moveMode: ColorControl.MoveMode, rate: number): void {
+  private publishColorMove(command: string, property: string, postfix: string, moveMode: ColorControl.MoveMode, rate: number, limits?: { minimum: number; maximum: number }): void {
     const key = property + postfix;
     const previous = this.colorMoveKeys.get(postfix);
     // oxlint-disable-next-line typescript/no-dynamic-delete
@@ -923,58 +972,71 @@ export class ZigbeeEntity extends EventEmitter {
       this.cachePublish(command, { [key]: 'stop' });
     } else {
       this.colorMoveKeys.set(postfix, key);
-      this.cachePublish(command, { [key]: moveMode === ColorControl.MoveMode.Up ? rate : -rate });
+      const signedRate = moveMode === ColorControl.MoveMode.Up ? rate : -rate;
+      this.cachePublish(command, { [key]: limits ? { rate: signedRate, ...limits } : signedRate });
     }
   }
 
   // oxfmt-ignore
   protected  moveColorTemperatureCommandHandler(data: CommandHandlerDataMap['ColorControl.moveColorTemperature']): void {
     this.saveCommands('moveColorTemperature', data);
-    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || !this.propertyMap.get('color_temp') || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
+    const postfix = this.endpointPostfix(data.endpoint);
+    this.invalidateColorCache(postfix, 'temperature');
+    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || !this.propertyMap.get('color_temp' + postfix) || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
       this.log.debug(`Command moveColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF, color_temp property not available or rate 0`);
       return;
     }
-    this.log.debug(`Command moveColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.publishColorMove('moveColorTemperature', 'color_temp_move', isChildEndpoint ? '_' + data.endpoint.id : '', data.request.moveMode, data.request.rate);
+    this.log.debug(`Command moveColorTemperature called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate} min ${data.request.colorTemperatureMinimumMireds} max ${data.request.colorTemperatureMaximumMireds}`);
+    // Forward the requested limits only when the controller sets them: a 0 means the physical limit of the light, which zigbee2mqtt applies by default
+    let limits: { minimum: number; maximum: number } | undefined;
+    if (data.request.colorTemperatureMinimumMireds || data.request.colorTemperatureMaximumMireds) {
+      const minimum = data.request.colorTemperatureMinimumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMinMireds');
+      const maximum = data.request.colorTemperatureMaximumMireds || data.endpoint.getAttribute(ColorControl.id, 'colorTempPhysicalMaxMireds');
+      if (minimum < maximum) limits = { minimum, maximum };
+    }
+    this.publishColorMove('moveColorTemperature', 'color_temp_move', postfix, data.request.moveMode, data.request.rate, limits);
   }
 
   // oxfmt-ignore
   protected  moveHueCommandHandler(data: CommandHandlerDataMap['ColorControl.moveHue']): void {
     this.saveCommands('moveHue', data);
+    const postfix = this.endpointPostfix(data.endpoint);
+    this.invalidateColorCache(postfix, 'hueSaturation');
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
       this.log.debug(`Command moveHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or rate 0`);
       return;
     }
     this.log.debug(`Command moveHue called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.publishColorMove('moveHue', 'hue_move', isChildEndpoint ? '_' + data.endpoint.id : '', data.request.moveMode, data.request.rate);
+    this.publishColorMove('moveHue', 'hue_move', postfix, data.request.moveMode, data.request.rate);
   }
 
   // oxfmt-ignore
   protected  moveSaturationCommandHandler(data: CommandHandlerDataMap['ColorControl.moveSaturation']): void {
     this.saveCommands('moveSaturation', data);
+    const postfix = this.endpointPostfix(data.endpoint);
+    this.invalidateColorCache(postfix, 'hueSaturation');
     if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
       this.log.debug(`Command moveSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or rate 0`);
       return;
     }
     this.log.debug(`Command moveSaturation called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} request: mode ${data.request.moveMode} rate ${data.request.rate}`);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    this.publishColorMove('moveSaturation', 'saturation_move', isChildEndpoint ? '_' + data.endpoint.id : '', data.request.moveMode, data.request.rate);
+    this.publishColorMove('moveSaturation', 'saturation_move', postfix, data.request.moveMode, data.request.rate);
   }
 
   // oxfmt-ignore
   protected  stopMoveStepCommandHandler(data: CommandHandlerDataMap['ColorControl.stopMoveStep']): void {
     this.saveCommands('stopMoveStep', data);
-    const isChildEndpoint = data.endpoint.deviceName !== this.entityName;
-    const postfix = isChildEndpoint ? '_' + data.endpoint.id : '';
+    const postfix = this.endpointPostfix(data.endpoint);
     const key = this.colorMoveKeys.get(postfix);
     if (key === undefined) {
-      this.log.debug(`Command stopMoveStep ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} no color move in progress`);
+      this.log.debug(`Command stopMoveStep ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} no color move or step transition in progress`);
       return;
     }
     this.log.debug(`Command stopMoveStep called for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} stopping ${key}`);
     this.colorMoveKeys.delete(postfix);
+    // Drop the color steps of this endpoint that are still in the cache window, so they don't restart a transition together with the stop
+    // oxlint-disable-next-line typescript/no-dynamic-delete
+    for (const step of ['color_temp_step', 'hue_step', 'saturation_step']) delete this.cachePayload[step + postfix];
     this.cachePublish('stopMoveStep', { [key]: 'stop' });
   }
 
