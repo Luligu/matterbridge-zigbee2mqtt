@@ -122,15 +122,15 @@
   "dependencies": {
     "moment": "2.31.0",
     "mqtt": "5.16.1",
-    "node-ansi-logger": "3.3.1",
-    "node-persist-manager": "2.1.1"
+    "node-ansi-logger": "3.3.2",
+    "node-persist-manager": "2.1.2"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
     "@vitest/coverage-v8": "5.1.0",
-    "oxfmt": "0.77.0",
-    "oxlint": "1.92.0",
-    "oxlint-tsgolint": "7.0.2006",
+    "oxfmt": "0.78.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2007",
     "typescript": "7.0.2",
     "vitest": "5.1.0"
   }

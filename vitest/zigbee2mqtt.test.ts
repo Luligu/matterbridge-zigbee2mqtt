@@ -9,9 +9,9 @@ const NAME = 'Zigbee';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { HOMEDIR, setupTest } from 'matterbridge/test-utils/vitest';
+import { LogLevel } from 'matterbridge/logger';
+import { HOMEDIR, resetTest, setDebug, setupTest } from 'matterbridge/test-utils/vitest';
 import { wait } from 'matterbridge/utils';
-import { LogLevel } from 'node-ansi-logger';
 
 import type { Zigbee2MQTT as Zigbee2MQTTType } from '../src/zigbee2mqtt.js';
 
@@ -38,6 +38,19 @@ const { Zigbee2MQTT } = await import('../src/zigbee2mqtt.js');
 
 // Setup the test environment
 await setupTest(NAME, false);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+afterEach(async () => {
+  await setDebug(false);
+});
+
+afterAll(() => {
+  vi.restoreAllMocks();
+  resetTest();
+});
 
 describe('TestZigbee2MQTT', () => {
   let z2m: Zigbee2MQTTType;
