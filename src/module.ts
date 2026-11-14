@@ -619,8 +619,6 @@ export class ZigbeePlatform extends MatterbridgeDynamicPlatform {
   override async onChangeLoggerLevel(logLevel: LogLevel): Promise<void> {
     this.log.info(`Changing logger level of platform ${this.config.name} to ${logLevel}...`);
     this.log.logLevel = logLevel;
-    // oxlint-disable-next-line typescript/ban-ts-comment
-    // @ts-ignore We avoid the type issue here when node-ansi-logger is not updated here but is updated in matterbridge
     this.z2m.setLogLevel(logLevel);
     for (const bridgedDevice of this.bridgedDevices) {
       bridgedDevice.log.logLevel = logLevel;

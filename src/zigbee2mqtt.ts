@@ -26,9 +26,9 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { AnsiLogger, db, dn, er, gn, hk, id, idn, ign, LogLevel, REVERSE, REVERSEOFF, rs, TimestampFormat, zb } from 'matterbridge/logger';
 import { getErrorMessage, isErrnoException } from 'matterbridge/utils';
 import { connectAsync, type ErrorWithReasonCode, type IClientOptions, type IConnackPacket, type IDisconnectPacket, type IPublishPacket, type MqttClient, type Packet } from 'mqtt';
-import { AnsiLogger, db, dn, er, gn, hk, id, idn, ign, LogLevel, REVERSE, REVERSEOFF, rs, TimestampFormat, zb } from 'node-ansi-logger';
 
 import type { Payload } from './payloadTypes.js';
 import type { BridgeDevice, BridgeExtension, BridgeGroup, BridgeInfo, Topology } from './zigbee2mqttTypes.js';
