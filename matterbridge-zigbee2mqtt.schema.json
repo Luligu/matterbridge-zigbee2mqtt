@@ -135,6 +135,22 @@
       "uniqueItems": true,
       "selectFrom": "name"
     },
+    "valveList": {
+      "title": "Valve List",
+      "description": "Expose original switch state as a binary water valve, without level control. Timed Open commands physically publish OFF. Group overrides apply without member checks, including empty groups. Duplicate modifiers are removed at startup; the first entry wins in switchList, lightList, outletList, valveList, pumpList order.",
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "selectFrom": "name"
+    },
+    "pumpList": {
+      "title": "Pump List",
+      "description": "Expose original switch state as a binary pump, without level control. Group overrides apply without member checks, including empty groups. Duplicate modifiers are removed at startup; the first entry wins in switchList, lightList, outletList, valveList, pumpList order.",
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "selectFrom": "name"
+    },
     "featureBlackList": {
       "title": "Feature Black List",
       "description": "The features in the list will not be exposed for all devices.",

@@ -98,6 +98,8 @@ describe('TestPlatform', () => {
     switchList: [],
     lightList: [],
     outletList: [],
+    valveList: [],
+    pumpList: [],
     featureBlackList: ['device_temperature', 'update', 'update_available', 'power_outage_count', 'indicator_mode', 'do_not_disturb', 'color_temp_startup'],
     deviceFeatureBlackList: {},
     scenesType: 'outlet',
@@ -143,8 +145,14 @@ describe('TestPlatform', () => {
     await platform.onShutdown();
   });
 
-  it('should not initialize platform with wrong version', () => {
-    expect(() => new ZigbeePlatform({ ...matterbridge, matterbridgeVersion: '1.0.0' }, log, mockConfig)).toThrow();
+  it.each(['1.0.0', '3.11.0', '3.11.1'])('should not initialize platform with unsupported version %s', (matterbridgeVersion) => {
+    expect(() => new ZigbeePlatform({ ...matterbridge, matterbridgeVersion }, log, mockConfig)).toThrow('This plugin requires Matterbridge version >= "3.11.2".');
+  });
+
+  it('should initialize platform with minimum supported version 3.11.2', async () => {
+    const platform = new ZigbeePlatform({ ...matterbridge, matterbridgeVersion: '3.11.2' }, log, { ...mockConfig });
+    expect(platform).toBeInstanceOf(ZigbeePlatform);
+    await platform.onShutdown();
   });
 
   it.each([
@@ -169,6 +177,55 @@ describe('TestPlatform', () => {
       expect(platform.z2m.mqttPassword).toBe(password || undefined);
     } finally {
       await platform.onShutdown();
+    }
+  });
+
+  it('should keep the first modifier entry and report and save removed duplicates at startup', async () => {
+    const snackbarSpy = vi.spyOn(ZigbeePlatform.prototype, 'wssSendSnackbarMessage').mockImplementation(() => {});
+    const saveConfigSpy = vi.spyOn(ZigbeePlatform.prototype, 'saveConfig').mockImplementation(() => {});
+    const config = {
+      ...mockConfig,
+      switchList: ['switch', 'switch', 'shared'],
+      lightList: ['shared', 'light'],
+      outletList: ['light', 'outlet'],
+      valveList: ['outlet', 'valve'],
+      pumpList: ['valve', 'pump', 'pump'],
+    };
+    const instance = new ZigbeePlatform(matterbridge, log, config);
+    try {
+      expect(config.switchList).toEqual(['switch', 'shared']);
+      expect(config.lightList).toEqual(['light']);
+      expect(config.outletList).toEqual(['outlet']);
+      expect(config.valveList).toEqual(['valve']);
+      expect(config.pumpList).toEqual(['pump']);
+      expect(snackbarSpy).toHaveBeenCalledTimes(6);
+      expect(snackbarSpy).toHaveBeenCalledWith('Duplicate modifier for "shared" in lightList; keeping the first entry in switchList', 10, 'error');
+      expect(snackbarSpy).toHaveBeenCalledWith('Duplicate modifier for "valve" in pumpList; keeping the first entry in valveList', 10, 'error');
+      expect(saveConfigSpy).toHaveBeenCalledExactlyOnceWith(config);
+    } finally {
+      await instance.onShutdown();
+      snackbarSpy.mockRestore();
+      saveConfigSpy.mockRestore();
+    }
+  });
+
+  it('should preserve unique modifiers without a snackbar or config save', async () => {
+    const snackbarSpy = vi.spyOn(ZigbeePlatform.prototype, 'wssSendSnackbarMessage').mockImplementation(() => {});
+    const saveConfigSpy = vi.spyOn(ZigbeePlatform.prototype, 'saveConfig').mockImplementation(() => {});
+    const config = { ...mockConfig, switchList: ['switch'], lightList: ['light'], outletList: ['outlet'], valveList: ['valve'], pumpList: ['pump'] };
+    const instance = new ZigbeePlatform(matterbridge, log, config);
+    try {
+      expect(config.switchList).toEqual(['switch']);
+      expect(config.lightList).toEqual(['light']);
+      expect(config.outletList).toEqual(['outlet']);
+      expect(config.valveList).toEqual(['valve']);
+      expect(config.pumpList).toEqual(['pump']);
+      expect(snackbarSpy).not.toHaveBeenCalled();
+      expect(saveConfigSpy).not.toHaveBeenCalled();
+    } finally {
+      await instance.onShutdown();
+      snackbarSpy.mockRestore();
+      saveConfigSpy.mockRestore();
     }
   });
 
