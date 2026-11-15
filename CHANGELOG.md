@@ -35,7 +35,7 @@ If you like this project and find it useful, please consider giving it a star on
 
 ### Fixed
 
-- [zigbee2mqtt]: Support friendly names containing `/` (e.g. `kitchen/light`): state and availability messages on nested topics now reach the right device or group instead of being dropped as unknown.
+- [zigbee2mqtt]: Support friendly names containing `/` (e.g. `kitchen/light`): state and availability messages on nested topics now reach the right device or group instead of being dropped as unknown. Thanks Axothic (https://github.com/Luligu/matterbridge-zigbee2mqtt/pull/180).
 
 <a href="https://www.buymeacoffee.com/luligugithub"><img src="https://matterbridge.io/assets/bmc-button.svg" alt="Buy me a coffee" width="80"></a>
 
