@@ -31,7 +31,17 @@ import {
   waterValve,
 } from 'matterbridge';
 import { CYAN, db, debugStringify, LogLevel, rs } from 'matterbridge/logger';
-import { AirQuality, ColorControl, DoorLock, PowerSource, SmokeCoAlarm, Thermostat, ValveConfigurationAndControl, WindowCovering } from 'matterbridge/matter/clusters';
+import {
+  AirQuality,
+  ColorControl,
+  DoorLock,
+  LevelControl,
+  PowerSource,
+  SmokeCoAlarm,
+  Thermostat,
+  ValveConfigurationAndControl,
+  WindowCovering,
+} from 'matterbridge/matter/clusters';
 import { flushAsync } from 'matterbridge/test-utils';
 import {
   addDevice,
@@ -230,6 +240,40 @@ describe('Test Entity', () => {
 
     (entity as any).cachePublish('moveToLevel', { brightness: 100 });
     await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state', 'brightness']), waitOptions);
+
+    await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
+    expect((entity as any).noUpdateKeys).toBeUndefined();
+    entity.destroy();
+  });
+
+  test('cachePublish scopes a stop to the stopped properties', async () => {
+    const entity = new ZigbeeEntity(platform, { id: 9007, friendly_name: 'Cache publish stop', description: '', members: [], scenes: [] });
+    (entity as any).cachePublishTimeoutTime = 1;
+    (entity as any).noUpdateTimeoutTime = 500;
+
+    (entity as any).cachePublish('on', { state_l1: 'ON' });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state_l1']), waitOptions);
+    (entity as any).cachePublish('move', { brightness_move: 50 });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state_l1', 'brightness_move']), waitOptions);
+
+    // A stop published together with a command for another endpoint only releases the stopped property
+    (entity as any).cachePublish('stop', { brightness_move: 'stop', state_l2: 'ON' });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state_l1', 'state_l2']), waitOptions);
+    expect((entity as any).noUpdate).toBe(true);
+
+    // A stop of a property that is not blocked keeps blocking the other endpoints
+    (entity as any).cachePublish('stopMoveStep', { hue_move_l3: 'stop', transition: 1 });
+    await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions);
+    expect((entity as any).noUpdateKeys).toEqual(['state_l1', 'state_l2']);
+    expect((entity as any).noUpdate).toBe(true);
+    expect((entity as any).noUpdateTimeout).toBeDefined();
+
+    // A stop releases the moves and steps of the same property on the same endpoint
+    (entity as any).cachePublish('moveWithOnOff', { brightness_move_onoff_l1: 20, hue_step_l2: 10 });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state_l1', 'state_l2', 'brightness_move_onoff_l1', 'hue_step_l2']), waitOptions);
+    (entity as any).cachePublish('stop', { brightness_move_l1: 'stop', hue_move_l2: 'stop', custom: 'stop' });
+    await vi.waitFor(() => expect((entity as any).noUpdateKeys).toEqual(['state_l1', 'state_l2']), waitOptions);
+    expect((entity as any).noUpdate).toBe(true);
 
     await vi.waitFor(() => expect((entity as any).noUpdate).toBe(false), waitOptions);
     expect((entity as any).noUpdateKeys).toBeUndefined();
@@ -590,6 +634,34 @@ describe('Test Entity', () => {
       );
 
       vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Down, stepSize: 50, transitionTime: 5, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command step called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('step', friendlyName, { brightness_step: -50, transition: 0.5 });
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.moveWithOnOff', { moveMode: LevelControl.MoveMode.Up, rate: 40, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveWithOnOff', friendlyName, { brightness_move_onoff: 40 });
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.stopWithOnOff', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerLogSpy).toHaveBeenCalledWith(
+        LogLevel.DEBUG,
+        expect.stringContaining(`Command stopWithOnOff called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`),
+      );
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopWithOnOff', friendlyName, { brightness_move: 'stop' });
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 200, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'LevelControl', 'moveToLevelWithOnOff', { level: 1, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
       await vi.waitFor(() => {
         expect((entity as any).cachePublishTimeout).toBeUndefined();
@@ -627,6 +699,24 @@ describe('Test Entity', () => {
       expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveToSaturation ignored`));
       await invokeBehaviorCommand(device, 'ColorControl', 'moveToHueAndSaturation', { hue: 125, saturation: 100, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
       expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveToHueAndSaturation ignored`));
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Up, stepSize: 10, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command step ignored`));
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.stepWithOnOff', { stepMode: LevelControl.StepMode.Down, stepSize: 0, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepWithOnOff ignored`));
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepColorTemperature ignored`));
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepHue', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 0, optionsMask: 1, optionsOverride: 1 });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepHue ignored`));
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepSaturation', {
+        stepMode: ColorControl.StepMode.Up,
+        stepSize: 10,
+        transitionTime: 0,
+        optionsMask: 1,
+        optionsOverride: 1,
+      });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepSaturation ignored`));
 
       // Test updates from Z2M
       let payload: Payload;
@@ -1920,6 +2010,372 @@ describe('Test Entity', () => {
         expect(publishCommandSpy).toHaveBeenCalledWith('moveToColor', friendlyName, { color: { x: 0.4883, y: 0.4578 }, transition: 1 });
       }, waitOptions);
 
+      // Test step commands
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Up, stepSize: 20, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command step called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('step', friendlyName, { brightness_step: 20, transition: 1 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // Multiple steps within the cache window are accumulated
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Down, stepSize: 10, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Down, stepSize: 5, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('step', friendlyName, { brightness_step: -15 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Up, stepSize: 0, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command step ignored`));
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+
+      vi.clearAllMocks();
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.stepWithOnOff', { stepMode: LevelControl.StepMode.Up, stepSize: 10, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepWithOnOff', friendlyName, { brightness_step_onoff: 10 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Up, stepSize: 50, transitionTime: 10, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepColorTemperature called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepColorTemperature', friendlyName, { color_temp_step: 50, transition: 1 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // Without the color_temp property the target mireds are converted to RGB
+      vi.clearAllMocks();
+      const stepColorTempMap = (entity as any).propertyMap.get('color_temp');
+      (entity as any).propertyMap.delete('color_temp');
+      const stepMireds = device.getAttribute('ColorControl', 'colorTemperatureMireds') - 40;
+      const stepRgb = kelvinToRGB(miredToKelvin(stepMireds));
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Down, stepSize: 40, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepColorTemperature', friendlyName, { color: { r: stepRgb.r, g: stepRgb.g, b: stepRgb.b } });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`but color_temp property is not available. Converting ${stepMireds} to RGB`));
+      if (stepColorTempMap) (entity as any).propertyMap.set('color_temp', stepColorTempMap);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepHue', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepHue called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepHue', friendlyName, { hue_step: 10, transition: 1 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepSaturation', {
+        stepMode: ColorControl.StepMode.Down,
+        stepSize: 5,
+        transitionTime: 0,
+        optionsMask: 1,
+        optionsOverride: 1,
+      });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stepSaturation called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepSaturation', friendlyName, { saturation_step: -5 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // Accumulated steps are limited to the 8-bit zigbee step size
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Up, stepSize: 200, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      await invokeBehaviorCommand(device, 'LevelControl', 'step', { stepMode: LevelControl.StepMode.Up, stepSize: 200, transitionTime: null, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('step', friendlyName, { brightness_step: 255 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // Accumulated hue steps wrap around the full circle
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepHue', { stepMode: ColorControl.StepMode.Up, stepSize: 200, transitionTime: 0, optionsMask: 1, optionsOverride: 1 });
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepHue', { stepMode: ColorControl.StepMode.Up, stepSize: 200, transitionTime: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepHue', friendlyName, { hue_step: 146 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // Consecutive color temperature steps add up and are limited to the requested range
+      vi.clearAllMocks();
+      const ctStart = device.getAttribute('ColorControl', 'colorTemperatureMireds');
+      (entity as any).cachePublishTimeoutTime = 200;
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: ctStart + 15, optionsMask: 1, optionsOverride: 1 });
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: ctStart + 15, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepColorTemperature', friendlyName, { color_temp_step: 15 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // A step beyond the requested range is ignored
+      vi.clearAllMocks();
+      const ctLimit = device.getAttribute('ColorControl', 'colorTemperatureMireds');
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: ctLimit, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`color temperature at the limit`));
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+
+      // Steps that cancel each other within the cache window cancel the pending publish, including its transition
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Down, stepSize: 10, transitionTime: 10, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      expect((entity as any).cachePayload).toEqual({ color_temp_step: -10, transition: 1 });
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 10, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      expect((entity as any).cachePayload).toEqual({});
+      expect((entity as any).cachePublishTimeout).toBeUndefined();
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+      (entity as any).colorMoveKeys.clear();
+
+      // Without the color_temp property consecutive steps add up before the conversion to RGB
+      vi.clearAllMocks();
+      const accColorTempMap = (entity as any).propertyMap.get('color_temp');
+      (entity as any).propertyMap.delete('color_temp');
+      const accRgb = kelvinToRGB(miredToKelvin(device.getAttribute('ColorControl', 'colorTemperatureMireds') - 20));
+      (entity as any).cachePublishTimeoutTime = 200;
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Down, stepSize: 10, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Down, stepSize: 10, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepColorTemperature', friendlyName, { color: { r: accRgb.r, g: accRgb.g, b: accRgb.b } });
+      if (accColorTempMap) (entity as any).propertyMap.set('color_temp', accColorTempMap);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // Test move and stop commands
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.move', { moveMode: LevelControl.MoveMode.Up, rate: 50, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command move called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('move', friendlyName, { brightness_move: 50 });
+      expect((entity as any).noUpdate).toBe(true);
+      expect((entity as any).noUpdateKeys).toContain('brightness_move');
+
+      // A stop doesn't block the updates so zigbee2mqtt can report the final state
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.stop', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stop called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('stop', friendlyName, { brightness_move: 'stop' });
+      expect((entity as any).noUpdate).toBe(false);
+      expect((entity as any).noUpdateKeys).toBeUndefined();
+      expect((entity as any).noUpdateTimeout).toBeUndefined();
+
+      vi.clearAllMocks();
+      await expect(
+        invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.move', { moveMode: LevelControl.MoveMode.Up, rate: 0, optionsMask: 1, optionsOverride: 1 }),
+      ).rejects.toThrow(); // Matter.js rejects a rate of 0 after our handler
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command move ignored`));
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+
+      vi.clearAllMocks();
+      await expect(
+        invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.moveWithOnOff', { moveMode: LevelControl.MoveMode.Up, rate: 0, optionsMask: 1, optionsOverride: 1 }),
+      ).rejects.toThrow(); // Matter.js rejects a rate of 0 after our handler
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveWithOnOff ignored`));
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+
+      // A null rate is the default move rate
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.moveWithOnOff', { moveMode: LevelControl.MoveMode.Up, rate: null, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveWithOnOff', friendlyName, { brightness_move_onoff: 255 });
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.stopWithOnOff', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stopWithOnOff called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopWithOnOff', friendlyName, { brightness_move: 'stop' });
+      expect((entity as any).noUpdate).toBe(false);
+
+      // A stop within the cache window replaces the pending move
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.moveWithOnOff', { moveMode: LevelControl.MoveMode.Down, rate: 20, optionsMask: 1, optionsOverride: 1 });
+      await invokeBehaviorCommand(device, 'LevelControl', 'LevelControl.stop', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stop', friendlyName, { brightness_move: 'stop' });
+
+      // Matter.js moves the level down to the minimum and turns the light off, so turn it back on for the color moves
+      await device.setAttribute('OnOff', 'onOff', true);
+      await device.setAttribute('LevelControl', 'currentLevel', 254);
+
+      vi.clearAllMocks();
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveColorTemperature', { moveMode: ColorControl.MoveMode.Up, rate: 20, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveColorTemperature called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveColorTemperature', friendlyName, { color_temp_move: 20 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stopMoveStep', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stopMoveStep called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopMoveStep', friendlyName, { color_temp_move: 'stop' });
+
+      // Nothing to stop
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stopMoveStep', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command stopMoveStep ignored`));
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+
+      // The color temperature limits of a move are forwarded to zigbee2mqtt
+      vi.clearAllMocks();
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveColorTemperature', { moveMode: ColorControl.MoveMode.Down, rate: 20, colorTemperatureMinimumMireds: 200, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      // oxfmt-ignore
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveColorTemperature', friendlyName, { color_temp_move: { rate: -20, minimum: 200, maximum: device.getAttribute('ColorControl', 'colorTempPhysicalMaxMireds') } });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stopMoveStep', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopMoveStep', friendlyName, { color_temp_move: 'stop' });
+
+      // A color step with a transition can be stopped
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepHue', { stepMode: ColorControl.StepMode.Up, stepSize: 10, transitionTime: 10, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stopMoveStep', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopMoveStep', friendlyName, { hue_move: 'stop' });
+
+      // A stop within the cache window drops the pending color step
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      await invokeBehaviorCommand(device, 'ColorControl', 'stepSaturation', {
+        stepMode: ColorControl.StepMode.Up,
+        stepSize: 10,
+        transitionTime: 10,
+        optionsMask: 1,
+        optionsOverride: 1,
+      });
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stopMoveStep', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopMoveStep', friendlyName, { saturation_move: 'stop', transition: 1 });
+
+      // A new color move within the cache window replaces the pending one
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveHue', { moveMode: ColorControl.MoveMode.Down, rate: 10, optionsMask: 1, optionsOverride: 1 });
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveSaturation', { moveMode: ColorControl.MoveMode.Up, rate: 5, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveHue called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveSaturation called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db}`));
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveSaturation', friendlyName, { saturation_move: 5 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // Move mode Stop
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveSaturation', { moveMode: ColorControl.MoveMode.Stop, rate: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveSaturation', friendlyName, { saturation_move: 'stop' });
+      expect((entity as any).colorMoveKeys.size).toBe(0);
+
+      vi.clearAllMocks();
+      await expect(
+        invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveHue', { moveMode: ColorControl.MoveMode.Up, rate: 0, optionsMask: 1, optionsOverride: 1 }),
+      ).rejects.toThrow(); // Matter.js rejects a rate of 0 after our handler
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveHue ignored`));
+
+      vi.clearAllMocks();
+      await expect(
+        invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveSaturation', { moveMode: ColorControl.MoveMode.Up, rate: 0, optionsMask: 1, optionsOverride: 1 }),
+      ).rejects.toThrow(); // Matter.js rejects a rate of 0 after our handler
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveSaturation ignored`));
+
+      // Without the color_temp property a color temperature move can't be forwarded
+      vi.clearAllMocks();
+      const moveColorTempMap = (entity as any).propertyMap.get('color_temp');
+      (entity as any).propertyMap.delete('color_temp');
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveColorTemperature', { moveMode: ColorControl.MoveMode.Up, rate: 20, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveColorTemperature ignored`));
+      expect(publishCommandSpy).not.toHaveBeenCalled();
+      if (moveColorTempMap) (entity as any).propertyMap.set('color_temp', moveColorTempMap);
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.stopMoveStep', { optionsMask: 1, optionsOverride: 1 });
+
+      // A color move with mode Stop is forwarded even if the light is off, while a new move is ignored
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'OnOff', 'off');
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(publishCommandSpy).toHaveBeenCalledWith('off', friendlyName, { state: 'OFF' });
+      }, waitOptions);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveHue', { moveMode: ColorControl.MoveMode.Up, rate: 10, optionsMask: 1, optionsOverride: 1 });
+      expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining(`Command moveHue ignored`));
+      // oxfmt-ignore
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveColorTemperature', { moveMode: ColorControl.MoveMode.Stop, rate: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveColorTemperature', friendlyName, { color_temp_move: 'stop' });
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveHue', { moveMode: ColorControl.MoveMode.Stop, rate: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveHue', friendlyName, { hue_move: 'stop' });
+      await invokeBehaviorCommand(device, 'ColorControl', 'ColorControl.moveSaturation', { moveMode: ColorControl.MoveMode.Stop, rate: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveSaturation', friendlyName, { saturation_move: 'stop' });
+      expect(publishCommandSpy).toHaveBeenCalledTimes(3);
+      expect((entity as any).colorMoveKeys.size).toBe(0);
+      await invokeBehaviorCommand(device, 'OnOff', 'on');
+      await vi.waitFor(() => {
+        expect((entity as any).cachePublishTimeout).toBeUndefined();
+        expect(device.getAttribute('OnOff', 'onOff')).toBe(true);
+      }, waitOptions);
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
       // Turn the light off and test that moveToLevel and moveToColorTemperature commands remember their state
       vi.clearAllMocks();
       await invokeBehaviorCommand(device, 'OnOff', 'off');
@@ -2831,6 +3287,42 @@ describe('Test Entity', () => {
       const l2 = device.getChildEndpointById('l2');
       expect(l2?.deviceTypes.has(extendedColorLight.code)).toBe(true);
       expect(l2?.deviceTypes.has(dimmableLight.code)).toBe(false);
+
+      // Commands on a child endpoint use the endpoint color_temp property and cache keys
+      const l1 = device.getChildEndpointById('l1');
+      if (!l1) throw new Error('Child endpoint l1 not found');
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(await addDevice(aggregator, device)).toBe(true);
+      await l1.setAttribute('OnOff', 'onOff', true);
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      // A color temperature step replaces the pending color of the same endpoint
+      vi.clearAllMocks();
+      (entity as any).cachePublishTimeoutTime = 200;
+      await invokeBehaviorCommand(l1, 'ColorControl', 'moveToHueAndSaturation', { hue: 100, saturation: 100, transitionTime: 0, optionsMask: 1, optionsOverride: 1 });
+      // oxfmt-ignore
+      await invokeBehaviorCommand(l1, 'ColorControl', 'ColorControl.stepColorTemperature', { stepMode: ColorControl.StepMode.Down, stepSize: 10, transitionTime: 0, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      (entity as any).cachePublishTimeoutTime = 1;
+      expect(publishCommandSpy).toHaveBeenCalledTimes(1);
+      expect(publishCommandSpy).toHaveBeenCalledWith('stepColorTemperature', z2mDevice.friendly_name, { color_temp_step_l1: -10 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      // oxfmt-ignore
+      await invokeBehaviorCommand(l1, 'ColorControl', 'ColorControl.moveColorTemperature', { moveMode: ColorControl.MoveMode.Up, rate: 20, colorTemperatureMinimumMireds: 0, colorTemperatureMaximumMireds: 0, optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('moveColorTemperature', z2mDevice.friendly_name, { color_temp_move_l1: 20 });
+      clearTimeout((entity as any).noUpdateTimeout);
+      (entity as any).noUpdate = false;
+
+      vi.clearAllMocks();
+      await invokeBehaviorCommand(l1, 'ColorControl', 'ColorControl.stopMoveStep', { optionsMask: 1, optionsOverride: 1 });
+      await vi.waitFor(() => expect((entity as any).cachePublishTimeout).toBeUndefined(), waitOptions); // Wait for the cachePublish timeout
+      expect(publishCommandSpy).toHaveBeenCalledWith('stopMoveStep', z2mDevice.friendly_name, { color_temp_move_l1: 'stop' });
 
       entity.destroy();
     });
