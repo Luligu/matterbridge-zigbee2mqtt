@@ -509,18 +509,28 @@ export class ZigbeeEntity extends EventEmitter {
       this.cachePublishTimeout = undefined;
       // oxlint-disable-next-line typescript/no-unsafe-type-assertion typescript/non-nullable-type-assertion-style
       if (isValidObject(this.cachePayload, 1)) this.publishCommand(command, (this.isGroup ? this.group?.friendly_name : this.device?.friendly_name) as string, this.cachePayload);
-      // A stop is followed by zigbee2mqtt reading back the final state from the device, so we don't block the updates
-      const isStop = Object.values(this.cachePayload).includes('stop');
-      if (isStop) {
-        this.cachePayload = {};
-        clearTimeout(this.noUpdateTimeout);
-        this.noUpdateTimeout = undefined;
-        this.noUpdate = false;
-        this.noUpdateKeys = undefined;
-        return;
-      }
-      this.noUpdateKeys = [...new Set([...(this.noUpdateKeys ?? []), ...Object.keys(this.cachePayload)])];
+      // A stop is followed by zigbee2mqtt reading back the final state from the device, so the stopped properties no longer block the updates.
+      // The cache payload is shared by all the endpoints, so the other commands published together with the stop still block their updates.
+      const payloadKeys = Object.keys(this.cachePayload);
+      const stopKeys = payloadKeys.filter((key) => this.cachePayload[key] === 'stop');
+      const updateKeys = payloadKeys.filter((key) => this.cachePayload[key] !== 'stop');
       this.cachePayload = {};
+      // Keys left over from an expired no update window don't block anything
+      if (!this.noUpdate) this.noUpdateKeys = undefined;
+      if (stopKeys.length > 0) {
+        const releasedKeys = this.stopReleasedKeys(stopKeys);
+        this.noUpdateKeys = this.noUpdateKeys?.filter((key) => !releasedKeys.has(key));
+        if (updateKeys.every((key) => key === 'transition')) {
+          if (this.noUpdateKeys === undefined || this.noUpdateKeys.length === 0) {
+            clearTimeout(this.noUpdateTimeout);
+            this.noUpdateTimeout = undefined;
+            this.noUpdate = false;
+            this.noUpdateKeys = undefined;
+          }
+          return;
+        }
+      }
+      this.noUpdateKeys = [...new Set([...(this.noUpdateKeys ?? []), ...updateKeys])];
       this.noUpdate = true;
       this.log.debug(
         `No update for 2 seconds to allow the device ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} to update its state`,
@@ -534,6 +544,26 @@ export class ZigbeeEntity extends EventEmitter {
         this.noUpdateKeys = undefined;
       }, this.noUpdateTimeoutTime).unref();
     }, this.cachePublishTimeoutTime).unref();
+  }
+
+  /**
+   * Get the keys whose update suppression is released by the published stop keys.
+   * A stop (e.g. brightness_move_l1: 'stop') stops every move or step transition of the same property on the same endpoint,
+   * so it releases brightness_move_l1, brightness_move_onoff_l1, brightness_step_l1 and brightness_step_onoff_l1.
+   *
+   * @param {string[]} stopKeys - The published keys with the value 'stop' (e.g. brightness_move, hue_move_l1)
+   * @returns {Set<string>} The keys released by the stop
+   */
+  private stopReleasedKeys(stopKeys: string[]): Set<string> {
+    const releasedKeys = new Set<string>(stopKeys);
+    for (const stopKey of stopKeys) {
+      const index = stopKey.indexOf('_move');
+      if (index < 0) continue;
+      const property = stopKey.slice(0, index);
+      const postfix = stopKey.slice(index + '_move'.length);
+      for (const suffix of ['_move', '_move_onoff', '_step', '_step_onoff']) releasedKeys.add(property + suffix + postfix);
+    }
+    return releasedKeys;
   }
 
   /**
@@ -852,6 +882,12 @@ export class ZigbeeEntity extends EventEmitter {
         // oxlint-disable-next-line typescript/no-dynamic-delete
         delete this.cachePayload[key];
         this.colorTempStepTargets.delete(postfix);
+        // Cancel the pending publish if only the transition of the cancelled step is left, so that a command without a color temperature is not published
+        if (Object.keys(this.cachePayload).every((cachedKey) => cachedKey === 'transition')) {
+          this.cachePayload = {};
+          clearTimeout(this.cachePublishTimeout);
+          this.cachePublishTimeout = undefined;
+        }
         this.log.debug(`Command stepColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} color temperature at the limit`);
         return;
       }
@@ -982,7 +1018,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.saveCommands('moveColorTemperature', data);
     const postfix = this.endpointPostfix(data.endpoint);
     this.invalidateColorCache(postfix, 'temperature');
-    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || !this.propertyMap.get('color_temp' + postfix) || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
+    if (!this.propertyMap.get('color_temp' + postfix) || (data.request.moveMode !== ColorControl.MoveMode.Stop && (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.rate === 0))) {
       this.log.debug(`Command moveColorTemperature ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF, color_temp property not available or rate 0`);
       return;
     }
@@ -1002,7 +1038,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.saveCommands('moveHue', data);
     const postfix = this.endpointPostfix(data.endpoint);
     this.invalidateColorCache(postfix, 'hueSaturation');
-    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
+    if (data.request.moveMode !== ColorControl.MoveMode.Stop && (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.rate === 0)) {
       this.log.debug(`Command moveHue ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or rate 0`);
       return;
     }
@@ -1015,7 +1051,7 @@ export class ZigbeeEntity extends EventEmitter {
     this.saveCommands('moveSaturation', data);
     const postfix = this.endpointPostfix(data.endpoint);
     this.invalidateColorCache(postfix, 'hueSaturation');
-    if (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || (data.request.moveMode !== ColorControl.MoveMode.Stop && data.request.rate === 0)) {
+    if (data.request.moveMode !== ColorControl.MoveMode.Stop && (data.endpoint.getAttribute(OnOff.id, 'onOff') === false || data.request.rate === 0)) {
       this.log.debug(`Command moveSaturation ignored for ${this.ien}${this.isGroup ? this.group?.friendly_name : this.device?.friendly_name}${rs}${db} endpoint: ${data.endpoint?.maybeId}:${data.endpoint?.maybeNumber} light OFF or rate 0`);
       return;
     }
