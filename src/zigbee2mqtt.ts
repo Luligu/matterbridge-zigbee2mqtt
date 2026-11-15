@@ -705,14 +705,15 @@ export class Zigbee2MQTT extends EventEmitter {
       // const data = JSON.parse(payload.toString());
       // this.log.debug('classZigbee2MQTT=>Message bridge/definitions', data);
     } else {
-      let entity = topic.replace(this.mqttTopic + '/', '');
-      let service = '';
-      if (entity.search('/')) {
-        // set get availability or unknown TODO
-        const parts = entity.split('/');
-        entity = parts[0];
-        service = parts[1];
+      // Friendly names can contain '/': the entity is the longest known device or group name the topic starts with, the next part is the service
+      const parts = topic.replace(this.mqttTopic + '/', '').split('/');
+      let length = parts.length;
+      for (; length > 1; length--) {
+        const name = parts.slice(0, length).join('/');
+        if (this.z2mDevices.some((device) => device.friendly_name === name) || this.z2mGroups.some((group) => group.friendly_name === name)) break;
       }
+      const entity = parts.slice(0, length).join('/');
+      const service = parts[length];
       if (entity === 'Coordinator') {
         const data = this.tryJsonParse(payload.toString()); // TODO crash on device rename
         if (service === 'availability') {
