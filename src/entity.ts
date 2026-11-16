@@ -238,6 +238,17 @@ export class ZigbeeEntity extends EventEmitter {
         this.log.debug(`Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
+      // Skip updates of all color attributes if state === OFF.
+      // This runs before the no update window strips the published keys: after an off command the window removes state,
+      // and a light that fades out (e.g. Philips Hue) reports a mid-fade brightness with state OFF that would otherwise
+      // become the level the light is turned back on at.
+      if ('state' in payload && payload.state === 'OFF') {
+        this.log.debug(`*Skipping color attributes update (state is OFF) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
+        for (const key of Object.keys(payload)) {
+          // oxlint-disable-next-line typescript/no-dynamic-delete
+          if (['brightness', 'color_temp', 'color', 'color_mode'].includes(key)) delete payload[key];
+        }
+      }
       if (this.noUpdate) {
         // Only skip the keys we just published (if known) so other features (e.g. power) are still updated
         if (this.noUpdateKeys) {
@@ -251,14 +262,6 @@ export class ZigbeeEntity extends EventEmitter {
           return;
         }
         this.log.debug(`Skipping (no update) keys ${CYAN}${this.noUpdateKeys.join(', ')}${db} for accessory ${this.entityName}`);
-      }
-      // Skip updates of all color attributes if state === OFF
-      if ('state' in payload && payload.state === 'OFF') {
-        this.log.debug(`*Skipping color attributes update (state is OFF) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
-        for (const key of Object.keys(payload)) {
-          // oxlint-disable-next-line typescript/no-dynamic-delete
-          if (['brightness', 'color_temp', 'color', 'color_mode'].includes(key)) delete payload[key];
-        }
       }
 
       this.log.info(

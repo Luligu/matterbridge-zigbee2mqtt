@@ -219,6 +219,26 @@ describe('Test Entity', () => {
     entity.destroy();
   });
 
+  test('MESSAGE update skips brightness with state OFF when the no update window strips state', () => {
+    const entity = new ZigbeeEntity(platform, { id: 9006, friendly_name: 'No update off entity', description: '', members: [], scenes: [] });
+    entity.bridgedDevice = {} as MatterbridgeEndpoint;
+    (entity as any).noUpdate = true;
+    (entity as any).noUpdateKeys = ['state'];
+
+    // A light that fades out reports a mid-fade brightness together with state OFF right after the off command
+    platform.z2m.emit('MESSAGE-No update off entity', { state: 'OFF', brightness: 25, color_temp: 455, color_mode: 'color_temp', power: 0 });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('*Skipping color attributes update (state is OFF) MQTT message for accessory No update off entity'));
+    expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining(`payload: ${debugStringify({ power: 0 })}`));
+
+    vi.clearAllMocks();
+    platform.z2m.emit('MESSAGE-No update off entity', { state: 'OFF', brightness: 25 });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('Skipping (no update) MQTT message for accessory No update off entity'));
+    expect(loggerInfoSpy).not.toHaveBeenCalledWith(expect.stringContaining('MQTT message for device'));
+    entity.destroy();
+  });
+
   test('cachePublish sets and resets noUpdateKeys', async () => {
     const entity = new ZigbeeEntity(platform, { id: 9006, friendly_name: 'Cache publish keys', description: '', members: [], scenes: [] });
     (entity as any).cachePublishTimeoutTime = 1;
