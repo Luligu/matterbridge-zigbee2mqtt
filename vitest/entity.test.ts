@@ -219,6 +219,26 @@ describe('Test Entity', () => {
     entity.destroy();
   });
 
+  test('MESSAGE update skips brightness with state OFF when the no update window strips state', () => {
+    const entity = new ZigbeeEntity(platform, { id: 9006, friendly_name: 'No update off entity', description: '', members: [], scenes: [] });
+    entity.bridgedDevice = {} as MatterbridgeEndpoint;
+    (entity as any).noUpdate = true;
+    (entity as any).noUpdateKeys = ['state'];
+
+    // A light that fades out reports a mid-fade brightness together with state OFF right after the off command
+    platform.z2m.emit('MESSAGE-No update off entity', { state: 'OFF', brightness: 25, color_temp: 455, color_mode: 'color_temp', power: 0 });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('*Skipping color attributes update (state is OFF) MQTT message for accessory No update off entity'));
+    expect(loggerInfoSpy).toHaveBeenCalledWith(expect.stringContaining(`payload: ${debugStringify({ power: 0 })}`));
+
+    vi.clearAllMocks();
+    platform.z2m.emit('MESSAGE-No update off entity', { state: 'OFF', brightness: 25 });
+
+    expect(loggerDebugSpy).toHaveBeenCalledWith(expect.stringContaining('Skipping (no update) MQTT message for accessory No update off entity'));
+    expect(loggerInfoSpy).not.toHaveBeenCalledWith(expect.stringContaining('MQTT message for device'));
+    entity.destroy();
+  });
+
   test('cachePublish sets and resets noUpdateKeys', async () => {
     const entity = new ZigbeeEntity(platform, { id: 9006, friendly_name: 'Cache publish keys', description: '', members: [], scenes: [] });
     (entity as any).cachePublishTimeoutTime = 1;
@@ -515,7 +535,7 @@ describe('Test Entity', () => {
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command on called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 255, color: { h: 0, s: 0 } });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 254, color: { h: 0, s: 0 } });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
@@ -545,7 +565,7 @@ describe('Test Entity', () => {
       clearTimeout((entity as any).noUpdateTimeout);
       (entity as any).noUpdate = false;
       expect(loggerLogSpy).toHaveBeenCalledWith(LogLevel.DEBUG, expect.stringContaining(`Command toggle called for ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db}`));
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 255, color: { h: 0, s: 0 } });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 254, color: { h: 0, s: 0 } });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mGroup.friendly_name}${rs}${db} to update its state`),
@@ -1540,10 +1560,10 @@ describe('Test Entity', () => {
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(
-          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}Brightness${db} payload ${debugStringify({ brightness: 255 })}`,
+          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}Brightness${db} payload ${debugStringify({ brightness: 254 })}`,
         ),
       );
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, state: 'ON' });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 254, state: 'ON' });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
@@ -1576,10 +1596,10 @@ describe('Test Entity', () => {
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(
-          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}Brightness${db} payload ${debugStringify({ brightness: 255 })}`,
+          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}Brightness${db} payload ${debugStringify({ brightness: 254 })}`,
         ),
       );
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, state: 'ON' });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 254, state: 'ON' });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
@@ -1724,10 +1744,10 @@ describe('Test Entity', () => {
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(
-          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 255, color: { h: 0, s: 0 } })}`,
+          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 254, color: { h: 0, s: 0 } })}`,
         ),
       );
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, color: { h: 0, s: 0 }, state: 'ON' });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 254, color: { h: 0, s: 0 }, state: 'ON' });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
@@ -1760,10 +1780,10 @@ describe('Test Entity', () => {
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(
-          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 255, color: { h: 0, s: 0 } })}`,
+          `Set attributes called for ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} colorMode ${CYAN}CurrentHueAndCurrentSaturation${db} payload ${debugStringify({ brightness: 254, color: { h: 0, s: 0 } })}`,
         ),
       );
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 255, color: { h: 0, s: 0 }, state: 'ON' });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { brightness: 254, color: { h: 0, s: 0 }, state: 'ON' });
       expect(loggerLogSpy).toHaveBeenCalledWith(
         LogLevel.DEBUG,
         expect.stringContaining(`No update for 2 seconds to allow the device ${(entity as any).ien}${z2mDevice.friendly_name}${rs}${db} to update its state`),
@@ -1943,7 +1963,7 @@ describe('Test Entity', () => {
         expect(device.getAttribute('LevelControl', 'currentLevel')).toBe(160);
         expect(device.getAttribute('ColorControl', 'colorMode')).toBe(ColorControl.ColorMode.ColorTemperatureMireds);
         expect(device.getAttribute('ColorControl', 'colorTemperatureMireds')).toBe(350);
-        expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 161, color_temp: 350 });
+        expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 160, color_temp: 350 });
       }, waitOptions);
 
       // Turn the light off and test that moveToLevel and moveToHueAndSaturation commands remember their state
@@ -1976,7 +1996,7 @@ describe('Test Entity', () => {
         expect(device.getAttribute('ColorControl', 'currentSaturation')).toBe(40);
       }, waitOptions);
       // oxfmt-ignore
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((135 / 254) * 255), color: { h: Math.round(125 / 254 * 360), s: Math.round(40 / 254 * 100) } });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 135, color: { h: Math.round(125 / 254 * 360), s: Math.round(40 / 254 * 100) } });
 
       // Turn the light off and test that moveToLevel and moveToColor commands remember their state
       await invokeBehaviorCommand(device, 'OnOff', 'off');
@@ -2012,7 +2032,7 @@ describe('Test Entity', () => {
         expect(device.getAttribute('ColorControl', 'currentY')).toBe(28000);
       }, waitOptions);
       // oxfmt-ignore
-      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: Math.round((115 / 254) * 255), color: { x: 25000 / 65535, y: 28000 / 65535 } });
+      expect(publishCommandSpy).toHaveBeenCalledWith('on', friendlyName, { state: 'ON', brightness: 115, color: { x: 25000 / 65535, y: 28000 / 65535 } });
 
       // Test updates from Z2M
       let payload: Payload;

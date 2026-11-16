@@ -238,6 +238,17 @@ export class ZigbeeEntity extends EventEmitter {
         this.log.debug(`Skipping (no device) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
         return;
       }
+      // Skip updates of all color attributes if state === OFF.
+      // This runs before the no update window strips the published keys: after an off command the window removes state,
+      // and a light that fades out (e.g. Philips Hue) reports a mid-fade brightness with state OFF that would otherwise
+      // become the level the light is turned back on at.
+      if ('state' in payload && payload.state === 'OFF') {
+        this.log.debug(`*Skipping color attributes update (state is OFF) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
+        for (const key of Object.keys(payload)) {
+          // oxlint-disable-next-line typescript/no-dynamic-delete
+          if (['brightness', 'color_temp', 'color', 'color_mode'].includes(key)) delete payload[key];
+        }
+      }
       if (this.noUpdate) {
         // Only skip the keys we just published (if known) so other features (e.g. power) are still updated
         if (this.noUpdateKeys) {
@@ -251,14 +262,6 @@ export class ZigbeeEntity extends EventEmitter {
           return;
         }
         this.log.debug(`Skipping (no update) keys ${CYAN}${this.noUpdateKeys.join(', ')}${db} for accessory ${this.entityName}`);
-      }
-      // Skip updates of all color attributes if state === OFF
-      if ('state' in payload && payload.state === 'OFF') {
-        this.log.debug(`*Skipping color attributes update (state is OFF) ${platform.z2mDevicesRegistered ? 'MQTT message' : 'State update'} for accessory ${this.entityName}`);
-        for (const key of Object.keys(payload)) {
-          // oxlint-disable-next-line typescript/no-dynamic-delete
-          if (['brightness', 'color_temp', 'color', 'color_mode'].includes(key)) delete payload[key];
-        }
       }
 
       this.log.info(
@@ -531,8 +534,9 @@ export class ZigbeeEntity extends EventEmitter {
    */
   protected setCachePublishAttributes(endpoint: MatterbridgeEndpoint, postfix?: string): void {
     // We need to add the cluster attributes if we are turning on the light and it was off
-    const brightness = endpoint.hasAttributeServer(LevelControl.id, 'currentLevel') ? Math.round((endpoint.getAttribute(LevelControl.id, 'currentLevel') / 254) * 255) : undefined;
-    if (isValidNumber(brightness, 1, 255)) this.cachePayload['brightness' + (postfix ?? '')] = brightness;
+    const brightness = endpoint.hasAttributeServer(LevelControl.id, 'currentLevel') ? endpoint.getAttribute(LevelControl.id, 'currentLevel') : undefined;
+    // zigbee2mqtt brightness and Matter currentLevel share the range 1-254 (see the brightness converter)
+    if (isValidNumber(brightness, 1, 254)) this.cachePayload['brightness' + (postfix ?? '')] = brightness;
     const color_temp =
       endpoint.hasClusterServer(ColorControl.id) &&
       endpoint.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds') &&
