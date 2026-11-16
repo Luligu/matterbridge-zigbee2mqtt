@@ -534,8 +534,9 @@ export class ZigbeeEntity extends EventEmitter {
    */
   protected setCachePublishAttributes(endpoint: MatterbridgeEndpoint, postfix?: string): void {
     // We need to add the cluster attributes if we are turning on the light and it was off
-    const brightness = endpoint.hasAttributeServer(LevelControl.id, 'currentLevel') ? Math.round((endpoint.getAttribute(LevelControl.id, 'currentLevel') / 254) * 255) : undefined;
-    if (isValidNumber(brightness, 1, 255)) this.cachePayload['brightness' + (postfix ?? '')] = brightness;
+    const brightness = endpoint.hasAttributeServer(LevelControl.id, 'currentLevel') ? endpoint.getAttribute(LevelControl.id, 'currentLevel') : undefined;
+    // zigbee2mqtt brightness and Matter currentLevel share the range 1-254 (see the brightness converter)
+    if (isValidNumber(brightness, 1, 254)) this.cachePayload['brightness' + (postfix ?? '')] = brightness;
     const color_temp =
       endpoint.hasClusterServer(ColorControl.id) &&
       endpoint.hasAttributeServer(ColorControl.id, 'colorTemperatureMireds') &&
